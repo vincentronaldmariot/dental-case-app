@@ -13,6 +13,10 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
   final _nameController = TextEditingController();
   final _serialNumberController = TextEditingController();
   final _unitAssignmentController = TextEditingController();
+  final _contactNumberController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _emergencyContactController = TextEditingController();
+  final _emergencyPhoneController = TextEditingController();
   final _lastVisitController = TextEditingController();
 
   String _selectedClassification = '';
@@ -35,6 +39,7 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
 
   bool? _needDentures;
   bool? _missingTeeth;
+  bool? _hasMissingTeeth;
 
   Map<String, bool?> _missingToothConditions = {
     'missing_broken_tooth': null,
@@ -46,6 +51,10 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
     _nameController.dispose();
     _serialNumberController.dispose();
     _unitAssignmentController.dispose();
+    _contactNumberController.dispose();
+    _emailController.dispose();
+    _emergencyContactController.dispose();
+    _emergencyPhoneController.dispose();
     _lastVisitController.dispose();
     super.dispose();
   }
@@ -149,6 +158,51 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
                             ? 'Unit assignment is required'
                             : null,
                       ),
+                      const SizedBox(height: 12),
+
+                      _buildInputField(
+                        controller: _contactNumberController,
+                        labelText: 'CONTACT NUMBER:',
+                        keyboardType: TextInputType.phone,
+                        validator: (value) => value?.isEmpty ?? true
+                            ? 'Contact number is required'
+                            : null,
+                      ),
+                      const SizedBox(height: 12),
+
+                      _buildInputField(
+                        controller: _emailController,
+                        labelText: 'EMAIL:',
+                        keyboardType: TextInputType.emailAddress,
+                        validator: (value) {
+                          if (value?.isEmpty ?? true) {
+                            return 'Email is required';
+                          }
+                          if (!value!.contains('@') || !value.contains('.')) {
+                            return 'Please enter a valid email';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 12),
+
+                      _buildInputField(
+                        controller: _emergencyContactController,
+                        labelText: 'EMERGENCY CONTACT:',
+                        validator: (value) => value?.isEmpty ?? true
+                            ? 'Emergency contact is required'
+                            : null,
+                      ),
+                      const SizedBox(height: 12),
+
+                      _buildInputField(
+                        controller: _emergencyPhoneController,
+                        labelText: 'EMERGENCY PHONE:',
+                        keyboardType: TextInputType.phone,
+                        validator: (value) => value?.isEmpty ?? true
+                            ? 'Emergency phone is required'
+                            : null,
+                      ),
 
                       const SizedBox(height: 25),
 
@@ -228,15 +282,26 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
 
                       _buildSimpleYesNoQuestion(
                         '7. Do you have missing or extracted teeth?',
-                        _missingTeeth,
+                        _hasMissingTeeth,
                         (value) {
-                          setState(() => _missingTeeth = value);
+                          setState(() => _hasMissingTeeth = value);
                         },
                       ),
 
                       const SizedBox(height: 15),
 
-                      if (_missingTeeth == true) _buildMissingTeethSection(),
+                      const Text(
+                        'Sample pictures of missing teeth types:',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontStyle: FontStyle.italic,
+                          color: Colors.grey,
+                        ),
+                      ),
+
+                      const SizedBox(height: 10),
+
+                      _buildMissingTeethSamplesSection(),
 
                       const SizedBox(height: 25),
 
@@ -296,6 +361,7 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
     required String labelText,
     String? Function(String?)? validator,
     int maxLines = 1,
+    TextInputType? keyboardType,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -306,6 +372,7 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
         controller: controller,
         validator: validator,
         maxLines: maxLines,
+        keyboardType: keyboardType,
         decoration: InputDecoration(
           labelText: labelText,
           labelStyle: const TextStyle(
@@ -771,6 +838,23 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
     );
   }
 
+  Widget _buildMissingTeethSamplesSection() {
+    return Row(
+      children: [
+        Expanded(
+          child: _buildSampleToothCard('Missing teeth', 'missing_teeth.png'),
+        ),
+        const SizedBox(width: 15),
+        Expanded(
+          child: _buildSampleToothCard(
+            'Extracted teeth',
+            'extracted_teeth.png',
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildMissingTeethSection() {
     return Column(
       children: [
@@ -801,6 +885,68 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
           ],
         ),
       ],
+    );
+  }
+
+  Widget _buildSampleToothCard(String title, String imageName) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Container(
+            height: 80,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.grey.shade300),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.asset(
+                'assets/image/$imageName',
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    color: Colors.blue.withOpacity(0.1),
+                    child: const Icon(
+                      Icons.image,
+                      color: Colors.blue,
+                      size: 30,
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '(Sample)',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 10,
+              fontStyle: FontStyle.italic,
+              color: Colors.grey.shade600,
+            ),
+          ),
+        ],
+      ),
     );
   }
 

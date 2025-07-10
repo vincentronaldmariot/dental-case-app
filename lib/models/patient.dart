@@ -11,6 +11,8 @@ class Patient {
   final String emergencyPhone;
   final String medicalHistory;
   final String allergies;
+  final String serialNumber;
+  final String unitAssignment;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -27,6 +29,8 @@ class Patient {
     required this.emergencyPhone,
     this.medicalHistory = '',
     this.allergies = '',
+    this.serialNumber = '',
+    this.unitAssignment = '',
     DateTime? createdAt,
     DateTime? updatedAt,
   }) : createdAt = createdAt ?? DateTime.now(),
@@ -47,6 +51,8 @@ class Patient {
       'emergencyPhone': emergencyPhone,
       'medicalHistory': medicalHistory,
       'allergies': allergies,
+      'serialNumber': serialNumber,
+      'unitAssignment': unitAssignment,
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
     };
@@ -67,6 +73,8 @@ class Patient {
       emergencyPhone: map['emergencyPhone'],
       medicalHistory: map['medicalHistory'] ?? '',
       allergies: map['allergies'] ?? '',
+      serialNumber: map['serialNumber'] ?? '',
+      unitAssignment: map['unitAssignment'] ?? '',
       createdAt: DateTime.parse(map['createdAt']),
       updatedAt: DateTime.parse(map['updatedAt']),
     );
@@ -89,6 +97,8 @@ class Patient {
     String? emergencyPhone,
     String? medicalHistory,
     String? allergies,
+    String? serialNumber,
+    String? unitAssignment,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -105,6 +115,8 @@ class Patient {
       emergencyPhone: emergencyPhone ?? this.emergencyPhone,
       medicalHistory: medicalHistory ?? this.medicalHistory,
       allergies: allergies ?? this.allergies,
+      serialNumber: serialNumber ?? this.serialNumber,
+      unitAssignment: unitAssignment ?? this.unitAssignment,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -112,6 +124,6 @@ class Patient {
 
   @override
   String toString() {
-    return 'Patient{id: $id, name: $fullName, email: $email, phone: $phone}';
+    return 'Patient{id: $id, name: $fullName, email: $email, phone: $phone, serial: $serialNumber, unit: $unitAssignment}';
   }
 }

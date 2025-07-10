@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import './services/appointment_service.dart';
+import './services/patient_limit_service.dart';
 
 class AppointmentBookingScreen extends StatefulWidget {
   const AppointmentBookingScreen({super.key});
@@ -15,6 +17,16 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen>
   late AnimationController _shakeController;
   late Animation<double> _shakeAnimation;
 
+  // New controllers for patient information
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _phoneController = TextEditingController();
+
+  final AppointmentService _appointmentService = AppointmentService();
+  final PatientLimitService _patientLimitService = PatientLimitService();
+
+  bool _isLoading = false;
+
   final List<String> services = [
     'General Checkup',
     'Teeth Cleaning',
@@ -29,6 +41,7 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen>
   @override
   void initState() {
     super.initState();
+    _appointmentService.initializeSampleData();
     _shakeController = AnimationController(
       duration: const Duration(milliseconds: 500),
       vsync: this,
@@ -41,6 +54,9 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen>
   @override
   void dispose() {
     _shakeController.dispose();
+    _nameController.dispose();
+    _emailController.dispose();
+    _phoneController.dispose();
     super.dispose();
   }
 
@@ -69,6 +85,12 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Patient Information Section
+              _buildSectionTitle('Patient Information'),
+              const SizedBox(height: 15),
+              _buildPatientInformation(),
+              const SizedBox(height: 30),
+
               _buildSectionTitle('Select Service'),
               const SizedBox(height: 15),
               _buildServiceSelection(),
@@ -77,6 +99,11 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen>
               _buildSectionTitle('Select Date'),
               const SizedBox(height: 15),
               _buildDateSelection(),
+              const SizedBox(height: 20),
+
+              // Show availability information
+              _buildAvailabilityInfo(),
+
               const SizedBox(height: 40),
 
               _buildBookButton(),
@@ -94,6 +121,135 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen>
         fontSize: 20,
         fontWeight: FontWeight.bold,
         color: Color(0xFF000074),
+      ),
+    );
+  }
+
+  Widget _buildPatientInformation() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          TextField(
+            controller: _nameController,
+            decoration: const InputDecoration(
+              labelText: 'Full Name',
+              prefixIcon: Icon(Icons.person),
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _emailController,
+            decoration: const InputDecoration(
+              labelText: 'Email Address',
+              prefixIcon: Icon(Icons.email),
+              border: OutlineInputBorder(),
+            ),
+            keyboardType: TextInputType.emailAddress,
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _phoneController,
+            decoration: const InputDecoration(
+              labelText: 'Phone Number',
+              prefixIcon: Icon(Icons.phone),
+              border: OutlineInputBorder(),
+            ),
+            keyboardType: TextInputType.phone,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAvailabilityInfo() {
+    final dailyLimit = _patientLimitService.getDailyLimit(selectedDate);
+    final appointmentCount = _appointmentService.getAppointmentCountForDate(
+      selectedDate,
+    );
+
+    Color statusColor;
+    String statusText;
+    IconData statusIcon;
+
+    if (dailyLimit.isAtLimit) {
+      statusColor = Colors.red;
+      statusText = 'FULLY BOOKED';
+      statusIcon = Icons.error;
+    } else if (dailyLimit.isNearLimit) {
+      statusColor = Colors.orange;
+      statusText = 'LIMITED AVAILABILITY';
+      statusIcon = Icons.warning;
+    } else {
+      statusColor = Colors.green;
+      statusText = 'AVAILABLE';
+      statusIcon = Icons.check_circle;
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: statusColor.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: statusColor.withOpacity(0.3)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Icon(statusIcon, color: statusColor, size: 24),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      statusText,
+                      style: TextStyle(
+                        color: statusColor,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    Text(
+                      '${appointmentCount}/100 appointments booked',
+                      style: TextStyle(
+                        color: statusColor.withOpacity(0.8),
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Text(
+                '${100 - appointmentCount} slots left',
+                style: TextStyle(
+                  color: statusColor,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          LinearProgressIndicator(
+            value: appointmentCount / 100,
+            backgroundColor: Colors.grey.shade200,
+            valueColor: AlwaysStoppedAnimation<Color>(statusColor),
+          ),
+        ],
       ),
     );
   }
@@ -411,13 +567,21 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen>
   }
 
   Widget _buildBookButton() {
-    final isFormComplete = selectedService != null;
+    final isFormComplete =
+        selectedService != null &&
+        _nameController.text.isNotEmpty &&
+        _emailController.text.isNotEmpty &&
+        _phoneController.text.isNotEmpty;
+
+    final dailyLimit = _patientLimitService.getDailyLimit(selectedDate);
 
     return SizedBox(
       width: double.infinity,
       height: 55,
       child: ElevatedButton(
-        onPressed: isFormComplete ? _bookAppointment : null,
+        onPressed: (isFormComplete && !dailyLimit.isAtLimit && !_isLoading)
+            ? _bookAppointment
+            : null,
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFF0029B2),
           foregroundColor: Colors.white,
@@ -427,58 +591,133 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen>
           elevation: 5,
           shadowColor: const Color(0xFF0029B2).withOpacity(0.3),
         ),
-        child: const Text(
-          'Book Appointment',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-        ),
+        child: _isLoading
+            ? const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  strokeWidth: 2,
+                ),
+              )
+            : Text(
+                dailyLimit.isAtLimit ? 'Fully Booked' : 'Book Appointment',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
       ),
     );
   }
 
-  void _bookAppointment() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-        title: const Row(
-          children: [
-            Icon(Icons.check_circle, color: Colors.green, size: 30),
-            SizedBox(width: 10),
-            Text('Appointment Booked!'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Service: $selectedService'),
-            const SizedBox(height: 5),
-            Text(
-              'Date: ${selectedDate.day}/${selectedDate.month}/${selectedDate.year}',
+  void _bookAppointment() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final result = await _appointmentService.bookAppointment(
+        service: selectedService!,
+        date: selectedDate,
+        patientName: _nameController.text.trim(),
+        patientEmail: _emailController.text.trim(),
+        patientPhone: _phoneController.text.trim(),
+      );
+
+      setState(() => _isLoading = false);
+
+      if (result.success) {
+        // Show success dialog
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(15),
             ),
-            const SizedBox(height: 15),
-            const Text(
-              'You will receive a confirmation email shortly.',
-              style: TextStyle(color: Colors.grey),
+            title: const Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.green, size: 30),
+                SizedBox(width: 10),
+                Text('Appointment Booked!'),
+              ],
             ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              Navigator.of(context).pop();
-            },
-            child: const Text(
-              'OK',
-              style: TextStyle(
-                color: Color(0xFF0029B2),
-                fontWeight: FontWeight.bold,
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(result.message),
+                const SizedBox(height: 15),
+                const Text(
+                  'You will receive a confirmation email shortly.',
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  Navigator.of(context).pop();
+                },
+                child: const Text(
+                  'OK',
+                  style: TextStyle(
+                    color: Color(0xFF0029B2),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
-            ),
+            ],
           ),
-        ],
-      ),
-    );
+        );
+      } else {
+        // Show error dialog
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(15),
+            ),
+            title: const Row(
+              children: [
+                Icon(Icons.error, color: Colors.red, size: 30),
+                SizedBox(width: 10),
+                Text('Booking Failed'),
+              ],
+            ),
+            content: Text(result.message),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text(
+                  'OK',
+                  style: TextStyle(
+                    color: Color(0xFF0029B2),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Error'),
+          content: const Text(
+            'An unexpected error occurred. Please try again.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    }
   }
 }

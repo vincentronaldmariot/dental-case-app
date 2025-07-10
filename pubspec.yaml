@@ -80,6 +80,8 @@ flutter:
     - assets/image/tartar_heavy.png
     - assets/image/broken_tooth_filling.png
     - assets/image/broken_pasta_filling.png
+    - assets/image/missing_teeth.png
+    - assets/image/extracted_teeth.png
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware

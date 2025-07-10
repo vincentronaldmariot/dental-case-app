@@ -522,112 +522,56 @@ class DashboardScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 15),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildQuickActionCard(
-                            'Book Appointment',
-                            Icons.calendar_month,
-                            const Color(0xFF0029B2),
-                            () => _handleAppointmentBooking(context),
-                          ),
-                        ),
-                        const SizedBox(width: 15),
-                        Expanded(
-                          child: _buildQuickActionCard(
-                            'Emergency',
-                            Icons.local_hospital,
-                            const Color(0xFFE74C3C),
-                            () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) =>
-                                      const EmergencyCenterScreen(),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 15),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildQuickActionCard(
-                            'Health Assessment',
-                            Icons.assignment_outlined,
-                            const Color(0xFF005800),
-                            () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) =>
-                                      const DentalSurveyScreen(),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 15),
-                        Expanded(child: _buildTreatmentHistoryCard(context)),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            // Services Section
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Our Services',
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black87,
-                      ),
-                    ),
-                    const SizedBox(height: 15),
                     GridView.count(
+                      crossAxisCount: 2,
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
-                      crossAxisCount: 2,
-                      mainAxisSpacing: 15,
                       crossAxisSpacing: 15,
-                      childAspectRatio: 1.2,
+                      mainAxisSpacing: 15,
+                      childAspectRatio: 1.0,
                       children: [
-                        _buildServiceCard(
-                          'General Checkup',
-                          Icons.medical_services,
-                          const Color(0xFF005800),
-                        ),
-                        _buildServiceCard(
-                          'Teeth Cleaning',
-                          Icons.cleaning_services,
-                          const Color(0xFF000074),
-                        ),
-                        _buildServiceCard(
-                          'Orthodontics',
-                          Icons.straighten,
+                        _buildQuickActionCard(
+                          'Book Appointment',
+                          Icons.calendar_month,
                           const Color(0xFF0029B2),
+                          () => _handleAppointmentBooking(context),
                         ),
-                        _buildServiceCard(
-                          'Cosmetic',
-                          Icons.auto_fix_high,
-                          const Color(0xFF7B1FA2),
+                        _buildQuickActionCard(
+                          'Emergency',
+                          Icons.local_hospital,
+                          const Color(0xFFE74C3C),
+                          () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    const EmergencyCenterScreen(),
+                              ),
+                            );
+                          },
                         ),
+                        _buildQuickActionCard(
+                          'Health Assessment',
+                          Icons.assignment_outlined,
+                          const Color(0xFF005800),
+                          () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    const DentalSurveyScreen(),
+                              ),
+                            );
+                          },
+                        ),
+                        _buildTreatmentHistoryCard(context),
                       ],
                     ),
                   ],
                 ),
               ),
             ),
+
             // Recent Activity
             SliverToBoxAdapter(
               child: Padding(
@@ -664,6 +608,7 @@ class DashboardScreen extends StatelessWidget {
           ],
         ),
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
               width: 60,
@@ -674,14 +619,19 @@ class DashboardScreen extends StatelessWidget {
               ),
               child: Icon(icon, color: color, size: 30),
             ),
-            const SizedBox(height: 10),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: Colors.black87,
+            const SizedBox(height: 12),
+            Flexible(
+              child: Text(
+                title,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
+                  height: 1.2,
+                ),
               ),
             ),
           ],
@@ -720,6 +670,7 @@ class DashboardScreen extends StatelessWidget {
           ],
         ),
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
               width: 60,
@@ -735,24 +686,36 @@ class DashboardScreen extends StatelessWidget {
                 size: 30,
               ),
             ),
-            const SizedBox(height: 10),
-            Text(
-              'Treatment History',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: isGuest ? Colors.grey : Colors.black87,
+            const SizedBox(height: 12),
+            Flexible(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Treatment History',
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: isGuest ? Colors.grey : Colors.black87,
+                      height: 1.2,
+                    ),
+                  ),
+                  if (isGuest) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      'Login required',
+                      textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                    ),
+                  ],
+                ],
               ),
             ),
-            if (isGuest) ...[
-              const SizedBox(height: 4),
-              Text(
-                'Login required',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-              ),
-            ],
           ],
         ),
       ),

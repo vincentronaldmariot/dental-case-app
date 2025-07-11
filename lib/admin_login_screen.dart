@@ -1005,7 +1005,7 @@ class _PatientManagementScreenState extends State<PatientManagementScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Pending Schedules',
+            'Pending Appointments',
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
@@ -1118,7 +1118,7 @@ class _PatientManagementScreenState extends State<PatientManagementScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '$count Pending Schedules',
+                  '$count Pending Appointments',
                   style: const TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
@@ -1153,12 +1153,12 @@ class _PatientManagementScreenState extends State<PatientManagementScreen> {
           Icon(Icons.calendar_today, size: 64, color: Colors.grey[400]),
           const SizedBox(height: 16),
           Text(
-            'No pending schedules for this date',
+            'No pending appointments for this date',
             style: TextStyle(fontSize: 18, color: Colors.grey[600]),
           ),
           const SizedBox(height: 8),
           Text(
-            'Select a different date to view pending schedules',
+            'Select a different date to view pending appointments',
             style: TextStyle(fontSize: 14, color: Colors.grey[500]),
           ),
         ],

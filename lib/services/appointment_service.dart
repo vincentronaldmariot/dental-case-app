@@ -191,44 +191,48 @@ class AppointmentService {
       );
     }
 
-    // Create 78 appointments for today
-    for (int i = 0; i < 78; i++) {
-      final patient = _patients[i % _patients.length];
-      _appointments.add(
-        Appointment(
-          id: 'apt_today_$i',
-          patientId: patient.id.toString(),
-          service: _getRandomService(i),
-          date: today,
-          timeSlot: timeSlots[i % timeSlots.length],
-          doctorName: 'Dr. ${_getRandomDoctor(i)}',
-          status: AppointmentStatus.scheduled,
-          notes: 'Routine appointment',
-        ),
-      );
-    }
+    // Create appointments for multiple dates to demonstrate date filtering
+    final appointmentCounts = [
+      78,
+      45,
+      32,
+      56,
+      28,
+      67,
+      41,
+      35,
+      52,
+      29,
+    ]; // Different counts for 10 days
 
-    // Create some appointments for tomorrow (25 appointments)
-    final tomorrow = today.add(const Duration(days: 1));
-    final tomorrowStr = _formatDate(tomorrow);
+    for (int dayOffset = 0; dayOffset < 10; dayOffset++) {
+      final appointmentDate = today.add(Duration(days: dayOffset));
+      final appointmentCount = appointmentCounts[dayOffset];
+      final dateStr = _formatDate(appointmentDate);
 
-    // Clear existing appointments for tomorrow
-    _appointments.removeWhere((apt) => _formatDate(apt.date) == tomorrowStr);
+      // Clear existing appointments for this date
+      _appointments.removeWhere((apt) => _formatDate(apt.date) == dateStr);
 
-    for (int i = 0; i < 25; i++) {
-      final patient = _patients[i % _patients.length];
-      _appointments.add(
-        Appointment(
-          id: 'apt_tomorrow_$i',
-          patientId: patient.id.toString(),
-          service: _getRandomService(i),
-          date: tomorrow,
-          timeSlot: timeSlots[i % timeSlots.length],
-          doctorName: 'Dr. ${_getRandomDoctor(i)}',
-          status: AppointmentStatus.scheduled,
-          notes: 'Follow-up appointment',
-        ),
-      );
+      // Create appointments for this date
+      for (int i = 0; i < appointmentCount; i++) {
+        final patient = _patients[i % _patients.length];
+        _appointments.add(
+          Appointment(
+            id: 'apt_day${dayOffset}_$i',
+            patientId: patient.id.toString(),
+            service: _getRandomService(i),
+            date: appointmentDate,
+            timeSlot: timeSlots[i % timeSlots.length],
+            doctorName: 'Dr. ${_getRandomDoctor(i)}',
+            status: AppointmentStatus.scheduled,
+            notes: dayOffset == 0
+                ? 'Today\'s appointment'
+                : (dayOffset == 1
+                      ? 'Tomorrow\'s appointment'
+                      : 'Scheduled appointment'),
+          ),
+        );
+      }
     }
   }
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'models/patient.dart';
+import 'appointment_scheduling_screen.dart';
 
 class PatientSurveyResultsScreen extends StatelessWidget {
   final Patient patient;
@@ -364,19 +365,17 @@ class PatientSurveyResultsScreen extends StatelessWidget {
             ElevatedButton(
               onPressed: () {
                 Navigator.of(context).pop();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Row(
-                      children: [
-                        const Icon(Icons.check_circle, color: Colors.white),
-                        const SizedBox(width: 8),
-                        Text('Treatment plan created for ${patient.fullName}'),
+                // Navigate to appointment scheduling screen
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => AppointmentSchedulingScreen(
+                      patient: patient,
+                      treatmentPlan: const [
+                        'Dental cleaning and scaling',
+                        'Cavity treatment',
+                        'Follow-up examination in 6 months',
                       ],
-                    ),
-                    backgroundColor: Colors.green[600],
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
                     ),
                   ),
                 );

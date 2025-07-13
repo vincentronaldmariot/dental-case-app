@@ -1,0 +1,39 @@
+{
+  "name": "dental-case-backend",
+  "version": "1.0.0",
+  "description": "Node.js backend for Flutter dental case management app",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "migrate": "node scripts/migrate.js",
+    "seed": "node scripts/seed.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "helmet": "^7.1.0",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.11.3",
+    "dotenv": "^16.3.1",
+    "express-validator": "^7.0.1",
+    "express-rate-limit": "^7.1.5",
+    "morgan": "^1.10.0",
+    "uuid": "^9.0.1",
+    "multer": "^1.4.5-lts.1",
+    "moment": "^2.29.4"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  },
+  "keywords": [
+    "dental",
+    "healthcare",
+    "flutter",
+    "api",
+    "nodejs"
+  ],
+  "author": "Dental App Team",
+  "license": "MIT"
+} 

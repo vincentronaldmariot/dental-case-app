@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
-import './services/appointment_service.dart';
-import './services/patient_limit_service.dart';
+import 'package:intl/intl.dart';
+import 'services/appointment_service.dart';
+import 'services/patient_limit_service.dart';
+import 'services/api_service.dart';
+import 'models/appointment.dart';
+import 'user_state_manager.dart';
 
 class AppointmentBookingScreen extends StatefulWidget {
   const AppointmentBookingScreen({super.key});
@@ -17,15 +21,14 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen>
   late AnimationController _shakeController;
   late Animation<double> _shakeAnimation;
 
-  // New controllers for patient information
-  final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _phoneController = TextEditingController();
+  // Patient information now comes from self-assessment survey
 
   final AppointmentService _appointmentService = AppointmentService();
   final PatientLimitService _patientLimitService = PatientLimitService();
+  // Database service is now handled by ApiService static methods
 
   bool _isLoading = false;
+  Map<String, dynamic>? _surveyData;
 
   final List<String> services = [
     'General Checkup',
@@ -49,14 +52,48 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen>
     _shakeAnimation = Tween<double>(begin: 0, end: 1).animate(
       CurvedAnimation(parent: _shakeController, curve: Curves.elasticIn),
     );
+    _loadSurveyData();
+  }
+
+  void _loadSurveyData() async {
+    try {
+      // Use authenticated patient ID
+      final patientId = UserStateManager().currentPatientId;
+
+      print('Attempting to load survey data for patient ID $patientId');
+
+      // Load survey data for authenticated patient
+      final surveyData = await ApiService.getDentalSurvey(patientId);
+      setState(() {
+        _surveyData = surveyData;
+      });
+
+      if (surveyData != null) {
+        print('Survey data loaded successfully: ${surveyData.keys}');
+        final patientInfo = surveyData['survey_data']?['patient_info'] ?? {};
+        print('Patient name: ${patientInfo['name']}');
+        // Update UserStateManager to reflect survey completion
+        UserStateManager().updateSurveyStatus(true);
+      } else {
+        print(
+          'No survey data found for patient ID $patientId - user needs to complete survey first',
+        );
+        // Update UserStateManager to reflect no survey
+        UserStateManager().updateSurveyStatus(false);
+      }
+    } catch (e) {
+      print('Error loading survey data: $e');
+      print('Database may not be properly initialized or survey not saved');
+      // Set survey data to null if there's an error
+      setState(() {
+        _surveyData = null;
+      });
+    }
   }
 
   @override
   void dispose() {
     _shakeController.dispose();
-    _nameController.dispose();
-    _emailController.dispose();
-    _phoneController.dispose();
     super.dispose();
   }
 
@@ -81,16 +118,12 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen>
           ),
         ),
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
+          padding: EdgeInsets.all(
+            MediaQuery.of(context).size.width < 600 ? 16 : 20,
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Patient Information Section
-              _buildSectionTitle('Patient Information'),
-              const SizedBox(height: 15),
-              _buildPatientInformation(),
-              const SizedBox(height: 30),
-
               _buildSectionTitle('Select Service'),
               const SizedBox(height: 15),
               _buildServiceSelection(),
@@ -117,59 +150,10 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen>
   Widget _buildSectionTitle(String title) {
     return Text(
       title,
-      style: const TextStyle(
-        fontSize: 20,
+      style: TextStyle(
+        fontSize: MediaQuery.of(context).size.width < 600 ? 18 : 20,
         fontWeight: FontWeight.bold,
-        color: Color(0xFF000074),
-      ),
-    );
-  }
-
-  Widget _buildPatientInformation() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          TextField(
-            controller: _nameController,
-            decoration: const InputDecoration(
-              labelText: 'Full Name',
-              prefixIcon: Icon(Icons.person),
-              border: OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _emailController,
-            decoration: const InputDecoration(
-              labelText: 'Email Address',
-              prefixIcon: Icon(Icons.email),
-              border: OutlineInputBorder(),
-            ),
-            keyboardType: TextInputType.emailAddress,
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _phoneController,
-            decoration: const InputDecoration(
-              labelText: 'Phone Number',
-              prefixIcon: Icon(Icons.phone),
-              border: OutlineInputBorder(),
-            ),
-            keyboardType: TextInputType.phone,
-          ),
-        ],
+        color: const Color(0xFF000074),
       ),
     );
   }
@@ -448,136 +432,128 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen>
         const SizedBox(height: 10),
         // Calendar days
         ...List.generate(6, (weekIndex) {
-              return Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: List.generate(7, (dayIndex) {
-                  final date = startDate.add(
-                    Duration(days: weekIndex * 7 + dayIndex),
-                  );
-                  final isCurrentMonth = date.month == selectedDate.month;
-                  final isToday =
-                      date.day == now.day &&
-                      date.month == now.month &&
-                      date.year == now.year;
-                  final isSelected =
-                      date.day == selectedDate.day &&
-                      date.month == selectedDate.month &&
-                      date.year == selectedDate.year;
-                  final isPast = date.isBefore(now) && !isToday;
-                  final isTooFar = date.isAfter(maxBookingDate);
-                  final isBookable = isCurrentMonth && !isPast && !isTooFar;
+          return Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: List.generate(7, (dayIndex) {
+              final date = startDate.add(
+                Duration(days: weekIndex * 7 + dayIndex),
+              );
+              final isCurrentMonth = date.month == selectedDate.month;
+              final isToday = date.day == now.day &&
+                  date.month == now.month &&
+                  date.year == now.year;
+              final isSelected = date.day == selectedDate.day &&
+                  date.month == selectedDate.month &&
+                  date.year == selectedDate.year;
+              final isPast = date.isBefore(now) && !isToday;
+              final isTooFar = date.isAfter(maxBookingDate);
+              final isBookable = isCurrentMonth && !isPast && !isTooFar;
 
-                  return GestureDetector(
-                    onTap: !isBookable
-                        ? () {
-                            // Shake animation for restricted dates
-                            _shakeController.forward().then((_) {
-                              _shakeController.reverse();
-                            });
-                          }
-                        : () {
-                            setState(() {
-                              selectedDate = date;
-                            });
-                          },
-                    child: AnimatedBuilder(
-                      animation: _shakeAnimation,
-                      builder: (context, child) {
-                        return Transform.translate(
-                          offset: !isBookable
-                              ? Offset(
-                                  (_shakeAnimation.value *
-                                      10 *
-                                      (0.5 - (_shakeAnimation.value * 0.5))),
-                                  0,
-                                )
-                              : Offset.zero,
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            width: 40,
-                            height: 40,
-                            margin: const EdgeInsets.all(2),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? const Color(0xFF0029B2)
-                                  : isToday
+              return GestureDetector(
+                onTap: !isBookable
+                    ? () {
+                        // Shake animation for restricted dates
+                        _shakeController.forward().then((_) {
+                          _shakeController.reverse();
+                        });
+                      }
+                    : () {
+                        setState(() {
+                          selectedDate = date;
+                        });
+                      },
+                child: AnimatedBuilder(
+                  animation: _shakeAnimation,
+                  builder: (context, child) {
+                    return Transform.translate(
+                      offset: !isBookable
+                          ? Offset(
+                              (_shakeAnimation.value *
+                                  10 *
+                                  (0.5 - (_shakeAnimation.value * 0.5))),
+                              0,
+                            )
+                          : Offset.zero,
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        width: 40,
+                        height: 40,
+                        margin: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? const Color(0xFF0029B2)
+                              : isToday
                                   ? const Color(0xFF0029B2).withOpacity(0.1)
                                   : isTooFar
-                                  ? Colors.red.withOpacity(0.1)
-                                  : Colors.transparent,
-                              borderRadius: BorderRadius.circular(
-                                8,
-                              ), // Square with rounded corners
-                              border: isToday && !isSelected
-                                  ? Border.all(
-                                      color: const Color(0xFF0029B2),
-                                      width: 2,
-                                    )
-                                  : isTooFar && !isSelected
+                                      ? Colors.red.withOpacity(0.1)
+                                      : Colors.transparent,
+                          borderRadius: BorderRadius.circular(
+                            8,
+                          ), // Square with rounded corners
+                          border: isToday && !isSelected
+                              ? Border.all(
+                                  color: const Color(0xFF0029B2),
+                                  width: 2,
+                                )
+                              : isTooFar && !isSelected
                                   ? Border.all(color: Colors.red, width: 1)
                                   : null,
-                              boxShadow: isSelected
-                                  ? [
-                                      BoxShadow(
-                                        color: const Color(
-                                          0xFF0029B2,
-                                        ).withOpacity(0.3),
-                                        blurRadius: 8,
-                                        offset: const Offset(0, 4),
-                                      ),
-                                    ]
-                                  : null,
-                            ),
-                            child: Center(
-                              child: AnimatedDefaultTextStyle(
-                                duration: const Duration(milliseconds: 200),
-                                style: TextStyle(
-                                  color: isSelected
-                                      ? Colors.white
-                                      : isPast
+                          boxShadow: isSelected
+                              ? [
+                                  BoxShadow(
+                                    color: const Color(
+                                      0xFF0029B2,
+                                    ).withOpacity(0.3),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ]
+                              : null,
+                        ),
+                        child: Center(
+                          child: AnimatedDefaultTextStyle(
+                            duration: const Duration(milliseconds: 200),
+                            style: TextStyle(
+                              color: isSelected
+                                  ? Colors.white
+                                  : isPast
                                       ? Colors.grey.shade400
                                       : isTooFar
-                                      ? Colors.red.shade600
-                                      : isCurrentMonth
-                                      ? Colors.black87
-                                      : Colors.grey.shade300,
-                                  fontWeight: isSelected || isToday
-                                      ? FontWeight.bold
-                                      : FontWeight.normal,
-                                  fontSize: 16,
-                                ),
-                                child: Text(date.day.toString()),
-                              ),
+                                          ? Colors.red.shade600
+                                          : isCurrentMonth
+                                              ? Colors.black87
+                                              : Colors.grey.shade300,
+                              fontWeight: isSelected || isToday
+                                  ? FontWeight.bold
+                                  : FontWeight.normal,
+                              fontSize: 16,
                             ),
+                            child: Text(date.day.toString()),
                           ),
-                        );
-                      },
-                    ),
-                  );
-                }),
+                        ),
+                      ),
+                    );
+                  },
+                ),
               );
-            })
-            .where((row) {
-              // Only show rows that have days from current month
-              return true;
-            })
-            .take(6),
+            }),
+          );
+        }).where((row) {
+          // Only show rows that have days from current month
+          return true;
+        }).take(6),
       ],
     );
   }
 
   Widget _buildBookButton() {
-    final isFormComplete =
-        selectedService != null &&
-        _nameController.text.isNotEmpty &&
-        _emailController.text.isNotEmpty &&
-        _phoneController.text.isNotEmpty;
+    final isFormComplete = selectedService != null;
 
     final dailyLimit = _patientLimitService.getDailyLimit(selectedDate);
 
     return SizedBox(
       width: double.infinity,
-      height: 55,
+      height: MediaQuery.of(context).size.width < 600 ? 48 : 55,
       child: ElevatedButton(
         onPressed: (isFormComplete && !dailyLimit.isAtLimit && !_isLoading)
             ? _bookAppointment
@@ -615,12 +591,104 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen>
     setState(() => _isLoading = true);
 
     try {
-      final result = await _appointmentService.bookAppointment(
+      // Check if user is logged in as a patient
+      if (!UserStateManager().isPatientLoggedIn) {
+        setState(() => _isLoading = false);
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(15),
+            ),
+            title: const Row(
+              children: [
+                Icon(Icons.login, color: Colors.orange, size: 30),
+                SizedBox(width: 10),
+                Text('Login Required'),
+              ],
+            ),
+            content: const Text(
+              'Please log in or register as a patient to book an appointment.',
+              style: TextStyle(fontSize: 16),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text(
+                  'OK',
+                  style: TextStyle(
+                    color: Color(0xFF0029B2),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+        return;
+      }
+
+      // Check if survey data exists
+      if (_surveyData == null) {
+        setState(() => _isLoading = false);
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(15),
+            ),
+            title: const Row(
+              children: [
+                Icon(Icons.assignment, color: Colors.orange, size: 30),
+                SizedBox(width: 10),
+                Text('Complete Survey'),
+              ],
+            ),
+            content: const Text(
+              'Please complete the dental self-assessment survey before booking an appointment.',
+              style: TextStyle(fontSize: 16),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text(
+                  'OK',
+                  style: TextStyle(
+                    color: Color(0xFF0029B2),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+        return;
+      }
+
+      // Get patient information from authenticated user and survey data
+      String patientName = UserStateManager().patientFullName;
+      String patientEmail = UserStateManager().patientEmail;
+      String patientPhone = '000-000-0000';
+      String surveyNotes = '';
+
+      if (_surveyData != null) {
+        final patientInfo = _surveyData!['survey_data']['patient_info'] ?? {};
+        patientPhone = patientInfo['contact_number'] ?? '000-000-0000';
+
+        // Create survey summary for notes
+        surveyNotes = _createSurveySummary(_surveyData!['survey_data']);
+      }
+
+      final result = await _appointmentService.bookAppointmentWithSurvey(
         service: selectedService!,
         date: selectedDate,
-        patientName: _nameController.text.trim(),
-        patientEmail: _emailController.text.trim(),
-        patientPhone: _phoneController.text.trim(),
+        patientName: patientName,
+        patientEmail: patientEmail,
+        patientPhone: patientPhone,
+        surveyData: _surveyData?['survey_data'],
+        surveyNotes: surveyNotes,
+        preferredTimeSlot: null, // Let system assign available time slot
+        patientId: UserStateManager().currentPatientId,
       );
 
       setState(() => _isLoading = false);
@@ -637,18 +705,52 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen>
               children: [
                 Icon(Icons.check_circle, color: Colors.green, size: 30),
                 SizedBox(width: 10),
-                Text('Appointment Booked!'),
+                Text('Appointment Request Submitted!'),
               ],
             ),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(result.message),
-                const SizedBox(height: 15),
                 const Text(
-                  'You will receive a confirmation email shortly.',
-                  style: TextStyle(color: Colors.grey),
+                  'Your appointment request has been submitted for review.',
+                  style: TextStyle(fontSize: 16),
+                ),
+                const SizedBox(height: 15),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.orange.shade200),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.info,
+                            color: Colors.orange.shade700,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'Pending Review',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.orange,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Your appointment will be reviewed by our medical staff along with your dental assessment survey. You will receive a confirmation email once approved.',
+                        style: TextStyle(fontSize: 14, color: Colors.black87),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -719,5 +821,44 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen>
         ),
       );
     }
+  }
+
+  String _createSurveySummary(Map<String, dynamic> surveyData) {
+    List<String> conditions = [];
+
+    // Tooth conditions
+    final toothConditions = surveyData['tooth_conditions'] ?? {};
+    if (toothConditions['decayed_tooth'] == true)
+      conditions.add('Decayed tooth');
+    if (toothConditions['worn_down_tooth'] == true)
+      conditions.add('Worn down tooth');
+    if (toothConditions['impacted_tooth'] == true)
+      conditions.add('Impacted wisdom tooth');
+
+    // Tartar level
+    final tartarLevel = surveyData['tartar_level'];
+    if (tartarLevel != null && tartarLevel != 'tartar_none') {
+      conditions.add('Tartar: ${tartarLevel.replaceAll('tartar_', '')}');
+    }
+
+    // Tooth sensitivity
+    if (surveyData['tooth_sensitive'] == true)
+      conditions.add('Tooth sensitivity');
+
+    // Damaged fillings
+    final damagedFillings = surveyData['damaged_fillings'] ?? {};
+    if (damagedFillings['broken_tooth'] == true)
+      conditions.add('Broken tooth filling');
+    if (damagedFillings['broken_pasta'] == true)
+      conditions.add('Broken pasta filling');
+
+    // Dentures and missing teeth
+    if (surveyData['need_dentures'] == true) conditions.add('Needs dentures');
+    if (surveyData['has_missing_teeth'] == true)
+      conditions.add('Has missing teeth');
+
+    return conditions.isEmpty
+        ? 'No specific conditions reported'
+        : conditions.join(', ');
   }
 }

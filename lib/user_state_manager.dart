@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'models/patient.dart';
 
 class UserStateManager extends ChangeNotifier {
   static final UserStateManager _instance = UserStateManager._internal();
@@ -10,12 +11,21 @@ class UserStateManager extends ChangeNotifier {
   bool _isAdminLoggedIn = false;
   bool _isClientLoggedIn = false;
   bool _isGuestUser = false;
+  bool _isPatientLoggedIn = false;
+  Patient? _currentPatient;
 
   bool get isSurveyCompleted => _isSurveyCompleted;
   bool get isFirstTimeUser => _isFirstTimeUser;
   bool get isAdminLoggedIn => _isAdminLoggedIn;
   bool get isClientLoggedIn => _isClientLoggedIn;
   bool get isGuestUser => _isGuestUser;
+  bool get isPatientLoggedIn => _isPatientLoggedIn;
+  Patient? get currentPatient => _currentPatient;
+
+  // Get current patient ID (for use in database operations)
+  String get currentPatientId =>
+      _currentPatient?.id ??
+      'guest'; // Default to 'guest' for guest/default user
 
   void completeSurvey() {
     _isSurveyCompleted = true;
@@ -34,6 +44,8 @@ class UserStateManager extends ChangeNotifier {
     _isAdminLoggedIn = false;
     _isClientLoggedIn = false;
     _isGuestUser = false;
+    _isPatientLoggedIn = false;
+    _currentPatient = null;
     notifyListeners();
   }
 
@@ -74,5 +86,43 @@ class UserStateManager extends ChangeNotifier {
 
   bool canBookAppointment() {
     return !_isFirstTimeUser || _isSurveyCompleted;
+  }
+
+  void updateSurveyStatus(bool isCompleted) {
+    _isSurveyCompleted = isCompleted;
+    notifyListeners();
+  }
+
+  // Patient authentication methods
+  void setCurrentPatient(Patient patient) {
+    _currentPatient = patient;
+    _isPatientLoggedIn = true;
+    _isGuestUser = false;
+    _isClientLoggedIn = false;
+    _isAdminLoggedIn = false;
+    notifyListeners();
+  }
+
+  void logoutPatient() {
+    _currentPatient = null;
+    _isPatientLoggedIn = false;
+    _isSurveyCompleted = false;
+    _isFirstTimeUser = true;
+    notifyListeners();
+  }
+
+  bool canBookAppointmentAsPatient() {
+    return _isPatientLoggedIn && _currentPatient != null;
+  }
+
+  String get patientFullName {
+    if (_currentPatient != null) {
+      return '${_currentPatient!.firstName} ${_currentPatient!.lastName}';
+    }
+    return 'Guest User';
+  }
+
+  String get patientEmail {
+    return _currentPatient?.email ?? 'guest@dental-clinic.mil';
   }
 }

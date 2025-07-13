@@ -72,7 +72,7 @@ class EmergencyService {
     _emergencyRecords.addAll([
       EmergencyRecord(
         id: 'emr_001',
-        patientId: 'patient_1',
+        patientId: '1',
         reportedAt: DateTime.now().subtract(const Duration(days: 2)),
         type: EmergencyType.severeToothache,
         priority: EmergencyPriority.urgent,
@@ -92,7 +92,7 @@ class EmergencyService {
       ),
       EmergencyRecord(
         id: 'emr_002',
-        patientId: 'patient_2',
+        patientId: '2',
         reportedAt: DateTime.now().subtract(const Duration(hours: 6)),
         type: EmergencyType.dentalTrauma,
         priority: EmergencyPriority.immediate,
@@ -112,7 +112,7 @@ class EmergencyService {
       ),
       EmergencyRecord(
         id: 'emr_003',
-        patientId: 'patient_3',
+        patientId: '3',
         reportedAt: DateTime.now().subtract(const Duration(days: 1)),
         type: EmergencyType.lostCrown,
         priority: EmergencyPriority.standard,

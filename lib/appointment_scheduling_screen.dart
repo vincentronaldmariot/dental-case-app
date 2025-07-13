@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'models/patient.dart';
 import 'services/appointment_service.dart';
+import 'models/appointment.dart';
+import 'services/history_service.dart';
 
 class AppointmentSchedulingScreen extends StatefulWidget {
   final Patient patient;
@@ -49,13 +52,19 @@ class _AppointmentSchedulingScreenState
     final bookedSlots = appointments.map((apt) => apt.timeSlot).toSet();
 
     // Find first available slot
+    String? firstAvailable;
     for (final slot in _appointmentService.timeSlots) {
       if (!bookedSlots.contains(slot)) {
-        setState(() {
-          _selectedTimeSlot = slot;
-        });
+        firstAvailable = slot;
         break;
       }
+    }
+
+    // Update selected time slot only if we found an available slot
+    if (mounted) {
+      setState(() {
+        _selectedTimeSlot = firstAvailable ?? '';
+      });
     }
   }
 
@@ -440,15 +449,17 @@ class _AppointmentSchedulingScreenState
             ),
 
           if (_selectedTimeSlot.isEmpty) ...[
-            // Available time slots grid
+            // Available time slots grid - Mobile responsive
             GridView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 4,
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: MediaQuery.of(context).size.width > 600 ? 4 : 3,
                 crossAxisSpacing: 8,
                 mainAxisSpacing: 8,
-                childAspectRatio: 2.5,
+                childAspectRatio: MediaQuery.of(context).size.width > 600
+                    ? 2.5
+                    : 2.2,
               ),
               itemCount: _appointmentService.timeSlots.length,
               itemBuilder: (context, index) {
@@ -485,12 +496,15 @@ class _AppointmentSchedulingScreenState
                         Text(
                           slot,
                           style: TextStyle(
-                            fontSize: 11,
+                            fontSize: MediaQuery.of(context).size.width > 600
+                                ? 11
+                                : 10,
                             fontWeight: FontWeight.bold,
                             color: isBooked
                                 ? Colors.red.shade700
                                 : Colors.green.shade700,
                           ),
+                          textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 2),
                         Icon(
@@ -509,12 +523,13 @@ class _AppointmentSchedulingScreenState
 
             const SizedBox(height: 10),
 
-            // Legend
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+            // Legend - Mobile responsive
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 16,
+              runSpacing: 8,
               children: [
                 _buildTimeLegend(Colors.green, 'Available - Click to select'),
-                const SizedBox(width: 20),
                 _buildTimeLegend(Colors.red, 'Booked - Click for details'),
               ],
             ),
@@ -909,7 +924,10 @@ class _AppointmentSchedulingScreenState
   }
 
   Future<void> _scheduleAppointment() async {
-    if (_selectedTimeSlot.isEmpty) return;
+    if (_selectedTimeSlot.isEmpty) {
+      _showErrorDialog('Please select a time slot before scheduling.');
+      return;
+    }
 
     setState(() {
       _isLoading = true;
@@ -922,6 +940,7 @@ class _AppointmentSchedulingScreenState
         patientName: widget.patient.fullName,
         patientEmail: widget.patient.email,
         patientPhone: widget.patient.phone,
+        preferredTimeSlot: _selectedTimeSlot,
       );
 
       if (mounted) {
@@ -1118,7 +1137,9 @@ class _AppointmentSchedulingScreenState
       (apt) => apt.timeSlot == timeSlot,
       orElse: () => appointments.first,
     );
-    final patient = _appointmentService.getPatientById(appointment.patientId);
+    final patient = _appointmentService.getPatientById(
+      appointment.patientId.toString(),
+    );
 
     showDialog(
       context: context,

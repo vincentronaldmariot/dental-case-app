@@ -25,14 +25,14 @@ class Appointment {
   Map<String, dynamic> toMap() {
     return {
       'id': id,
-      'patientId': patientId,
+      'patient_id': patientId,
       'service': service,
       'date': date.toIso8601String(),
-      'timeSlot': timeSlot,
-      'doctorName': doctorName,
+      'time_slot': timeSlot,
+      'doctor_name': doctorName,
       'status': status.name,
       'notes': notes,
-      'createdAt': createdAt.toIso8601String(),
+      'created_at': createdAt.toIso8601String(),
     };
   }
 
@@ -40,16 +40,16 @@ class Appointment {
   factory Appointment.fromMap(Map<String, dynamic> map) {
     return Appointment(
       id: map['id'],
-      patientId: map['patientId'],
+      patientId: map['patient_id'].toString(),
       service: map['service'],
       date: DateTime.parse(map['date']),
-      timeSlot: map['timeSlot'],
-      doctorName: map['doctorName'],
+      timeSlot: map['time_slot'],
+      doctorName: map['doctor_name'],
       status: AppointmentStatus.values.firstWhere(
         (e) => e.name == map['status'],
       ),
       notes: map['notes'],
-      createdAt: DateTime.parse(map['createdAt']),
+      createdAt: DateTime.parse(map['created_at']),
     );
   }
 
@@ -84,11 +84,20 @@ class Appointment {
   }
 }
 
-enum AppointmentStatus { scheduled, completed, cancelled, missed, rescheduled }
+enum AppointmentStatus {
+  pending,
+  scheduled,
+  completed,
+  cancelled,
+  missed,
+  rescheduled,
+}
 
 extension AppointmentStatusExtension on AppointmentStatus {
   String get displayName {
     switch (this) {
+      case AppointmentStatus.pending:
+        return 'Pending Review';
       case AppointmentStatus.scheduled:
         return 'Scheduled';
       case AppointmentStatus.completed:
@@ -104,6 +113,8 @@ extension AppointmentStatusExtension on AppointmentStatus {
 
   String get color {
     switch (this) {
+      case AppointmentStatus.pending:
+        return '#FF9800';
       case AppointmentStatus.scheduled:
         return '#0029B2';
       case AppointmentStatus.completed:

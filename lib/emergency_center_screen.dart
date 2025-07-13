@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import './user_state_manager.dart';
 import './models/appointment.dart';
 import './services/history_service.dart';
+import './emergency_pain_assessment_screen.dart';
 
 class EmergencyCenterScreen extends StatefulWidget {
   const EmergencyCenterScreen({super.key});
@@ -771,7 +772,7 @@ class _EmergencyCenterScreenState extends State<EmergencyCenterScreen> {
     // Create emergency appointment
     final emergency = Appointment(
       id: 'emergency_${DateTime.now().millisecondsSinceEpoch}',
-      patientId: 'patient_1',
+      patientId: UserStateManager().currentPatientId,
       service: 'Emergency Treatment',
       date: DateTime.now().add(const Duration(hours: 2)),
       timeSlot: 'Emergency Slot',
@@ -794,13 +795,10 @@ class _EmergencyCenterScreenState extends State<EmergencyCenterScreen> {
   }
 
   void _startPainAssessment() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text(
-          'Pain assessment feature coming soon. Please call emergency hotline for immediate assistance.',
-        ),
-        backgroundColor: Colors.blue[600],
-        duration: const Duration(seconds: 3),
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const EmergencyPainAssessmentScreen(),
       ),
     );
   }

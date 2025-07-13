@@ -1172,7 +1172,7 @@ class _PatientManagementScreenState extends State<PatientManagementScreen> {
       itemBuilder: (context, index) {
         final appointment = appointments[index];
         final patient = _appointmentService.getPatientById(
-          appointment.patientId,
+          appointment.patientId.toString(),
         );
 
         return InkWell(

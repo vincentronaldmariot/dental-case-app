@@ -7,7 +7,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # The following defines the version and build number for your application.
 # A version number is three numbers separated by dots, like 1.2.43
 # followed by an optional build number separated by a +.
-# Both the version and the builder number may be overridden in flutter
+# Both the version and the build number may be overridden in flutter
 # build by specifying --build-name and --build-number, respectively.
 # In Android, build-name is used as versionName while build-number used as versionCode.
 # Read more about Android versioning at https://developer.android.com/studio/publish/versioning
@@ -19,30 +19,22 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 version: 1.0.0+1
 
 environment:
-  sdk: ^3.8.1
+  sdk: '>=3.4.4 <4.0.0'
 
 # Dependencies specify other packages that your package needs in order to work.
-# To automatically upgrade your package dependencies to the latest versions
-# consider running `flutter pub upgrade --major-versions`. Alternatively,
-# dependencies can be manually updated by changing the version numbers below to
-# the latest version available on pub.dev. To see which dependencies have newer
-# versions available, run `flutter pub outdated`.
+# For more information on using packages, see
+# https://flutter.dev/to/using-packages
+
 dependencies:
   flutter:
     sdk: flutter
 
+
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
-  cupertino_icons: ^1.0.8
-  
-  # Database
-  sqflite: ^2.3.0
-  path: ^1.8.3
-  
-  # Encryption for passwords
-  crypto: ^3.0.3
-  
-  # Date/Time utilities
+  cupertino_icons: ^1.0.6
+  http: ^1.2.0
+  shared_preferences: ^2.2.2
   intl: ^0.19.0
 
 dev_dependencies:
@@ -54,7 +46,7 @@ dev_dependencies:
   # activated in the `analysis_options.yaml` file located at the root of your
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
-  flutter_lints: ^5.0.0
+  flutter_lints: ^3.0.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -69,31 +61,20 @@ flutter:
 
   # To add assets to your application, add an assets section, like this:
   assets:
-    - assets/image/main_logo.png
-    - assets/image/back_logo.png
-    - assets/image/decayed_tooth.png
-    - assets/image/worn_down_tooth.png
-    - assets/image/impacted_wisdom_tooth.png
-    - assets/image/tartar_none.png
-    - assets/image/tartar_mild.png
-    - assets/image/tartar_moderate.png
-    - assets/image/tartar_heavy.png
-    - assets/image/broken_tooth_filling.png
-    - assets/image/broken_pasta_filling.png
-    - assets/image/missing_teeth.png
-    - assets/image/extracted_teeth.png
+    - assets/image/
 
-  # An image asset can refer to one or more resolution-specific "variants", see
-  # https://flutter.dev/assets-and-images/#resolution-aware
+  # An image asset can refer to one or more resolution-variant files specified
+  # in the pubspec.yaml file. For example, the following example specifies
+  # different resolution-variant files for an image:
+  # assets:
+  #   - images/a_2.0x.png
+  #   - images/a_3.0x.png
 
   # For details regarding adding assets from package dependencies, see
-  # https://flutter.dev/to/asset-from-package
+  # https://flutter.dev/to/add-to-app-assets
 
   # To add custom fonts to your application, add a fonts section here,
-  # in this "flutter" section. Each entry in this list should have a
-  # "family" key with the font family name, and a "fonts" key with a
-  # list giving the asset and other descriptors for the font. For
-  # example:
+  # in this format:
   # fonts:
   #   - family: Schyler
   #     fonts:
@@ -107,4 +88,4 @@ flutter:
   #         weight: 700
   #
   # For details regarding fonts from package dependencies,
-  # see https://flutter.dev/to/font-from-package
+  # see https://flutter.dev/to/using-packages

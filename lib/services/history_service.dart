@@ -6,64 +6,13 @@ class HistoryService {
   factory HistoryService() => _instance;
   HistoryService._internal();
 
-  // Sample data for demonstration (in a real app, this would come from a database)
-  final List<Appointment> _appointments = [
-    Appointment(
-      id: '1',
-      patientId: 'patient_1',
-      service: 'General Checkup',
-      date: DateTime.now().subtract(const Duration(days: 30)),
-      timeSlot: '10:00 AM - 11:00 AM',
-      doctorName: 'Dr. Smith',
-      status: AppointmentStatus.completed,
-      notes: 'Routine checkup completed successfully',
-    ),
-    Appointment(
-      id: '2',
-      patientId: 'patient_1',
-      service: 'Teeth Cleaning',
-      date: DateTime.now().subtract(const Duration(days: 60)),
-      timeSlot: '2:00 PM - 3:00 PM',
-      doctorName: 'Dr. Johnson',
-      status: AppointmentStatus.completed,
-      notes: 'Deep cleaning performed',
-    ),
-    Appointment(
-      id: '3',
-      patientId: 'patient_1',
-      service: 'Root Canal',
-      date: DateTime.now().subtract(const Duration(days: 90)),
-      timeSlot: '9:00 AM - 11:00 AM',
-      doctorName: 'Dr. Davis',
-      status: AppointmentStatus.completed,
-      notes: 'Root canal treatment on tooth #18',
-    ),
-    Appointment(
-      id: '4',
-      patientId: 'patient_1',
-      service: 'Orthodontics Consultation',
-      date: DateTime.now().add(const Duration(days: 15)),
-      timeSlot: '3:00 PM - 4:00 PM',
-      doctorName: 'Dr. Wilson',
-      status: AppointmentStatus.scheduled,
-      notes: 'Initial orthodontic assessment',
-    ),
-    Appointment(
-      id: '5',
-      patientId: 'patient_1',
-      service: 'Emergency Treatment',
-      date: DateTime.now().subtract(const Duration(days: 5)),
-      timeSlot: '1:00 PM - 2:00 PM',
-      doctorName: 'Dr. Brown',
-      status: AppointmentStatus.cancelled,
-      notes: 'Patient cancelled due to schedule conflict',
-    ),
-  ];
+  // Sample data cleared - will be populated when users book appointments
+  final List<Appointment> _appointments = [];
 
   final List<TreatmentRecord> _treatmentRecords = [
     TreatmentRecord(
       id: 'tr_1',
-      patientId: 'patient_1',
+      patientId: '1',
       appointmentId: '1',
       treatmentType: 'General Checkup',
       description: 'Comprehensive oral examination and assessment',
@@ -79,7 +28,7 @@ class HistoryService {
     ),
     TreatmentRecord(
       id: 'tr_2',
-      patientId: 'patient_1',
+      patientId: '1',
       appointmentId: '2',
       treatmentType: 'Teeth Cleaning',
       description: 'Professional dental cleaning and tartar removal',
@@ -92,7 +41,7 @@ class HistoryService {
     ),
     TreatmentRecord(
       id: 'tr_3',
-      patientId: 'patient_1',
+      patientId: '1',
       appointmentId: '3',
       treatmentType: 'Root Canal',
       description: 'Root canal therapy on posterior molar',
@@ -111,7 +60,7 @@ class HistoryService {
     ),
     TreatmentRecord(
       id: 'tr_4',
-      patientId: 'patient_1',
+      patientId: '1',
       appointmentId: '1',
       treatmentType: 'Preventive Care',
       description: 'Dental sealant application',

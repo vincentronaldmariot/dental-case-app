@@ -1,7 +1,14 @@
 import 'package:dental_case_app/welcome_screen.dart';
 import 'package:flutter/material.dart';
+import 'services/api_service.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize API Service
+  await ApiService.initialize();
+  print('✅ API Service initialized');
+
   runApp(const MyApp());
 }
 

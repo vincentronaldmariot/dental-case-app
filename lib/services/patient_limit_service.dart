@@ -35,26 +35,10 @@ class PatientLimitService {
 
   // Initialize with some sample data
   void initializeSampleData() {
-    final today = DateTime.now();
-    final todayStr = _formatDate(today);
-    final yesterdayStr = _formatDate(today.subtract(const Duration(days: 1)));
-    final tomorrowStr = _formatDate(today.add(const Duration(days: 1)));
+    // Clear all daily limits since we removed sample appointments
+    _dailyLimits.clear();
 
-    // Add sample data
-    _dailyLimits[todayStr] = DailyPatientLimit(
-      date: todayStr,
-      currentCount: 78, // Near limit for demo
-    );
-
-    _dailyLimits[yesterdayStr] = DailyPatientLimit(
-      date: yesterdayStr,
-      currentCount: 95, // Almost at limit
-    );
-
-    _dailyLimits[tomorrowStr] = DailyPatientLimit(
-      date: tomorrowStr,
-      currentCount: 25, // Low count
-    );
+    // Start fresh with no appointments - limits will be created as needed
   }
 
   // Get daily limit for a specific date

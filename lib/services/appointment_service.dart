@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import '../models/appointment.dart';
 import '../models/patient.dart';
 import 'patient_limit_service.dart';
+import 'api_service.dart';
 
 class AppointmentBookingResult {
   final bool success;
@@ -52,7 +53,7 @@ class AppointmentService {
     // Create sample patients
     _patients.addAll([
       Patient(
-        id: 1,
+        id: '1',
         firstName: 'John',
         lastName: 'Doe',
         email: 'john.doe@email.com',
@@ -68,7 +69,7 @@ class AppointmentService {
         unitAssignment: 'Military - Army Base',
       ),
       Patient(
-        id: 2,
+        id: '2',
         firstName: 'Sarah',
         lastName: 'Smith',
         email: 'sarah.smith@email.com',
@@ -84,7 +85,7 @@ class AppointmentService {
         unitAssignment: 'AV/HR Department',
       ),
       Patient(
-        id: 3,
+        id: '3',
         firstName: 'Michael',
         lastName: 'Johnson',
         email: 'michael.johnson@email.com',
@@ -168,7 +169,7 @@ class AppointmentService {
       final nameParts = patientNames[i].split(' ');
       _patients.add(
         Patient(
-          id: i + 4,
+          id: (i + 4).toString(),
           firstName: nameParts[0],
           lastName: nameParts[1],
           email:
@@ -191,49 +192,12 @@ class AppointmentService {
       );
     }
 
-    // Create appointments for multiple dates to demonstrate date filtering
-    final appointmentCounts = [
-      78,
-      45,
-      32,
-      56,
-      28,
-      67,
-      41,
-      35,
-      52,
-      29,
-    ]; // Different counts for 10 days
+    // Clear all existing appointments to start fresh with the pending review system
+    _appointments.clear();
 
-    for (int dayOffset = 0; dayOffset < 10; dayOffset++) {
-      final appointmentDate = today.add(Duration(days: dayOffset));
-      final appointmentCount = appointmentCounts[dayOffset];
-      final dateStr = _formatDate(appointmentDate);
-
-      // Clear existing appointments for this date
-      _appointments.removeWhere((apt) => _formatDate(apt.date) == dateStr);
-
-      // Create appointments for this date
-      for (int i = 0; i < appointmentCount; i++) {
-        final patient = _patients[i % _patients.length];
-        _appointments.add(
-          Appointment(
-            id: 'apt_day${dayOffset}_$i',
-            patientId: patient.id.toString(),
-            service: _getRandomService(i),
-            date: appointmentDate,
-            timeSlot: timeSlots[i % timeSlots.length],
-            doctorName: 'Dr. ${_getRandomDoctor(i)}',
-            status: AppointmentStatus.scheduled,
-            notes: dayOffset == 0
-                ? 'Today\'s appointment'
-                : (dayOffset == 1
-                      ? 'Tomorrow\'s appointment'
-                      : 'Scheduled appointment'),
-          ),
-        );
-      }
-    }
+    // Note: No sample appointments created - appointments will only be created
+    // when users complete the survey and book appointments, which will go into
+    // pending status for admin review
   }
 
   String _getRandomService(int index) {
@@ -260,6 +224,7 @@ class AppointmentService {
     required String patientName,
     required String patientEmail,
     required String patientPhone,
+    String? preferredTimeSlot,
   }) async {
     try {
       // Check if the date has available slots
@@ -273,15 +238,26 @@ class AppointmentService {
         );
       }
 
-      // Create or find patient
-      Patient? patient = _patients.firstWhere(
-        (p) => p.email == patientEmail,
-        orElse: () => Patient(
-          id: _patients.length + 1,
-          firstName: patientName.split(' ').first,
-          lastName: patientName.split(' ').length > 1
-              ? patientName.split(' ').sublist(1).join(' ')
-              : '',
+      // Find existing patient or create new one
+      Patient? existingPatient;
+      try {
+        existingPatient = _patients.firstWhere((p) => p.email == patientEmail);
+      } catch (e) {
+        // Patient not found, will create new one below
+        existingPatient = null;
+      }
+
+      late Patient patient;
+
+      if (existingPatient != null) {
+        patient = existingPatient;
+      } else {
+        // Create new patient
+        final nameParts = patientName.split(' ');
+        patient = Patient(
+          id: (_patients.length + 1).toString(),
+          firstName: nameParts.isNotEmpty ? nameParts.first : 'Unknown',
+          lastName: nameParts.length > 1 ? nameParts.sublist(1).join(' ') : '',
           email: patientEmail,
           phone: patientPhone,
           passwordHash: 'temp_hash',
@@ -303,22 +279,51 @@ class AppointmentService {
             'Special Operations',
             'Administrative Staff',
           ][_patients.length % 10],
-        ),
-      );
+        );
 
-      // Add patient if new
-      if (!_patients.any((p) => p.email == patientEmail)) {
+        // Add new patient to the list
         _patients.add(patient);
+      }
+
+      // Get available time slot
+      String availableTimeSlot;
+
+      if (preferredTimeSlot != null && preferredTimeSlot.isNotEmpty) {
+        // Check if preferred time slot is available
+        final existingSlots = _appointments
+            .where((apt) => _formatDate(apt.date) == _formatDate(date))
+            .map((apt) => apt.timeSlot)
+            .toSet();
+
+        if (!existingSlots.contains(preferredTimeSlot)) {
+          availableTimeSlot = preferredTimeSlot;
+        } else {
+          return AppointmentBookingResult(
+            success: false,
+            message:
+                'Preferred time slot $preferredTimeSlot is not available for ${_formatDisplayDate(date)}',
+            appointmentId: null,
+          );
+        }
+      } else {
+        availableTimeSlot = _getAvailableTimeSlot(date);
+        if (availableTimeSlot.isEmpty) {
+          return AppointmentBookingResult(
+            success: false,
+            message: 'No available time slots for ${_formatDisplayDate(date)}',
+            appointmentId: null,
+          );
+        }
       }
 
       // Create appointment
       final appointmentId = 'apt_${DateTime.now().millisecondsSinceEpoch}';
       final appointment = Appointment(
         id: appointmentId,
-        patientId: patient.id.toString(),
+        patientId: patient.id ?? 'guest',
         service: service,
         date: date,
-        timeSlot: _getAvailableTimeSlot(date),
+        timeSlot: availableTimeSlot,
         doctorName: 'Dr. ${_getRandomDoctor(DateTime.now().millisecond)}',
         status: AppointmentStatus.scheduled,
         notes: 'Booked via app',
@@ -332,7 +337,7 @@ class AppointmentService {
       return AppointmentBookingResult(
         success: true,
         message:
-            'Appointment booked successfully for ${_formatDisplayDate(date)}',
+            'Appointment booked successfully for ${_formatDisplayDate(date)} at $availableTimeSlot',
         appointmentId: appointmentId,
       );
     } catch (e) {
@@ -340,6 +345,97 @@ class AppointmentService {
         success: false,
         message: 'Failed to book appointment: ${e.toString()}',
         appointmentId: null,
+      );
+    }
+  }
+
+  // Book appointment with survey data (creates pending appointment)
+  Future<AppointmentBookingResult> bookAppointmentWithSurvey({
+    required String service,
+    required DateTime date,
+    required String patientName,
+    required String patientEmail,
+    required String patientPhone,
+    required Map<String, dynamic>? surveyData,
+    required String surveyNotes,
+    String? preferredTimeSlot,
+    String? patientId,
+  }) async {
+    try {
+      // Check if date is within booking window
+      final now = DateTime.now();
+      final maxBookingDate = now.add(const Duration(days: 5));
+
+      if (date.isBefore(now) || date.isAfter(maxBookingDate)) {
+        return AppointmentBookingResult(
+          success: false,
+          message: 'Appointments can only be booked up to 5 days in advance',
+        );
+      }
+
+      // Check daily limit
+      final dailyLimit = _patientLimitService.getDailyLimit(date);
+      if (dailyLimit.isAtLimit) {
+        return AppointmentBookingResult(
+          success: false,
+          message: 'No available slots for the selected date',
+        );
+      }
+
+      // Find available time slot
+      final availableSlot = _getAvailableTimeSlot(date);
+      if (availableSlot.isEmpty) {
+        return AppointmentBookingResult(
+          success: false,
+          message: 'No available time slots for ${_formatDisplayDate(date)}',
+        );
+      }
+
+      // Create appointment with pending status
+      final appointmentId = 'APT-${DateTime.now().millisecondsSinceEpoch}';
+      final appointment = Appointment(
+        id: appointmentId,
+        patientId:
+            patientId ?? '1', // Use provided patient ID or fallback to '1'
+        service: service,
+        date: date,
+        timeSlot: availableSlot,
+        doctorName: 'Dr. Smith',
+        status: AppointmentStatus.pending, // Set to pending for admin review
+        notes: surveyNotes.isNotEmpty ? 'Survey: $surveyNotes' : null,
+        createdAt: DateTime.now(),
+      );
+
+      // Save appointment to both in-memory storage and database
+      _appointments.add(appointment);
+
+      // Save to database for admin dashboard
+      try {
+        // Using ApiService static methods instead
+        await ApiService.saveAppointment(appointment.patientId, {
+          'id': appointment.id,
+          'service': appointment.service,
+          'date': appointment.date.toIso8601String(),
+          'timeSlot': appointment.timeSlot,
+          'doctorName': appointment.doctorName,
+          'status': appointment.status.name,
+          'notes': appointment.notes,
+          'createdAt': appointment.createdAt.toIso8601String(),
+        });
+      } catch (e) {
+        print('Warning: Failed to save appointment to database: $e');
+        // Continue with success since it's saved in memory
+      }
+
+      return AppointmentBookingResult(
+        success: true,
+        message: 'Appointment request submitted successfully',
+        appointmentId: appointmentId,
+      );
+    } catch (e) {
+      return AppointmentBookingResult(
+        success: false,
+        message: 'Failed to book appointment: ${e.toString()}',
       );
     }
   }
@@ -357,8 +453,8 @@ class AppointmentService {
       }
     }
 
-    // If all slots are taken, return a random one (overbooking)
-    return timeSlots[DateTime.now().millisecond % timeSlots.length];
+    // If all slots are taken, return empty string to indicate no availability
+    return '';
   }
 
   // Get appointments for a specific date

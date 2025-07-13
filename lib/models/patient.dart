@@ -1,5 +1,5 @@
 class Patient {
-  final int? id;
+  final String? id;
   final String firstName;
   final String lastName;
   final String email;
@@ -13,6 +13,8 @@ class Patient {
   final String allergies;
   final String serialNumber;
   final String unitAssignment;
+  final String classification;
+  final String otherClassification;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -31,30 +33,34 @@ class Patient {
     this.allergies = '',
     this.serialNumber = '',
     this.unitAssignment = '',
+    this.classification = '',
+    this.otherClassification = '',
     DateTime? createdAt,
     DateTime? updatedAt,
-  }) : createdAt = createdAt ?? DateTime.now(),
-       updatedAt = updatedAt ?? DateTime.now();
+  })  : createdAt = createdAt ?? DateTime.now(),
+        updatedAt = updatedAt ?? DateTime.now();
 
   // Convert Patient to Map for database storage
   Map<String, dynamic> toMap() {
     return {
       'id': id,
-      'firstName': firstName,
-      'lastName': lastName,
+      'first_name': firstName,
+      'last_name': lastName,
       'email': email,
       'phone': phone,
-      'passwordHash': passwordHash,
-      'dateOfBirth': dateOfBirth.toIso8601String(),
+      'password_hash': passwordHash,
+      'date_of_birth': dateOfBirth.toIso8601String(),
       'address': address,
-      'emergencyContact': emergencyContact,
-      'emergencyPhone': emergencyPhone,
-      'medicalHistory': medicalHistory,
+      'emergency_contact': emergencyContact,
+      'emergency_phone': emergencyPhone,
+      'medical_history': medicalHistory,
       'allergies': allergies,
-      'serialNumber': serialNumber,
-      'unitAssignment': unitAssignment,
-      'createdAt': createdAt.toIso8601String(),
-      'updatedAt': updatedAt.toIso8601String(),
+      'serial_number': serialNumber,
+      'unit_assignment': unitAssignment,
+      'classification': classification,
+      'other_classification': otherClassification,
+      'created_at': createdAt.toIso8601String(),
+      'updated_at': updatedAt.toIso8601String(),
     };
   }
 
@@ -62,21 +68,29 @@ class Patient {
   factory Patient.fromMap(Map<String, dynamic> map) {
     return Patient(
       id: map['id'],
-      firstName: map['firstName'],
-      lastName: map['lastName'],
-      email: map['email'],
-      phone: map['phone'],
-      passwordHash: map['passwordHash'],
-      dateOfBirth: DateTime.parse(map['dateOfBirth']),
-      address: map['address'],
-      emergencyContact: map['emergencyContact'],
-      emergencyPhone: map['emergencyPhone'],
-      medicalHistory: map['medicalHistory'] ?? '',
+      firstName: map['firstName'] ?? map['first_name'] ?? '',
+      lastName: map['lastName'] ?? map['last_name'] ?? '',
+      email: map['email'] ?? '',
+      phone: map['phone'] ?? '',
+      passwordHash: map['passwordHash'] ?? map['password_hash'] ?? '',
+      dateOfBirth: DateTime.parse(map['dateOfBirth'] ?? map['date_of_birth']),
+      address: map['address'] ?? '',
+      emergencyContact:
+          map['emergencyContact'] ?? map['emergency_contact'] ?? '',
+      emergencyPhone: map['emergencyPhone'] ?? map['emergency_phone'] ?? '',
+      medicalHistory: map['medicalHistory'] ?? map['medical_history'] ?? '',
       allergies: map['allergies'] ?? '',
-      serialNumber: map['serialNumber'] ?? '',
-      unitAssignment: map['unitAssignment'] ?? '',
-      createdAt: DateTime.parse(map['createdAt']),
-      updatedAt: DateTime.parse(map['updatedAt']),
+      serialNumber: map['serialNumber'] ?? map['serial_number'] ?? '',
+      unitAssignment: map['unitAssignment'] ?? map['unit_assignment'] ?? '',
+      classification: map['classification'] ?? '',
+      otherClassification:
+          map['otherClassification'] ?? map['other_classification'] ?? '',
+      createdAt: DateTime.parse(map['createdAt'] ??
+          map['created_at'] ??
+          DateTime.now().toIso8601String()),
+      updatedAt: DateTime.parse(map['updatedAt'] ??
+          map['updated_at'] ??
+          DateTime.now().toIso8601String()),
     );
   }
 
@@ -85,7 +99,7 @@ class Patient {
 
   // Copy with updated fields
   Patient copyWith({
-    int? id,
+    String? id,
     String? firstName,
     String? lastName,
     String? email,
@@ -99,6 +113,8 @@ class Patient {
     String? allergies,
     String? serialNumber,
     String? unitAssignment,
+    String? classification,
+    String? otherClassification,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -117,6 +133,8 @@ class Patient {
       allergies: allergies ?? this.allergies,
       serialNumber: serialNumber ?? this.serialNumber,
       unitAssignment: unitAssignment ?? this.unitAssignment,
+      classification: classification ?? this.classification,
+      otherClassification: otherClassification ?? this.otherClassification,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

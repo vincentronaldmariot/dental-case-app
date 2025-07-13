@@ -39,7 +39,7 @@ class _TreatmentHistoryScreenState extends State<TreatmentHistoryScreen> {
     Future.delayed(const Duration(milliseconds: 500), () {
       setState(() {
         _treatmentRecords = _historyService.getTreatmentRecords(
-          patientId: 'patient_1',
+          patientId: UserStateManager().currentPatientId,
         );
         _isLoading = false;
       });
@@ -51,12 +51,12 @@ class _TreatmentHistoryScreenState extends State<TreatmentHistoryScreen> {
       _selectedFilter = filter;
       if (filter == 'All') {
         _treatmentRecords = _historyService.getTreatmentRecords(
-          patientId: 'patient_1',
+          patientId: UserStateManager().currentPatientId,
         );
       } else {
         _treatmentRecords = _historyService.getTreatmentRecordsByType(
           filter,
-          patientId: 'patient_1',
+          patientId: UserStateManager().currentPatientId,
         );
       }
     });

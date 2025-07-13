@@ -5,9 +5,14 @@ import './dental_survey_screen.dart';
 import './appointment_booking_screen.dart';
 import './treatment_history_screen.dart';
 import './emergency_center_screen.dart';
+import './patient_dashboard_screen.dart';
+
 import './user_state_manager.dart';
 import './services/history_service.dart';
+import './services/notification_service.dart';
+import './services/api_service.dart';
 import './models/appointment.dart';
+import './models/patient.dart';
 
 class MainAppScreen extends StatefulWidget {
   const MainAppScreen({super.key});
@@ -278,10 +283,10 @@ class DashboardScreen extends StatelessWidget {
   Widget _buildRecentActivitySection() {
     final historyService = HistoryService();
     final lastAppointment = historyService.getLastAppointment(
-      patientId: 'patient_1',
+      patientId: UserStateManager().currentPatientId,
     );
     final nextAppointment = historyService.getNextAppointment(
-      patientId: 'patient_1',
+      patientId: UserStateManager().currentPatientId,
     );
 
     return Column(
@@ -371,6 +376,109 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
+  void _showNotifications(BuildContext context) {
+    NotificationService().initializeSampleData();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.7,
+        maxChildSize: 0.9,
+        minChildSize: 0.5,
+        expand: false,
+        builder: (context, scrollController) {
+          final notifications = NotificationService().notifications;
+          return Container(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                const Text(
+                  'Notifications',
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 20),
+                Expanded(
+                  child: ListView.builder(
+                    controller: scrollController,
+                    itemCount: notifications.length,
+                    itemBuilder: (context, index) {
+                      final notification = notifications[index];
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 10),
+                        child: ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: notification.isRead
+                                ? Colors.grey[200]
+                                : Colors.blue[100],
+                            child: Icon(
+                              _getNotificationIcon(notification.type),
+                              color: notification.isRead
+                                  ? Colors.grey
+                                  : Colors.blue,
+                            ),
+                          ),
+                          title: Text(
+                            notification.title,
+                            style: TextStyle(
+                              fontWeight: notification.isRead
+                                  ? FontWeight.normal
+                                  : FontWeight.bold,
+                            ),
+                          ),
+                          subtitle: Text(notification.message),
+                          trailing: Text(
+                            DateFormat('MMM dd').format(notification.createdAt),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey,
+                            ),
+                          ),
+                          onTap: () {
+                            NotificationService().markAsRead(notification.id);
+                            Navigator.pop(context);
+                          },
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  IconData _getNotificationIcon(NotificationType type) {
+    switch (type) {
+      case NotificationType.appointment:
+        return Icons.calendar_today;
+      case NotificationType.healthTip:
+        return Icons.lightbulb;
+      case NotificationType.treatmentUpdate:
+        return Icons.medical_services;
+      case NotificationType.emergency:
+        return Icons.warning;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -436,13 +544,42 @@ class DashboardScreen extends StatelessWidget {
                         ),
                         Row(
                           children: [
-                            IconButton(
-                              onPressed: () {},
-                              icon: const Icon(
-                                Icons.notifications_outlined,
-                                color: Colors.white,
-                                size: 28,
-                              ),
+                            Stack(
+                              children: [
+                                IconButton(
+                                  onPressed: () => _showNotifications(context),
+                                  icon: const Icon(
+                                    Icons.notifications_outlined,
+                                    color: Colors.white,
+                                    size: 28,
+                                  ),
+                                ),
+                                if (NotificationService().unreadCount > 0)
+                                  Positioned(
+                                    right: 8,
+                                    top: 8,
+                                    child: Container(
+                                      padding: const EdgeInsets.all(4),
+                                      decoration: const BoxDecoration(
+                                        color: Colors.red,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      constraints: const BoxConstraints(
+                                        minWidth: 16,
+                                        minHeight: 16,
+                                      ),
+                                      child: Text(
+                                        '${NotificationService().unreadCount}',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
+                                  ),
+                              ],
                             ),
                             PopupMenuButton<String>(
                               icon: const Icon(
@@ -526,17 +663,37 @@ class DashboardScreen extends StatelessWidget {
                       crossAxisCount: 2,
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
-                      crossAxisSpacing: 15,
-                      mainAxisSpacing: 15,
-                      childAspectRatio: 1.0,
+                      crossAxisSpacing:
+                          MediaQuery.of(context).size.width > 600 ? 15 : 12,
+                      mainAxisSpacing:
+                          MediaQuery.of(context).size.width > 600 ? 15 : 12,
+                      childAspectRatio:
+                          MediaQuery.of(context).size.width > 600 ? 1.0 : 1.1,
                       children: [
                         _buildQuickActionCard(
+                          context,
                           'Book Appointment',
                           Icons.calendar_month,
                           const Color(0xFF0029B2),
                           () => _handleAppointmentBooking(context),
                         ),
                         _buildQuickActionCard(
+                          context,
+                          'My Dashboard',
+                          Icons.dashboard,
+                          const Color(0xFF005800),
+                          () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    const PatientDashboardScreen(),
+                              ),
+                            );
+                          },
+                        ),
+                        _buildQuickActionCard(
+                          context,
                           'Emergency',
                           Icons.local_hospital,
                           const Color(0xFFE74C3C),
@@ -551,6 +708,7 @@ class DashboardScreen extends StatelessWidget {
                           },
                         ),
                         _buildQuickActionCard(
+                          context,
                           'Health Assessment',
                           Icons.assignment_outlined,
                           const Color(0xFF005800),
@@ -586,16 +744,19 @@ class DashboardScreen extends StatelessWidget {
   }
 
   Widget _buildQuickActionCard(
+    BuildContext context,
     String title,
     IconData icon,
     Color color,
     VoidCallback onTap,
   ) {
+    final isSmallScreen = MediaQuery.of(context).size.width < 600;
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(15),
       child: Container(
-        padding: const EdgeInsets.all(20),
+        padding: EdgeInsets.all(isSmallScreen ? 16 : 20),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(15),
@@ -611,23 +772,23 @@ class DashboardScreen extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              width: 60,
-              height: 60,
+              width: isSmallScreen ? 50 : 60,
+              height: isSmallScreen ? 50 : 60,
               decoration: BoxDecoration(
                 color: color.withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, color: color, size: 30),
+              child: Icon(icon, color: color, size: isSmallScreen ? 26 : 30),
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: isSmallScreen ? 10 : 12),
             Flexible(
               child: Text(
                 title,
                 textAlign: TextAlign.center,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 16,
+                style: TextStyle(
+                  fontSize: isSmallScreen ? 14 : 16,
                   fontWeight: FontWeight.w600,
                   color: Colors.black87,
                   height: 1.2,
@@ -1061,27 +1222,28 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
 
   Widget _buildAppointmentsList() {
     List<dynamic> appointments;
+    final patientId = UserStateManager().currentPatientId;
 
     switch (_selectedTab) {
       case 'Upcoming':
         appointments = _historyService.getUpcomingAppointments(
-          patientId: 'patient_1',
+          patientId: patientId,
         );
         break;
       case 'Completed':
         appointments = _historyService.getAppointmentsByStatus(
           AppointmentStatus.completed,
-          patientId: 'patient_1',
+          patientId: patientId,
         );
         break;
       case 'Cancelled':
         appointments = _historyService.getAppointmentsByStatus(
           AppointmentStatus.cancelled,
-          patientId: 'patient_1',
+          patientId: patientId,
         );
         break;
       default:
-        appointments = _historyService.getAppointments(patientId: 'patient_1');
+        appointments = _historyService.getAppointments(patientId: patientId);
     }
 
     if (appointments.isEmpty) {
@@ -1187,7 +1349,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                       border: Border.all(color: statusColor.withOpacity(0.3)),
                     ),
                     child: Text(
-                      appointment.status.displayName,
+                      _getStatusDisplayName(appointment.status),
                       style: TextStyle(
                         color: statusColor,
                         fontSize: 12,
@@ -1258,8 +1420,29 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
     );
   }
 
+  String _getStatusDisplayName(AppointmentStatus status) {
+    switch (status) {
+      case AppointmentStatus.pending:
+        return 'Pending Review';
+      case AppointmentStatus.scheduled:
+        return 'Scheduled';
+      case AppointmentStatus.completed:
+        return 'Completed';
+      case AppointmentStatus.cancelled:
+        return 'Cancelled';
+      case AppointmentStatus.missed:
+        return 'Missed';
+      case AppointmentStatus.rescheduled:
+        return 'Rescheduled';
+      default:
+        return 'Unknown';
+    }
+  }
+
   Color _getStatusColor(AppointmentStatus status) {
     switch (status) {
+      case AppointmentStatus.pending:
+        return const Color(0xFFFF9800);
       case AppointmentStatus.scheduled:
         return const Color(0xFF0029B2);
       case AppointmentStatus.completed:
@@ -1270,6 +1453,8 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
         return const Color(0xFFFF6B35);
       case AppointmentStatus.rescheduled:
         return const Color(0xFF7B1FA2);
+      default:
+        return const Color(0xFF666666);
     }
   }
 
@@ -1279,7 +1464,8 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) => Container(
-        height: MediaQuery.of(context).size.height * 0.7,
+        height: MediaQuery.of(context).size.height *
+            (MediaQuery.of(context).size.width < 600 ? 0.8 : 0.7),
         decoration: const BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -1334,7 +1520,10 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                       DateFormat('EEEE, MMM dd, yyyy').format(appointment.date),
                     ),
                     _buildDetailRow('Time', appointment.timeSlot),
-                    _buildDetailRow('Status', appointment.status.displayName),
+                    _buildDetailRow(
+                      'Status',
+                      _getStatusDisplayName(appointment.status),
+                    ),
                     if (appointment.notes != null)
                       _buildDetailRow('Notes', appointment.notes!),
                   ],
@@ -1372,20 +1561,453 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
   }
 }
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
   @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  Map<String, dynamic>? _surveyData;
+  bool _isLoadingSurvey = false;
+  // Database service is now handled by ApiService static methods
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSurveyStatus();
+  }
+
+  Future<void> _loadSurveyStatus() async {
+    setState(() => _isLoadingSurvey = true);
+    try {
+      final surveyData = await ApiService.getDentalSurvey(
+        UserStateManager().currentPatientId,
+      ); // Use authenticated patient ID
+      setState(() {
+        _surveyData = surveyData;
+        // Update UserStateManager to reflect current survey status
+        UserStateManager().updateSurveyStatus(surveyData != null);
+      });
+    } catch (e) {
+      print('Error loading survey status: $e');
+    } finally {
+      setState(() => _isLoadingSurvey = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(
-        child: Text(
-          'Profile Screen\n(Coming Soon)',
-          style: TextStyle(fontSize: 18),
-          textAlign: TextAlign.center,
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8F9FA),
+      appBar: AppBar(
+        title: const Text(
+          'Profile',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: const Color(0xFF0029B2),
+        elevation: 0,
+        automaticallyImplyLeading: false,
+      ),
+      body: _buildProfileContent(),
+    );
+  }
+
+  Widget _buildProfileContent() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Survey Status Card
+          _buildSurveyStatusCard(),
+          const SizedBox(height: 20),
+
+          // Account Actions
+          _buildAccountActionsCard(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPatientInfoCard(Patient patient) {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 30,
+                  backgroundColor: const Color(0xFF0029B2).withOpacity(0.1),
+                  child: Text(
+                    '${patient.firstName[0]}${patient.lastName[0]}',
+                    style: const TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF0029B2),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 15),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${patient.firstName} ${patient.lastName}',
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      Text(
+                        patient.email,
+                        style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                      ),
+                      Text(
+                        patient.phone,
+                        style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
+  }
+
+  Widget _buildSurveyStatusCard() {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.assignment,
+                  color: const Color(0xFF0029B2),
+                  size: 24,
+                ),
+                const SizedBox(width: 10),
+                const Text(
+                  'Dental Health Assessment',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 15),
+            if (_isLoadingSurvey)
+              const Center(child: CircularProgressIndicator())
+            else if (_surveyData != null) ...[
+              // Survey completed
+              Container(
+                padding: const EdgeInsets.all(15),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade50,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.green.shade200),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.check_circle, color: Colors.green, size: 20),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Assessment Completed',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      'Last updated: ${_formatDate(_surveyData!['completed_at'])}',
+                      style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                    ),
+                    const SizedBox(height: 15),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          _showRetakeSurveyDialog();
+                        },
+                        icon: const Icon(Icons.edit),
+                        label: const Text('Update Assessment'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFF0029B2),
+                          side: const BorderSide(color: Color(0xFF0029B2)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ] else ...[
+              // Survey not completed
+              Container(
+                padding: const EdgeInsets.all(15),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.orange.shade200),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.warning, color: Colors.orange, size: 20),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Assessment Required',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.orange,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    const Text(
+                      'Complete your dental health assessment to enable appointment booking and get personalized care.',
+                      style: TextStyle(fontSize: 14, color: Colors.black87),
+                    ),
+                    const SizedBox(height: 15),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const DentalSurveyScreen(),
+                            ),
+                          ).then((_) => _loadSurveyStatus());
+                        },
+                        icon: const Icon(Icons.assignment),
+                        label: const Text('Complete Assessment'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.orange,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAccountActionsCard() {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Account Actions',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 15),
+            ListTile(
+              leading: Icon(Icons.history, color: Colors.blue),
+              title: const Text('Appointment History'),
+              subtitle: const Text('View your past and upcoming appointments'),
+              trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const TreatmentHistoryScreen(),
+                  ),
+                );
+              },
+            ),
+            const Divider(),
+            ListTile(
+              leading: Icon(Icons.logout, color: Colors.red),
+              title: const Text('Logout'),
+              subtitle: const Text('Sign out of your account'),
+              trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+              onTap: () => _showLogoutDialog(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showLogoutDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: Row(
+            children: [
+              Icon(Icons.logout, color: Colors.red, size: 28),
+              const SizedBox(width: 12),
+              const Text(
+                'Logout',
+                style: TextStyle(
+                  color: Colors.black87,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          content: const Text(
+            'Are you sure you want to logout from your account?',
+            style: TextStyle(fontSize: 16, color: Colors.black54),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text(
+                'Cancel',
+                style: TextStyle(color: Colors.grey, fontSize: 16),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                UserStateManager().logoutClient();
+                Navigator.of(context).pop();
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(
+                    builder: (context) => const WelcomeScreen(),
+                  ),
+                  (Route<dynamic> route) => false,
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: const Text(
+                'Logout',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showRetakeSurveyDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: Row(
+            children: [
+              Icon(Icons.assignment, color: Colors.orange, size: 28),
+              const SizedBox(width: 12),
+              const Text(
+                'Retake Assessment',
+                style: TextStyle(
+                  color: Colors.black87,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+          content: const Text(
+            'Do you want to answer the self-assessment survey again? This will replace your current assessment data.',
+            style: TextStyle(fontSize: 16, color: Colors.black54),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text(
+                'Cancel',
+                style: TextStyle(color: Colors.grey, fontSize: 16),
+              ),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const DentalSurveyScreen(),
+                  ),
+                ).then((_) => _loadSurveyStatus());
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: const Text(
+                'Yes, Retake Survey',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  String _formatDate(String dateString) {
+    try {
+      final date = DateTime.parse(dateString);
+      return DateFormat('MMM dd, yyyy').format(date);
+    } catch (e) {
+      return 'Unknown';
+    }
   }
 }
 

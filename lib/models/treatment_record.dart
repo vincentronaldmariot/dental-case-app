@@ -32,17 +32,17 @@ class TreatmentRecord {
   Map<String, dynamic> toMap() {
     return {
       'id': id,
-      'patientId': patientId,
-      'appointmentId': appointmentId,
-      'treatmentType': treatmentType,
+      'patient_id': patientId,
+      'appointment_id': appointmentId,
+      'treatment_type': treatmentType,
       'description': description,
-      'doctorName': doctorName,
-      'treatmentDate': treatmentDate.toIso8601String(),
+      'doctor_name': doctorName,
+      'treatment_date': treatmentDate.toIso8601String(),
       'procedures': procedures,
       'notes': notes,
       'prescription': prescription,
-      'createdAt': createdAt.toIso8601String(),
-      'updatedAt': updatedAt.toIso8601String(),
+      'created_at': createdAt.toIso8601String(),
+      'updated_at': updatedAt.toIso8601String(),
     };
   }
 
@@ -50,17 +50,17 @@ class TreatmentRecord {
   factory TreatmentRecord.fromMap(Map<String, dynamic> map) {
     return TreatmentRecord(
       id: map['id'],
-      patientId: map['patientId'],
-      appointmentId: map['appointmentId'],
-      treatmentType: map['treatmentType'],
+      patientId: map['patient_id'].toString(),
+      appointmentId: map['appointment_id'],
+      treatmentType: map['treatment_type'],
       description: map['description'],
-      doctorName: map['doctorName'],
-      treatmentDate: DateTime.parse(map['treatmentDate']),
+      doctorName: map['doctor_name'],
+      treatmentDate: DateTime.parse(map['treatment_date']),
       procedures: List<String>.from(map['procedures'] ?? []),
       notes: map['notes'],
       prescription: map['prescription'],
-      createdAt: DateTime.parse(map['createdAt']),
-      updatedAt: DateTime.parse(map['updatedAt']),
+      createdAt: DateTime.parse(map['created_at']),
+      updatedAt: DateTime.parse(map['updated_at']),
     );
   }
 

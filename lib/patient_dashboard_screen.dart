@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'models/appointment.dart';
-import 'models/treatment_record.dart';
 import 'services/history_service.dart';
-import 'user_state_manager.dart';
 
 class PatientDashboardScreen extends StatefulWidget {
   const PatientDashboardScreen({super.key});
@@ -253,7 +251,6 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
             ],
           ),
           const SizedBox(height: 15),
-
           if (appointments.isEmpty)
             const Center(
               child: Padding(
@@ -343,7 +340,6 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 15),
-
           _buildProgressItem('Root Canal Therapy', 0.8, Colors.blue),
           _buildProgressItem('Orthodontic Treatment', 0.4, Colors.green),
           _buildProgressItem('Periodontal Care', 0.9, Colors.orange),
@@ -404,7 +400,6 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 15),
-
           _buildReminderItem(
             'Brush teeth twice daily',
             Icons.brush,

@@ -14,25 +14,83 @@ class ApiService {
     final prefs = await SharedPreferences.getInstance();
     _token = prefs.getString('auth_token');
 
-    // Test backend connection
+    // Test backend connection with better error handling
+    await _checkBackendConnection();
+
+    print(
+        'ApiService initialized with token: ${_token != null ? 'present' : 'none'}');
+    print('Offline mode: $_offlineMode');
+  }
+
+  // Check backend connection with retry logic
+  static Future<void> _checkBackendConnection() async {
+    int retryCount = 0;
+    const maxRetries = 3;
+
+    while (retryCount < maxRetries) {
+      try {
+        print('🔄 Checking backend connection (attempt ${retryCount + 1})...');
+
+        final response = await http.get(
+          Uri.parse('http://localhost:3000/health'),
+          headers: {'Content-Type': 'application/json'},
+        ).timeout(Duration(seconds: 5));
+
+        if (response.statusCode == 200) {
+          _offlineMode = false;
+          print('✅ Backend connection successful');
+
+          // If we were offline before, try to sync local data
+          if (retryCount > 0) {
+            print('🔄 Backend is back online, syncing local data...');
+            await syncAllLocalAppointments();
+          }
+          return;
+        } else {
+          print('⚠️ Backend responded with status: ${response.statusCode}');
+          _offlineMode = true;
+        }
+      } catch (e) {
+        print('❌ Backend connection attempt ${retryCount + 1} failed: $e');
+        _offlineMode = true;
+      }
+
+      retryCount++;
+      if (retryCount < maxRetries) {
+        print('⏳ Retrying in 2 seconds...');
+        await Future.delayed(Duration(seconds: 2));
+      }
+    }
+
+    print(
+        '❌ Backend unavailable after $maxRetries attempts, running in offline mode');
+  }
+
+  // Manual connection check and sync
+  static Future<bool> checkConnectionAndSync() async {
+    print('🔄 Manual connection check and sync...');
+
     try {
       final response = await http.get(
         Uri.parse('http://localhost:3000/health'),
         headers: {'Content-Type': 'application/json'},
       ).timeout(Duration(seconds: 5));
 
-      _offlineMode = response.statusCode != 200;
-      if (!_offlineMode) {
-        print('✅ Backend connection successful');
+      if (response.statusCode == 200) {
+        _offlineMode = false;
+        print('✅ Backend is online, syncing local data...');
+        await syncAllLocalAppointments();
+        return true;
+      } else {
+        _offlineMode = true;
+        print('⚠️ Backend responded with status: ${response.statusCode}');
+        return false;
       }
     } catch (e) {
       _offlineMode = true;
-      print('❌ Backend unavailable, running in offline mode: $e');
+      print('❌ Backend connection failed: $e');
+      return false;
     }
-
-    print(
-        'ApiService initialized with token: ${_token != null ? 'present' : 'none'}');
-    print('Offline mode: $_offlineMode');
   }
 
   // Get headers with authentication
@@ -73,23 +131,33 @@ class ApiService {
   // AUTHENTICATION METHODS
 
   /// Authenticate patient with email and password
-  static Future<String?> authenticatePatient(
+  static Future<Map<String, dynamic>?> authenticatePatient(
       String email, String password) async {
     if (_offlineMode) {
-      // Offline mode - simulate login
+      // Offline mode - validate credentials
       await Future.delayed(Duration(milliseconds: 500));
-      final patientId = 'offline_${email.hashCode}';
-      await _storeToken('offline_token_$patientId');
 
-      _localData[patientId] = {
-        'id': patientId,
-        'email': email,
-        'firstName': 'Demo',
-        'lastName': 'User',
-        'phone': '123-456-7890',
-      };
+      // Check if this is a valid demo account
+      if (email == 'demo@dental.com' && password == 'demo123') {
+        final patientId = 'offline_demo_user';
+        await _storeToken('offline_token_$patientId');
 
-      return patientId;
+        _localData[patientId] = {
+          'id': patientId,
+          'email': email,
+          'firstName': 'Demo',
+          'lastName': 'User',
+          'phone': '123-456-7890',
+        };
+
+        return {
+          'token': 'offline_token_$patientId',
+          'patientId': patientId,
+        };
+      }
+
+      // For any other credentials, authentication fails
+      return null;
     }
 
     try {
@@ -115,7 +183,10 @@ class ApiService {
         await _storeToken(token);
 
         print('Authentication successful for patient: ${patientData['id']}');
-        return patientData['id'];
+        return {
+          'token': token,
+          'patientId': patientData['id'],
+        };
       } else {
         _handleError(response);
         return null;
@@ -132,6 +203,14 @@ class ApiService {
     if (_offlineMode) {
       // Offline mode - simulate registration
       await Future.delayed(Duration(milliseconds: 500));
+
+      // Check if email already exists
+      for (final existingPatient in _localData.values) {
+        if (existingPatient['email'] == patient.email) {
+          throw Exception('Email already registered');
+        }
+      }
+
       final patientId = 'offline_${patient.email.hashCode}';
       await _storeToken('offline_token_$patientId');
 
@@ -345,6 +424,9 @@ class ApiService {
       await prefs.setString(
           'appointment_$appointmentId', json.encode(appointmentData));
       print('Appointment saved locally: $appointmentId');
+
+      // Try to sync to database when online
+      _trySyncToDatabase(patientId, appointmentData);
       return;
     }
 
@@ -367,13 +449,89 @@ class ApiService {
       print('Appointment save response body: ${response.body}');
 
       if (response.statusCode == 201) {
-        print('Appointment saved successfully');
+        print('Appointment saved successfully to database');
       } else {
         _handleError(response);
       }
     } catch (e) {
       print('Save appointment error: $e');
-      throw Exception('Failed to save appointment: $e');
+      // Fallback to local storage if API fails
+      final prefs = await SharedPreferences.getInstance();
+      final appointmentId =
+          'offline_apt_${DateTime.now().millisecondsSinceEpoch}';
+      appointmentData['id'] = appointmentId;
+      await prefs.setString(
+          'appointment_$appointmentId', json.encode(appointmentData));
+      print('Appointment saved locally as fallback: $appointmentId');
+    }
+  }
+
+  /// Try to sync local appointments to database
+  static Future<void> _trySyncToDatabase(
+      String patientId, Map<String, dynamic> appointmentData) async {
+    try {
+      // Test if backend is now available
+      final healthResponse = await http.get(
+        Uri.parse('http://localhost:3000/health'),
+        headers: {'Content-Type': 'application/json'},
+      ).timeout(Duration(seconds: 5));
+
+      if (healthResponse.statusCode == 200) {
+        print('🔄 Backend available, syncing appointment to database...');
+
+        final response = await http.post(
+          Uri.parse('$baseUrl/appointments'),
+          headers: _headers,
+          body: json.encode({
+            'service': appointmentData['service'],
+            'appointmentDate': appointmentData['date'],
+            'timeSlot': appointmentData['timeSlot'],
+            'doctorName': appointmentData['doctorName'],
+            'notes': appointmentData['notes'],
+          }),
+        );
+
+        if (response.statusCode == 201) {
+          print('✅ Appointment synced to database successfully');
+          // Remove from local storage after successful sync
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.remove('appointment_${appointmentData['id']}');
+        } else {
+          print('⚠️ Failed to sync appointment: ${response.statusCode}');
+        }
+      }
+    } catch (e) {
+      print('🔄 Sync attempt failed: $e');
+    }
+  }
+
+  /// Sync all local appointments to database
+  static Future<void> syncAllLocalAppointments() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final keys = prefs.getKeys();
+      final appointmentKeys =
+          keys.where((key) => key.startsWith('appointment_')).toList();
+
+      if (appointmentKeys.isEmpty) {
+        print('No local appointments to sync');
+        return;
+      }
+
+      print('🔄 Syncing ${appointmentKeys.length} local appointments...');
+
+      for (final key in appointmentKeys) {
+        final appointmentJson = prefs.getString(key);
+        if (appointmentJson != null) {
+          final appointmentData = json.decode(appointmentJson);
+          await _trySyncToDatabase(
+              appointmentData['patientId'] ?? 'unknown', appointmentData);
+        }
+      }
+
+      print('✅ Local appointment sync completed');
+    } catch (e) {
+      print('❌ Error syncing local appointments: $e');
     }
   }
 

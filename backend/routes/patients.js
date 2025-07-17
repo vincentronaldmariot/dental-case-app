@@ -2,6 +2,7 @@ const express = require('express');
 const { body, validationResult } = require('express-validator');
 const { query } = require('../config/database');
 const { verifyPatient } = require('../middleware/auth');
+const { verifyToken } = require('../middleware/auth'); // Added verifyToken
 
 const router = express.Router();
 
@@ -203,6 +204,117 @@ router.put('/profile', verifyPatient, [
     console.error('Update profile error:', error);
     res.status(500).json({
       error: 'Failed to update profile. Please try again.'
+    });
+  }
+});
+
+// GET /api/patients/:id/notifications - Get patient notifications
+router.get('/:id/notifications', verifyToken, async (req, res) => {
+  try {
+    const patientId = req.params.id;
+    
+    // Verify the token belongs to this patient
+    if (req.user.id !== patientId) {
+      return res.status(403).json({
+        error: 'Access denied. You can only view your own notifications.'
+      });
+    }
+
+    const result = await query(`
+      SELECT id, title, message, type, is_read, created_at
+      FROM notifications 
+      WHERE patient_id = $1
+      ORDER BY created_at DESC
+      LIMIT 50
+    `, [patientId]);
+
+    res.json({
+      notifications: result.rows.map(notification => ({
+        id: notification.id,
+        title: notification.title,
+        message: notification.message,
+        type: notification.type,
+        isRead: notification.is_read,
+        createdAt: notification.created_at
+      }))
+    });
+
+  } catch (error) {
+    console.error('Get patient notifications error:', error);
+    res.status(500).json({
+      error: 'Failed to retrieve notifications. Please try again.'
+    });
+  }
+});
+
+// PUT /api/patients/:id/notifications/:notificationId/read - Mark notification as read
+router.put('/:id/notifications/:notificationId/read', verifyToken, async (req, res) => {
+  try {
+    const patientId = req.params.id;
+    const notificationId = req.params.notificationId;
+    
+    // Verify the token belongs to this patient
+    if (req.user.id !== patientId) {
+      return res.status(403).json({
+        error: 'Access denied. You can only update your own notifications.'
+      });
+    }
+
+    const result = await query(`
+      UPDATE notifications 
+      SET is_read = true, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $1 AND patient_id = $2
+      RETURNING id, is_read
+    `, [notificationId, patientId]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        error: 'Notification not found'
+      });
+    }
+
+    res.json({
+      message: 'Notification marked as read',
+      notification: {
+        id: result.rows[0].id,
+        isRead: result.rows[0].is_read
+      }
+    });
+
+  } catch (error) {
+    console.error('Mark notification read error:', error);
+    res.status(500).json({
+      error: 'Failed to update notification. Please try again.'
+    });
+  }
+});
+
+// GET /api/patients/:id/notifications/unread-count - Get unread notifications count
+router.get('/:id/notifications/unread-count', verifyToken, async (req, res) => {
+  try {
+    const patientId = req.params.id;
+    
+    // Verify the token belongs to this patient
+    if (req.user.id !== patientId) {
+      return res.status(403).json({
+        error: 'Access denied. You can only view your own notifications.'
+      });
+    }
+
+    const result = await query(`
+      SELECT COUNT(*) as count
+      FROM notifications 
+      WHERE patient_id = $1 AND is_read = false
+    `, [patientId]);
+
+    res.json({
+      unreadCount: parseInt(result.rows[0].count)
+    });
+
+  } catch (error) {
+    console.error('Get unread count error:', error);
+    res.status(500).json({
+      error: 'Failed to retrieve unread count. Please try again.'
     });
   }
 });

@@ -3,8 +3,8 @@ import './user_state_manager.dart';
 import './welcome_screen.dart';
 import './services/patient_limit_service.dart';
 import './services/appointment_service.dart';
-import './models/appointment.dart';
 import './patient_survey_results_screen.dart';
+import 'admin_dashboard_screen.dart';
 
 class AdminLoginScreen extends StatefulWidget {
   const AdminLoginScreen({super.key});
@@ -48,11 +48,11 @@ class _AdminLoginScreenState extends State<AdminLoginScreen>
 
     _slideAnimation =
         Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(
-          CurvedAnimation(
-            parent: _animationController,
-            curve: const Interval(0.2, 1.0, curve: Curves.easeOutCubic),
-          ),
-        );
+      CurvedAnimation(
+        parent: _animationController,
+        curve: const Interval(0.2, 1.0, curve: Curves.easeOutCubic),
+      ),
+    );
 
     _animationController.forward();
   }
@@ -84,7 +84,8 @@ class _AdminLoginScreenState extends State<AdminLoginScreen>
           // Navigate to admin dashboard
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (context) => const AdminDashboard()),
+            MaterialPageRoute(
+                builder: (context) => const AdminDashboardScreen()),
           );
         } else {
           // Show error message
@@ -269,9 +270,9 @@ class _AdminLoginScreenState extends State<AdminLoginScreen>
                                       fillColor: Colors.grey.shade50,
                                       contentPadding:
                                           const EdgeInsets.symmetric(
-                                            horizontal: 20,
-                                            vertical: 16,
-                                          ),
+                                        horizontal: 20,
+                                        vertical: 16,
+                                      ),
                                     ),
                                     validator: (value) {
                                       if (value == null || value.isEmpty) {
@@ -332,9 +333,9 @@ class _AdminLoginScreenState extends State<AdminLoginScreen>
                                       fillColor: Colors.grey.shade50,
                                       contentPadding:
                                           const EdgeInsets.symmetric(
-                                            horizontal: 20,
-                                            vertical: 16,
-                                          ),
+                                        horizontal: 20,
+                                        vertical: 16,
+                                      ),
                                     ),
                                     validator: (value) {
                                       if (value == null || value.isEmpty) {
@@ -420,11 +421,11 @@ class _AdminLoginScreenState extends State<AdminLoginScreen>
                                             ? const SizedBox(
                                                 width: 24,
                                                 height: 24,
-                                                child: CircularProgressIndicator(
+                                                child:
+                                                    CircularProgressIndicator(
                                                   valueColor:
                                                       AlwaysStoppedAnimation<
-                                                        Color
-                                                      >(Colors.white),
+                                                          Color>(Colors.white),
                                                   strokeWidth: 2,
                                                 ),
                                               )
@@ -723,8 +724,8 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen> {
                 todayLimit.isAtLimit
                     ? Colors.red
                     : todayLimit.isNearLimit
-                    ? Colors.orange
-                    : Colors.green,
+                        ? Colors.orange
+                        : Colors.green,
                 subtitle:
                     '${100 - appointmentStats['todayAppointments']} slots left',
               ),
@@ -767,9 +768,8 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen> {
     final isAtLimit = todayLimit.isAtLimit;
     final color = isAtLimit ? Colors.red : Colors.orange;
     final icon = isAtLimit ? Icons.error : Icons.warning;
-    final title = isAtLimit
-        ? 'Daily Limit Reached!'
-        : 'Approaching Daily Limit';
+    final title =
+        isAtLimit ? 'Daily Limit Reached!' : 'Approaching Daily Limit';
     final message = isAtLimit
         ? 'Cannot accept more patients today (${todayLimit.currentCount}/100)'
         : 'Only ${todayLimit.remainingSlots} slots remaining today';
@@ -837,8 +837,8 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen> {
     final progressColor = limit.isAtLimit
         ? Colors.red
         : limit.isNearLimit
-        ? Colors.orange
-        : Colors.green;
+            ? Colors.orange
+            : Colors.green;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -1086,8 +1086,8 @@ class _PatientManagementScreenState extends State<PatientManagementScreen> {
     final Color statusColor = count >= 90
         ? Colors.red
         : count >= 80
-        ? Colors.orange
-        : Colors.green;
+            ? Colors.orange
+            : Colors.green;
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -1665,8 +1665,8 @@ class _AppointmentManagementScreenState
                   dailyLimit?.isAtLimit == true
                       ? 'AT LIMIT'
                       : dailyLimit?.isNearLimit == true
-                      ? 'NEAR LIMIT'
-                      : 'AVAILABLE',
+                          ? 'NEAR LIMIT'
+                          : 'AVAILABLE',
                   style: TextStyle(
                     color: progressColor,
                     fontWeight: FontWeight.bold,

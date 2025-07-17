@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'models/patient.dart';
 import 'services/appointment_service.dart';
-import 'models/appointment.dart';
-import 'services/history_service.dart';
 
 class AppointmentSchedulingScreen extends StatefulWidget {
   final Patient patient;
@@ -308,8 +305,8 @@ class _AppointmentSchedulingScreenState
                         color: appointmentCount >= 90
                             ? Colors.red
                             : appointmentCount >= 80
-                            ? Colors.orange
-                            : Colors.green,
+                                ? Colors.orange
+                                : Colors.green,
                       ),
                     ),
                   ],
@@ -457,9 +454,8 @@ class _AppointmentSchedulingScreenState
                 crossAxisCount: MediaQuery.of(context).size.width > 600 ? 4 : 3,
                 crossAxisSpacing: 8,
                 mainAxisSpacing: 8,
-                childAspectRatio: MediaQuery.of(context).size.width > 600
-                    ? 2.5
-                    : 2.2,
+                childAspectRatio:
+                    MediaQuery.of(context).size.width > 600 ? 2.5 : 2.2,
               ),
               itemCount: _appointmentService.timeSlots.length,
               itemBuilder: (context, index) {
@@ -1409,8 +1405,8 @@ class _AppointmentSchedulingScreenState
           timeValue == 'ASAP'
               ? Icons.flash_on
               : timeValue == 'OVERRIDE'
-              ? Icons.admin_panel_settings
-              : Icons.schedule,
+                  ? Icons.admin_panel_settings
+                  : Icons.schedule,
           size: 18,
         ),
         label: Text(label),

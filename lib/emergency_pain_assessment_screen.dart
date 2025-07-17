@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'models/emergency_record.dart';
 import 'services/emergency_service.dart';
 import 'user_state_manager.dart';
@@ -289,7 +288,6 @@ class _EmergencyPainAssessmentScreenState
             ],
           ),
           const SizedBox(height: 15),
-
           DropdownButtonFormField<EmergencyType>(
             value: _selectedType,
             decoration: InputDecoration(
@@ -313,9 +311,7 @@ class _EmergencyPainAssessmentScreenState
               });
             },
           ),
-
           const SizedBox(height: 15),
-
           TextFormField(
             maxLines: 3,
             decoration: InputDecoration(
@@ -358,7 +354,6 @@ class _EmergencyPainAssessmentScreenState
             ],
           ),
           const SizedBox(height: 15),
-
           Text(
             'Check any that apply (these indicate immediate emergency):',
             style: TextStyle(
@@ -367,7 +362,6 @@ class _EmergencyPainAssessmentScreenState
             ),
           ),
           const SizedBox(height: 10),
-
           CheckboxListTile(
             title: const Text('Facial swelling affecting eyes or breathing'),
             value: _hasFacialSwelling,
@@ -431,10 +425,8 @@ class _EmergencyPainAssessmentScreenState
             ],
           ),
           const SizedBox(height: 15),
-
           const Text('Select all symptoms you are experiencing:'),
           const SizedBox(height: 10),
-
           Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -490,7 +482,6 @@ class _EmergencyPainAssessmentScreenState
             ],
           ),
           const SizedBox(height: 15),
-
           TextFormField(
             decoration: InputDecoration(
               labelText: 'Current location',
@@ -502,9 +493,7 @@ class _EmergencyPainAssessmentScreenState
             ),
             onChanged: (value) => _location = value,
           ),
-
           const SizedBox(height: 15),
-
           CheckboxListTile(
             title: const Text('Is this duty-related?'),
             subtitle: const Text(
@@ -513,7 +502,6 @@ class _EmergencyPainAssessmentScreenState
             value: _isDutyRelated,
             onChanged: (value) => setState(() => _isDutyRelated = value!),
           ),
-
           if (_isDutyRelated) ...[
             const SizedBox(height: 15),
             TextFormField(
@@ -636,7 +624,6 @@ class _EmergencyPainAssessmentScreenState
                 ],
               ),
               const SizedBox(height: 15),
-
               ...(_emergencyInstructions.asMap().entries.map((entry) {
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 8),

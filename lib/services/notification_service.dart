@@ -1,4 +1,8 @@
-class NotificationService {
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart';
+
+class NotificationService extends ChangeNotifier {
   static final NotificationService _instance = NotificationService._internal();
   factory NotificationService() => _instance;
   NotificationService._internal();
@@ -10,32 +14,33 @@ class NotificationService {
   void initializeSampleData() {
     if (_notifications.isNotEmpty) return;
 
-    _notifications.addAll([
-      AppNotification(
-        id: 'notif_1',
-        title: 'Appointment Reminder',
-        message: 'Your cleaning appointment is tomorrow at 10:00 AM',
-        type: NotificationType.appointment,
-        isRead: false,
-        createdAt: DateTime.now().subtract(const Duration(hours: 2)),
-      ),
-      AppNotification(
-        id: 'notif_2',
-        title: 'Health Tip',
-        message: 'Remember to floss daily for optimal oral health',
-        type: NotificationType.healthTip,
-        isRead: false,
-        createdAt: DateTime.now().subtract(const Duration(days: 1)),
-      ),
-      AppNotification(
-        id: 'notif_3',
-        title: 'Treatment Update',
-        message: 'Your root canal treatment is 80% complete',
-        type: NotificationType.treatmentUpdate,
-        isRead: true,
-        createdAt: DateTime.now().subtract(const Duration(days: 3)),
-      ),
-    ]);
+    // Removed static notifications. Only real notifications will be shown.
+    // _notifications.addAll([
+    //   AppNotification(
+    //     id: 'notif_1',
+    //     title: 'Appointment Reminder',
+    //     message: 'Your cleaning appointment is tomorrow at 10:00 AM',
+    //     type: NotificationType.appointment,
+    //     isRead: false,
+    //     createdAt: DateTime.now().subtract(const Duration(hours: 2)),
+    //   ),
+    //   AppNotification(
+    //     id: 'notif_2',
+    //     title: 'Health Tip',
+    //     message: 'Remember to floss daily for optimal oral health',
+    //     type: NotificationType.healthTip,
+    //     isRead: false,
+    //     createdAt: DateTime.now().subtract(const Duration(days: 1)),
+    //   ),
+    //   AppNotification(
+    //     id: 'notif_3',
+    //     title: 'Treatment Update',
+    //     message: 'Your root canal treatment is 80% complete',
+    //     type: NotificationType.treatmentUpdate,
+    //     isRead: true,
+    //     createdAt: DateTime.now().subtract(const Duration(days: 3)),
+    //   ),
+    // ]);
   }
 
   void addNotification(AppNotification notification) {
@@ -46,6 +51,7 @@ class NotificationService {
     final index = _notifications.indexWhere((n) => n.id == id);
     if (index != -1) {
       _notifications[index] = _notifications[index].copyWith(isRead: true);
+      notifyListeners();
     }
   }
 
@@ -53,6 +59,35 @@ class NotificationService {
 
   List<AppNotification> getUnreadNotifications() {
     return _notifications.where((n) => !n.isRead).toList();
+  }
+
+  Future<void> fetchNotifications(String patientId, String token) async {
+    final response = await http.get(
+      Uri.parse('http://localhost:3000/api/patients/$patientId/notifications'),
+      headers: {
+        'Authorization': 'Bearer $token',
+        'Content-Type': 'application/json',
+      },
+    );
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      print('Backend response: $data');
+      print('Notifications count: ${data['notifications']?.length ?? 0}');
+      _notifications.clear();
+      for (var n in data['notifications']) {
+        _notifications.add(AppNotification(
+          id: n['id'].toString(),
+          title: n['title'],
+          message: n['message'],
+          type: NotificationType
+              .appointment, // You can map backend type if needed
+          isRead: n['isRead'],
+          createdAt: DateTime.parse(n['createdAt']),
+        ));
+      }
+    } else {
+      throw Exception('Failed to fetch notifications');
+    }
   }
 }
 

@@ -13,6 +13,7 @@ class UserStateManager extends ChangeNotifier {
   bool _isGuestUser = false;
   bool _isPatientLoggedIn = false;
   Patient? _currentPatient;
+  String? _patientToken;
 
   bool get isSurveyCompleted => _isSurveyCompleted;
   bool get isFirstTimeUser => _isFirstTimeUser;
@@ -21,6 +22,7 @@ class UserStateManager extends ChangeNotifier {
   bool get isGuestUser => _isGuestUser;
   bool get isPatientLoggedIn => _isPatientLoggedIn;
   Patient? get currentPatient => _currentPatient;
+  String? get patientToken => _patientToken;
 
   // Get current patient ID (for use in database operations)
   String get currentPatientId =>
@@ -30,6 +32,14 @@ class UserStateManager extends ChangeNotifier {
   void completeSurvey() {
     _isSurveyCompleted = true;
     _isFirstTimeUser = false;
+    notifyListeners();
+  }
+
+  void updateSurveyStatus(bool hasCompletedSurvey) {
+    _isSurveyCompleted = hasCompletedSurvey;
+    if (hasCompletedSurvey) {
+      _isFirstTimeUser = false;
+    }
     notifyListeners();
   }
 
@@ -88,11 +98,6 @@ class UserStateManager extends ChangeNotifier {
     return !_isFirstTimeUser || _isSurveyCompleted;
   }
 
-  void updateSurveyStatus(bool isCompleted) {
-    _isSurveyCompleted = isCompleted;
-    notifyListeners();
-  }
-
   // Patient authentication methods
   void setCurrentPatient(Patient patient) {
     _currentPatient = patient;
@@ -103,11 +108,17 @@ class UserStateManager extends ChangeNotifier {
     notifyListeners();
   }
 
+  void setPatientToken(String token) {
+    _patientToken = token;
+    notifyListeners();
+  }
+
   void logoutPatient() {
     _currentPatient = null;
     _isPatientLoggedIn = false;
     _isSurveyCompleted = false;
     _isFirstTimeUser = true;
+    _patientToken = null;
     notifyListeners();
   }
 

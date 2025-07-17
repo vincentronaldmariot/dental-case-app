@@ -11,8 +11,10 @@ import './user_state_manager.dart';
 import './services/history_service.dart';
 import './services/notification_service.dart';
 import './services/api_service.dart';
+import './services/survey_service.dart';
 import './models/appointment.dart';
 import './models/patient.dart';
+import 'package:http/http.dart' as http;
 
 class MainAppScreen extends StatefulWidget {
   const MainAppScreen({super.key});
@@ -22,6 +24,44 @@ class MainAppScreen extends StatefulWidget {
 }
 
 class _MainAppScreenState extends State<MainAppScreen> {
+  late NotificationService _notificationService;
+
+  @override
+  void initState() {
+    super.initState();
+    _notificationService = NotificationService();
+    _notificationService.addListener(_onNotificationChanged);
+    _loadInitialNotifications();
+  }
+
+  Future<void> _loadInitialNotifications() async {
+    final patientId = UserStateManager().currentPatientId;
+    final token = UserStateManager().patientToken;
+    if (token != null && patientId != null) {
+      try {
+        await _notificationService.fetchNotifications(patientId, token);
+        print(
+            'Initial notifications loaded: ${_notificationService.unreadCount} unread');
+      } catch (e) {
+        print('Error loading initial notifications: $e');
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _notificationService.removeListener(_onNotificationChanged);
+    super.dispose();
+  }
+
+  void _onNotificationChanged() {
+    print('=== NOTIFICATION CHANGED ===');
+    print('Current unread count: ${_notificationService.unreadCount}');
+    setState(() {
+      // This will rebuild the UI when notifications change
+    });
+  }
+
   int _selectedIndex = 0;
 
   final List<Widget> _screens = [
@@ -376,8 +416,24 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  void _showNotifications(BuildContext context) {
-    NotificationService().initializeSampleData();
+  void _showNotifications(BuildContext context) async {
+    final patientId = UserStateManager().currentPatientId;
+    final token = UserStateManager().patientToken;
+    if (token == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('You are not logged in.')),
+      );
+      return;
+    }
+    try {
+      print('Patient ID: $patientId, Token: $token');
+      await NotificationService().fetchNotifications(patientId, token);
+      print('Fetched notifications: ${NotificationService().notifications}');
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to load notifications: $e')),
+      );
+    }
 
     showModalBottomSheet(
       context: context,
@@ -449,8 +505,60 @@ class DashboardScreen extends StatelessWidget {
                               color: Colors.grey,
                             ),
                           ),
-                          onTap: () {
-                            NotificationService().markAsRead(notification.id);
+                          onTap: () async {
+                            print('=== MODAL NOTIFICATION TAPPED ===');
+                            print('Notification ID: ${notification.id}');
+                            print(
+                                'Notification isRead: ${notification.isRead}');
+                            print('Notification title: ${notification.title}');
+                            if (!notification.isRead) {
+                              print(
+                                  'Notification is unread, proceeding to mark as read');
+                              final patientId =
+                                  UserStateManager().currentPatientId;
+                              final token = UserStateManager().patientToken;
+                              print('Patient ID: $patientId');
+                              print('Token available: ${token != null}');
+                              if (token != null) {
+                                try {
+                                  print(
+                                      'Making API call to mark notification as read');
+                                  final response = await http.put(
+                                    Uri.parse(
+                                        'http://localhost:3000/api/patients/$patientId/notifications/${notification.id}/read'),
+                                    headers: {
+                                      'Authorization': 'Bearer $token',
+                                      'Content-Type': 'application/json',
+                                    },
+                                  );
+                                  print(
+                                      'API Response Status: ${response.statusCode}');
+                                  print('API Response Body: ${response.body}');
+                                  if (response.statusCode == 200) {
+                                    print(
+                                        'API call successful, updating notification locally');
+                                    // Update the notification using the service
+                                    NotificationService()
+                                        .markAsRead(notification.id);
+                                    print(
+                                        'Notification marked as read locally');
+                                    print(
+                                        'New unread count: ${NotificationService().unreadCount}');
+                                  } else {
+                                    print(
+                                        'API call failed with status: ${response.statusCode}');
+                                  }
+                                } catch (e) {
+                                  print(
+                                      'Error marking notification as read: $e');
+                                }
+                              } else {
+                                print('No token available');
+                              }
+                            } else {
+                              print(
+                                  'Notification is already read, no action needed');
+                            }
                             Navigator.pop(context);
                           },
                         ),
@@ -554,31 +662,42 @@ class DashboardScreen extends StatelessWidget {
                                     size: 28,
                                   ),
                                 ),
-                                if (NotificationService().unreadCount > 0)
-                                  Positioned(
-                                    right: 8,
-                                    top: 8,
-                                    child: Container(
-                                      padding: const EdgeInsets.all(4),
-                                      decoration: const BoxDecoration(
-                                        color: Colors.red,
-                                        shape: BoxShape.circle,
-                                      ),
-                                      constraints: const BoxConstraints(
-                                        minWidth: 16,
-                                        minHeight: 16,
-                                      ),
-                                      child: Text(
-                                        '${NotificationService().unreadCount}',
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.bold,
+                                AnimatedBuilder(
+                                  animation: NotificationService(),
+                                  builder: (context, child) {
+                                    final unreadCount =
+                                        NotificationService().unreadCount;
+                                    print(
+                                        'AnimatedBuilder rebuilding - unread count: $unreadCount');
+                                    if (unreadCount > 0) {
+                                      return Positioned(
+                                        right: 8,
+                                        top: 8,
+                                        child: Container(
+                                          padding: const EdgeInsets.all(4),
+                                          decoration: const BoxDecoration(
+                                            color: Colors.red,
+                                            shape: BoxShape.circle,
+                                          ),
+                                          constraints: const BoxConstraints(
+                                            minWidth: 16,
+                                            minHeight: 16,
+                                          ),
+                                          child: Text(
+                                            '$unreadCount',
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                            textAlign: TextAlign.center,
+                                          ),
                                         ),
-                                        textAlign: TextAlign.center,
-                                      ),
-                                    ),
-                                  ),
+                                      );
+                                    }
+                                    return const SizedBox.shrink();
+                                  },
+                                ),
                               ],
                             ),
                             PopupMenuButton<String>(
@@ -676,21 +795,6 @@ class DashboardScreen extends StatelessWidget {
                           Icons.calendar_month,
                           const Color(0xFF0029B2),
                           () => _handleAppointmentBooking(context),
-                        ),
-                        _buildQuickActionCard(
-                          context,
-                          'My Dashboard',
-                          Icons.dashboard,
-                          const Color(0xFF005800),
-                          () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    const PatientDashboardScreen(),
-                              ),
-                            );
-                          },
                         ),
                         _buildQuickActionCard(
                           context,
@@ -984,9 +1088,37 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  void _handleAppointmentBooking(BuildContext context) {
+  void _handleAppointmentBooking(BuildContext context) async {
     final userState = UserStateManager();
 
+    // For authenticated patients, check survey status from database
+    if (userState.isPatientLoggedIn) {
+      try {
+        final surveyService = SurveyService();
+        final result = await surveyService.checkSurveyStatus();
+
+        if (result['success']) {
+          final hasCompletedSurvey = result['hasCompletedSurvey'];
+          userState.updateSurveyStatus(hasCompletedSurvey);
+
+          if (hasCompletedSurvey) {
+            // Patient has completed survey, allow appointment booking
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const AppointmentBookingScreen(),
+              ),
+            );
+            return;
+          }
+        }
+      } catch (e) {
+        print('Error checking survey status: $e');
+        // If there's an error, fall back to local state
+      }
+    }
+
+    // Check local state for other user types or fallback
     if (userState.canBookAppointment()) {
       // User has completed survey or is not a first-time user, allow appointment booking
       Navigator.push(
@@ -1147,6 +1279,26 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                 elevation: 0,
                 automaticallyImplyLeading: false,
                 actions: [
+                  // Sync button for testing
+                  IconButton(
+                    onPressed: () async {
+                      final success = await ApiService.checkConnectionAndSync();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            success
+                                ? '✅ Backend connected and data synced!'
+                                : '❌ Backend unavailable, running offline',
+                          ),
+                          backgroundColor:
+                              success ? Colors.green : Colors.orange,
+                          duration: const Duration(seconds: 3),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.sync, color: Colors.white, size: 24),
+                    tooltip: 'Sync with backend',
+                  ),
                   IconButton(
                     onPressed: () {
                       Navigator.push(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'user_state_manager.dart';
+import 'services/survey_service.dart';
 
 class DentalSurveyScreen extends StatefulWidget {
   const DentalSurveyScreen({super.key});
@@ -171,9 +172,9 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
                         enabled: _selectedClassification != 'Others',
                         validator: (value) =>
                             _selectedClassification != 'Others' &&
-                                (value?.isEmpty ?? true)
-                            ? 'Serial number is required'
-                            : null,
+                                    (value?.isEmpty ?? true)
+                                ? 'Serial number is required'
+                                : null,
                       ),
                       const SizedBox(height: 12),
 
@@ -183,9 +184,9 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
                         enabled: _selectedClassification != 'Others',
                         validator: (value) =>
                             _selectedClassification != 'Others' &&
-                                (value?.isEmpty ?? true)
-                            ? 'Unit assignment is required'
-                            : null,
+                                    (value?.isEmpty ?? true)
+                                ? 'Unit assignment is required'
+                                : null,
                       ),
                       const SizedBox(height: 12),
 
@@ -289,26 +290,10 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
 
                       const SizedBox(height: 15),
 
-                      _buildSimpleYesNoQuestion(
+                      _buildQuestionTitle(
                         '7. Do you have missing or extracted teeth?',
-                        _hasMissingTeeth,
-                        (value) {
-                          setState(() => _hasMissingTeeth = value);
-                        },
                       ),
-
                       const SizedBox(height: 15),
-
-                      const Text(
-                        'Sample pictures of missing teeth types:',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontStyle: FontStyle.italic,
-                          color: Colors.grey,
-                        ),
-                      ),
-
-                      const SizedBox(height: 10),
 
                       _buildMissingTeethSamplesSection(),
 
@@ -557,7 +542,6 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
           ),
         ),
         const SizedBox(height: 10),
-
         Wrap(
           spacing: 8,
           runSpacing: 8,
@@ -582,9 +566,8 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
                   color: isSelected ? Colors.red.shade600 : Colors.white,
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(
-                    color: isSelected
-                        ? Colors.red.shade600
-                        : Colors.red.shade300,
+                    color:
+                        isSelected ? Colors.red.shade600 : Colors.red.shade300,
                   ),
                 ),
                 child: Text(
@@ -626,7 +609,6 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
           ),
         ),
         const SizedBox(height: 10),
-
         Wrap(
           spacing: 8,
           runSpacing: 8,
@@ -695,7 +677,6 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
           ),
         ),
         const SizedBox(height: 10),
-
         Wrap(
           spacing: 8,
           runSpacing: 8,
@@ -788,9 +769,7 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
             ],
           ),
         ),
-
         const SizedBox(width: 15),
-
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1081,9 +1060,8 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
                   Text(
                     level,
                     style: TextStyle(
-                      color: _tartarLevel == level
-                          ? Colors.white
-                          : Colors.black87,
+                      color:
+                          _tartarLevel == level ? Colors.white : Colors.black87,
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                     ),
@@ -1463,24 +1441,96 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
     );
   }
 
-  void _submitSurvey() {
+  void _submitSurvey() async {
     if (_formKey.currentState!.validate()) {
-      // Mark survey as completed
-      UserStateManager().completeSurvey();
-
-      // Show success message
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Health assessment completed! You can now book appointments.',
+      try {
+        // Show loading indicator
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => const Center(
+            child: CircularProgressIndicator(),
           ),
-          backgroundColor: Color(0xFF005800),
-          duration: Duration(seconds: 3),
-        ),
-      );
+        );
 
-      // Navigate back or to next screen
-      Navigator.pop(context);
+        // Prepare survey data
+        final surveyData = {
+          'patient_info': {
+            'name': _nameController.text,
+            'serial_number': _serialNumberController.text,
+            'unit_assignment': _unitAssignmentController.text,
+            'contact_number': _contactNumberController.text,
+            'email': _emailController.text,
+            'emergency_contact': _emergencyContactController.text,
+            'emergency_phone': _emergencyPhoneController.text,
+            'classification': _selectedClassification,
+            'other_classification': _otherClassificationController.text,
+            'last_visit': _lastVisitController.text,
+          },
+          'tooth_conditions': _toothConditions,
+          'tartar_level': _tartarLevel,
+          'tooth_pain': _toothPain,
+          'tooth_sensitive': _toothSensitive,
+          'damaged_fillings': _damagedFillings,
+          'need_dentures': _needDentures,
+          'has_missing_teeth': _hasMissingTeeth,
+          'missing_tooth_conditions': _missingToothConditions,
+          'pain_assessment': {
+            'pain_locations': _painLocations.toList(),
+            'pain_types': _painTypes.toList(),
+            'pain_triggers': _painTriggers.toList(),
+            'pain_duration': _painDuration,
+            'pain_frequency': _painFrequency,
+          },
+        };
+
+        // Import survey service
+        final surveyService = SurveyService();
+        final result = await surveyService.submitSurvey(surveyData);
+
+        // Close loading dialog
+        Navigator.pop(context);
+
+        if (result['success']) {
+          // Mark survey as completed
+          UserStateManager().completeSurvey();
+
+          // Show success message
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result['message'] ??
+                  'Health assessment completed! You can now book appointments.'),
+              backgroundColor: const Color(0xFF005800),
+              duration: const Duration(seconds: 3),
+            ),
+          );
+
+          // Navigate back or to next screen
+          Navigator.pop(context);
+        } else {
+          // Show error message
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(result['message'] ??
+                  'Failed to save survey. Please try again.'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        }
+      } catch (e) {
+        // Close loading dialog
+        Navigator.pop(context);
+
+        // Show error message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import './user_state_manager.dart';
 import './models/appointment.dart';
 import './services/history_service.dart';

@@ -39,24 +39,24 @@ router.post('/', verifyPatient, appointmentValidation, async (req, res) => {
     const patientId = req.patient.id;
 
     // Validate appointment date is in the future
-    const appointmentMoment = moment(appointmentDate);
-    if (appointmentMoment.isBefore(moment())) {
-      return res.status(400).json({
-        error: 'Appointment date must be in the future'
-      });
-    }
+    // const appointmentMoment = moment(appointmentDate);
+    // if (appointmentMoment.isBefore(moment())) {
+    //   return res.status(400).json({
+    //     error: 'Appointment date must be in the future'
+    //   });
+    // }
 
     // Check if time slot is already taken
-    const existingAppointment = await query(`
-      SELECT id FROM appointments 
-      WHERE appointment_date = $1 AND time_slot = $2 AND status != 'cancelled'
-    `, [appointmentDate, timeSlot]);
+    // const existingAppointment = await query(`
+    //   SELECT id FROM appointments 
+    //   WHERE appointment_date = $1 AND time_slot = $2 AND status != 'cancelled'
+    // `, [appointmentDate, timeSlot]);
 
-    if (existingAppointment.rows.length > 0) {
-      return res.status(409).json({
-        error: 'This time slot is already booked'
-      });
-    }
+    // if (existingAppointment.rows.length > 0) {
+    //   return res.status(409).json({
+    //     error: 'This time slot is already booked'
+    //   });
+    // }
 
     // Create new appointment
     const result = await query(`

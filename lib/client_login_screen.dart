@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'services/api_service.dart';
+import 'services/survey_service.dart';
 import 'models/patient.dart';
 import 'user_state_manager.dart';
 import './main_app_screen.dart';
@@ -89,371 +90,402 @@ class _ClientLoginScreenState extends State<ClientLoginScreen>
 
     return Scaffold(
       backgroundColor: Colors.white,
-      body: Stack(
+      body: Column(
         children: [
-          // Background Design with Brand Colors
-          Positioned(
-            top: -screenHeight * 0.1,
-            left: -screenWidth * 0.2,
-            child: Container(
-              width: screenWidth * 1.2,
-              height: screenWidth * 1.2,
+          if (ApiService.isOfflineMode)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
               decoration: BoxDecoration(
-                gradient: RadialGradient(
-                  center: Alignment.topLeft,
-                  radius: 1.0,
-                  colors: [
-                    const Color(0xFF0029B2).withOpacity(0.8),
-                    const Color(0xFF0029B2).withOpacity(0.4),
-                    const Color(0xFF0029B2).withOpacity(0.1),
-                  ],
+                color: Colors.orange.shade100,
+                border: Border(
+                  bottom: BorderSide(color: Colors.orange.shade300),
                 ),
-                shape: BoxShape.circle,
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.wifi_off, color: Colors.orange.shade700, size: 16),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Offline Mode - Use demo@dental.com / demo123 to login',
+                      style: TextStyle(
+                        color: Colors.orange.shade700,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
+          Expanded(
+            child: _buildMainContent(screenHeight, screenWidth),
           ),
-          Positioned(
-            top: -screenHeight * 0.05,
-            right: -screenWidth * 0.25,
-            child: Container(
-              width: screenWidth * 0.8,
-              height: screenWidth * 0.8,
-              decoration: BoxDecoration(
-                gradient: RadialGradient(
-                  center: Alignment.topRight,
-                  radius: 1.0,
-                  colors: [
-                    const Color(0xFF005800).withOpacity(0.6),
-                    const Color(0xFF005800).withOpacity(0.3),
-                    const Color(0xFF005800).withOpacity(0.1),
-                  ],
-                ),
-                shape: BoxShape.circle,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMainContent(double screenHeight, double screenWidth) {
+    return Stack(
+      children: [
+        // Background Design with Brand Colors
+        Positioned(
+          top: -screenHeight * 0.1,
+          left: -screenWidth * 0.2,
+          child: Container(
+            width: screenWidth * 1.2,
+            height: screenWidth * 1.2,
+            decoration: BoxDecoration(
+              gradient: RadialGradient(
+                center: Alignment.topLeft,
+                radius: 1.0,
+                colors: [
+                  const Color(0xFF0029B2).withOpacity(0.8),
+                  const Color(0xFF0029B2).withOpacity(0.4),
+                  const Color(0xFF0029B2).withOpacity(0.1),
+                ],
               ),
+              shape: BoxShape.circle,
             ),
           ),
+        ),
+        Positioned(
+          top: -screenHeight * 0.05,
+          right: -screenWidth * 0.25,
+          child: Container(
+            width: screenWidth * 0.8,
+            height: screenWidth * 0.8,
+            decoration: BoxDecoration(
+              gradient: RadialGradient(
+                center: Alignment.topRight,
+                radius: 1.0,
+                colors: [
+                  const Color(0xFF005800).withOpacity(0.6),
+                  const Color(0xFF005800).withOpacity(0.3),
+                  const Color(0xFF005800).withOpacity(0.1),
+                ],
+              ),
+              shape: BoxShape.circle,
+            ),
+          ),
+        ),
+        // Main Content
+        SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: AnimatedBuilder(
+              animation: _animationController,
+              builder: (context, child) {
+                return FadeTransition(
+                  opacity: _fadeAnimation,
+                  child: SlideTransition(
+                    position: _slideAnimation,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        SizedBox(height: screenHeight * 0.08),
 
-          // Main Content
-          SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: AnimatedBuilder(
-                animation: _animationController,
-                builder: (context, child) {
-                  return FadeTransition(
-                    opacity: _fadeAnimation,
-                    child: SlideTransition(
-                      position: _slideAnimation,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          SizedBox(height: screenHeight * 0.08),
-
-                          // Back Button
-                          Align(
-                            alignment: Alignment.centerLeft,
-                            child: IconButton(
-                              onPressed: () => Navigator.pop(context),
-                              icon: const Icon(
-                                Icons.arrow_back_ios,
-                                color: Color(0xFF0029B2),
-                                size: 24,
-                              ),
+                        // Back Button
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: IconButton(
+                            onPressed: () => Navigator.pop(context),
+                            icon: const Icon(
+                              Icons.arrow_back_ios,
+                              color: Color(0xFF0029B2),
+                              size: 24,
                             ),
                           ),
+                        ),
 
-                          SizedBox(height: screenHeight * 0.02),
+                        SizedBox(height: screenHeight * 0.02),
 
-                          // Logo and Title Section
-                          Center(
-                            child: Column(
-                              children: [
-                                Container(
-                                  width: 100,
-                                  height: 100,
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    shape: BoxShape.circle,
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: const Color(
-                                          0xFF0029B2,
-                                        ).withOpacity(0.3),
-                                        blurRadius: 20,
-                                        offset: const Offset(0, 10),
-                                      ),
-                                    ],
-                                  ),
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(15),
-                                    child: Image.asset(
-                                      'assets/image/main_logo.png',
-                                      fit: BoxFit.contain,
+                        // Logo and Title Section
+                        Center(
+                          child: Column(
+                            children: [
+                              Container(
+                                width: 100,
+                                height: 100,
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(
+                                        0xFF0029B2,
+                                      ).withOpacity(0.3),
+                                      blurRadius: 20,
+                                      offset: const Offset(0, 10),
                                     ),
+                                  ],
+                                ),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(15),
+                                  child: Image.asset(
+                                    'assets/image/main_logo.png',
+                                    fit: BoxFit.contain,
                                   ),
                                 ),
-                                const SizedBox(height: 20),
-                                Text(
-                                  _isLogin ? 'Welcome Back!' : 'Create Account',
-                                  style: const TextStyle(
-                                    fontSize: 28,
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xFF000074),
-                                  ),
+                              ),
+                              const SizedBox(height: 20),
+                              Text(
+                                _isLogin ? 'Welcome Back!' : 'Create Account',
+                                style: const TextStyle(
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF000074),
                                 ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  _isLogin
-                                      ? 'Sign in to access your dental care'
-                                      : 'Join us for comprehensive dental care',
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    color: Colors.grey,
-                                  ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                _isLogin
+                                    ? 'Sign in to access your dental care'
+                                    : 'Join us for comprehensive dental care',
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  color: Colors.grey,
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
                           ),
+                        ),
 
-                          SizedBox(height: screenHeight * 0.04),
+                        SizedBox(height: screenHeight * 0.04),
 
-                          // Toggle between Login and Register
-                          Container(
-                            decoration: BoxDecoration(
-                              color: Colors.grey.shade100,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: _buildToggleButton(
-                                    'Login',
-                                    _isLogin,
-                                    () => setState(() => _isLogin = true),
-                                  ),
-                                ),
-                                Expanded(
-                                  child: _buildToggleButton(
-                                    'Register',
-                                    !_isLogin,
-                                    () => setState(() => _isLogin = false),
-                                  ),
-                                ),
-                              ],
-                            ),
+                        // Toggle between Login and Register
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(12),
                           ),
-
-                          SizedBox(height: screenHeight * 0.04),
-
-                          // Form Content
-                          Form(
-                            key: _formKey,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // Common fields (Email, Password)
-                                _buildInputField(
-                                  controller: _emailController,
-                                  labelText: 'Email Address',
-                                  prefixIcon: Icons.email_outlined,
-                                  keyboardType: TextInputType.emailAddress,
-                                  validator: (value) {
-                                    if (value?.isEmpty ?? true) {
-                                      return 'Email is required';
-                                    }
-                                    if (!value!.contains('@') ||
-                                        !value.contains('.')) {
-                                      return 'Please enter a valid email';
-                                    }
-                                    return null;
-                                  },
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: _buildToggleButton(
+                                  'Login',
+                                  _isLogin,
+                                  () => setState(() => _isLogin = true),
                                 ),
-                                const SizedBox(height: 16),
+                              ),
+                              Expanded(
+                                child: _buildToggleButton(
+                                  'Register',
+                                  !_isLogin,
+                                  () => setState(() => _isLogin = false),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
 
+                        SizedBox(height: screenHeight * 0.04),
+
+                        // Form Content
+                        Form(
+                          key: _formKey,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Common fields (Email, Password)
+                              _buildInputField(
+                                controller: _emailController,
+                                labelText: 'Email Address',
+                                prefixIcon: Icons.email_outlined,
+                                keyboardType: TextInputType.emailAddress,
+                                validator: (value) {
+                                  if (value?.isEmpty ?? true) {
+                                    return 'Email is required';
+                                  }
+                                  if (!value!.contains('@') ||
+                                      !value.contains('.')) {
+                                    return 'Please enter a valid email';
+                                  }
+                                  return null;
+                                },
+                              ),
+                              const SizedBox(height: 16),
+
+                              _buildInputField(
+                                controller: _passwordController,
+                                labelText: 'Password',
+                                prefixIcon: Icons.lock_outline,
+                                obscureText: _obscurePassword,
+                                suffixIcon: IconButton(
+                                  icon: Icon(
+                                    _obscurePassword
+                                        ? Icons.visibility
+                                        : Icons.visibility_off,
+                                    color: const Color(0xFF0029B2),
+                                  ),
+                                  onPressed: () => setState(
+                                    () => _obscurePassword = !_obscurePassword,
+                                  ),
+                                ),
+                                validator: (value) {
+                                  if (value?.isEmpty ?? true) {
+                                    return 'Password is required';
+                                  }
+                                  if (!_isLogin && value!.length < 6) {
+                                    return 'Password must be at least 6 characters';
+                                  }
+                                  return null;
+                                },
+                              ),
+                              const SizedBox(height: 16),
+
+                              // Registration-only fields
+                              if (!_isLogin) ...[
                                 _buildInputField(
-                                  controller: _passwordController,
-                                  labelText: 'Password',
+                                  controller: _confirmPasswordController,
+                                  labelText: 'Confirm Password',
                                   prefixIcon: Icons.lock_outline,
-                                  obscureText: _obscurePassword,
+                                  obscureText: _obscureConfirmPassword,
                                   suffixIcon: IconButton(
                                     icon: Icon(
-                                      _obscurePassword
+                                      _obscureConfirmPassword
                                           ? Icons.visibility
                                           : Icons.visibility_off,
                                       color: const Color(0xFF0029B2),
                                     ),
                                     onPressed: () => setState(
-                                      () =>
-                                          _obscurePassword = !_obscurePassword,
+                                      () => _obscureConfirmPassword =
+                                          !_obscureConfirmPassword,
                                     ),
                                   ),
                                   validator: (value) {
                                     if (value?.isEmpty ?? true) {
-                                      return 'Password is required';
+                                      return 'Please confirm your password';
                                     }
-                                    if (!_isLogin && value!.length < 6) {
-                                      return 'Password must be at least 6 characters';
+                                    if (value != _passwordController.text) {
+                                      return 'Passwords do not match';
                                     }
                                     return null;
                                   },
                                 ),
+                                const SizedBox(height: 20),
+
+                                // Personal Information
+                                _buildSectionTitle('Personal Information'),
+                                const SizedBox(height: 15),
+
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: _buildInputField(
+                                        controller: _firstNameController,
+                                        labelText: 'First Name',
+                                        prefixIcon: Icons.person_outline,
+                                        validator: (value) =>
+                                            value?.isEmpty ?? true
+                                                ? 'First name is required'
+                                                : null,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: _buildInputField(
+                                        controller: _lastNameController,
+                                        labelText: 'Last Name',
+                                        prefixIcon: Icons.person,
+                                        validator: (value) =>
+                                            value?.isEmpty ?? true
+                                                ? 'Last name is required'
+                                                : null,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                                 const SizedBox(height: 16),
 
-                                // Registration-only fields
-                                if (!_isLogin) ...[
-                                  _buildInputField(
-                                    controller: _confirmPasswordController,
-                                    labelText: 'Confirm Password',
-                                    prefixIcon: Icons.lock_outline,
-                                    obscureText: _obscureConfirmPassword,
-                                    suffixIcon: IconButton(
-                                      icon: Icon(
-                                        _obscureConfirmPassword
-                                            ? Icons.visibility
-                                            : Icons.visibility_off,
-                                        color: const Color(0xFF0029B2),
-                                      ),
-                                      onPressed: () => setState(
-                                        () => _obscureConfirmPassword =
-                                            !_obscureConfirmPassword,
-                                      ),
-                                    ),
-                                    validator: (value) {
-                                      if (value?.isEmpty ?? true) {
-                                        return 'Please confirm your password';
-                                      }
-                                      if (value != _passwordController.text) {
-                                        return 'Passwords do not match';
-                                      }
-                                      return null;
-                                    },
-                                  ),
-                                  const SizedBox(height: 20),
+                                _buildInputField(
+                                  controller: _phoneController,
+                                  labelText: 'Phone Number',
+                                  prefixIcon: Icons.phone_outlined,
+                                  keyboardType: TextInputType.phone,
+                                  validator: (value) => value?.isEmpty ?? true
+                                      ? 'Phone number is required'
+                                      : null,
+                                ),
+                                const SizedBox(height: 16),
 
-                                  // Personal Information
-                                  _buildSectionTitle('Personal Information'),
-                                  const SizedBox(height: 15),
+                                _buildDatePickerField(),
+                                const SizedBox(height: 16),
 
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: _buildInputField(
-                                          controller: _firstNameController,
-                                          labelText: 'First Name',
-                                          prefixIcon: Icons.person_outline,
-                                          validator: (value) =>
-                                              value?.isEmpty ?? true
-                                                  ? 'First name is required'
-                                                  : null,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: _buildInputField(
-                                          controller: _lastNameController,
-                                          labelText: 'Last Name',
-                                          prefixIcon: Icons.person,
-                                          validator: (value) =>
-                                              value?.isEmpty ?? true
-                                                  ? 'Last name is required'
-                                                  : null,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 16),
-
-                                  _buildInputField(
-                                    controller: _phoneController,
-                                    labelText: 'Phone Number',
-                                    prefixIcon: Icons.phone_outlined,
-                                    keyboardType: TextInputType.phone,
-                                    validator: (value) => value?.isEmpty ?? true
-                                        ? 'Phone number is required'
-                                        : null,
-                                  ),
-                                  const SizedBox(height: 16),
-
-                                  _buildDatePickerField(),
-                                  const SizedBox(height: 16),
-
-                                  _buildInputField(
-                                    controller: _addressController,
-                                    labelText: 'Address',
-                                    prefixIcon: Icons.location_on_outlined,
-                                    maxLines: 2,
-                                    validator: (value) => value?.isEmpty ?? true
-                                        ? 'Address is required'
-                                        : null,
-                                  ),
-                                  const SizedBox(height: 16),
-
-                                  const SizedBox(height: 20),
-
-                                  // Classification
-                                  _buildSectionTitle('Classification'),
-                                  const SizedBox(height: 15),
-
-                                  _buildClassificationDropdown(),
-
-                                  if (_selectedClassification != 'Others') ...[
-                                    const SizedBox(height: 16),
-                                    _buildInputField(
-                                      controller: _serialNumberController,
-                                      labelText: 'Serial Number',
-                                      prefixIcon: Icons.badge_outlined,
-                                      validator: (value) =>
-                                          value?.isEmpty ?? true
-                                              ? 'Serial number is required'
-                                              : null,
-                                    ),
-                                    const SizedBox(height: 16),
-                                    _buildInputField(
-                                      controller: _unitAssignmentController,
-                                      labelText: 'Unit Assignment',
-                                      prefixIcon: Icons.business_outlined,
-                                      validator: (value) =>
-                                          value?.isEmpty ?? true
-                                              ? 'Unit assignment is required'
-                                              : null,
-                                    ),
-                                  ],
-
-                                  if (_selectedClassification == 'Others') ...[
-                                    const SizedBox(height: 16),
-                                    _buildInputField(
-                                      controller:
-                                          _otherClassificationController,
-                                      labelText:
-                                          'Please specify your classification',
-                                      prefixIcon: Icons.description_outlined,
-                                      validator: (value) => value?.isEmpty ??
-                                              true
-                                          ? 'Please specify your classification'
-                                          : null,
-                                    ),
-                                  ],
-
-                                  const SizedBox(height: 30),
-                                ],
-
-                                // Submit Button
-                                _buildSubmitButton(),
+                                _buildInputField(
+                                  controller: _addressController,
+                                  labelText: 'Address',
+                                  prefixIcon: Icons.location_on_outlined,
+                                  maxLines: 2,
+                                  validator: (value) => value?.isEmpty ?? true
+                                      ? 'Address is required'
+                                      : null,
+                                ),
+                                const SizedBox(height: 16),
 
                                 const SizedBox(height: 20),
+
+                                // Classification
+                                _buildSectionTitle('Classification'),
+                                const SizedBox(height: 15),
+
+                                _buildClassificationDropdown(),
+
+                                if (_selectedClassification != 'Others') ...[
+                                  const SizedBox(height: 16),
+                                  _buildInputField(
+                                    controller: _serialNumberController,
+                                    labelText: 'Serial Number',
+                                    prefixIcon: Icons.badge_outlined,
+                                    validator: (value) => value?.isEmpty ?? true
+                                        ? 'Serial number is required'
+                                        : null,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  _buildInputField(
+                                    controller: _unitAssignmentController,
+                                    labelText: 'Unit Assignment',
+                                    prefixIcon: Icons.business_outlined,
+                                    validator: (value) => value?.isEmpty ?? true
+                                        ? 'Unit assignment is required'
+                                        : null,
+                                  ),
+                                ],
+
+                                if (_selectedClassification == 'Others') ...[
+                                  const SizedBox(height: 16),
+                                  _buildInputField(
+                                    controller: _otherClassificationController,
+                                    labelText:
+                                        'Please specify your classification',
+                                    prefixIcon: Icons.description_outlined,
+                                    validator: (value) => value?.isEmpty ?? true
+                                        ? 'Please specify your classification'
+                                        : null,
+                                  ),
+                                ],
+
+                                const SizedBox(height: 30),
                               ],
-                            ),
+
+                              // Submit Button
+                              _buildSubmitButton(),
+
+                              const SizedBox(height: 20),
+                            ],
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                  );
-                },
-              ),
+                  ),
+                );
+              },
             ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -669,7 +701,60 @@ class _ClientLoginScreenState extends State<ClientLoginScreen>
 
       try {
         if (_isLogin) {
-          await _handleLogin();
+          final loginResult = await ApiService.authenticatePatient(
+              _emailController.text, _passwordController.text);
+          if (loginResult != null) {
+            final token = loginResult['token'];
+            final patientId = loginResult['patientId'];
+
+            // Fetch patient profile as before
+            final patient = await ApiService.getPatient(patientId);
+            if (patient != null) {
+              UserStateManager().setCurrentPatient(patient);
+              UserStateManager()
+                  .setPatientToken(token); // <-- Set the token here!
+              UserStateManager().loginAsClient();
+
+              // Check survey status after successful login
+              try {
+                final surveyService = SurveyService();
+                final result = await surveyService.checkSurveyStatus();
+
+                if (result['success']) {
+                  final hasCompletedSurvey = result['hasCompletedSurvey'];
+                  UserStateManager().updateSurveyStatus(hasCompletedSurvey);
+                }
+              } catch (e) {
+                // Continue with login even if survey check fails
+              }
+
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Login successful!'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => const MainAppScreen()),
+                );
+              }
+            } else {
+              throw Exception('Failed to retrieve patient data');
+            }
+          } else {
+            // Show error and do NOT log in
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Invalid email or password'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
+          }
         } else {
           await _handleRegistration();
         }
@@ -693,38 +778,6 @@ class _ClientLoginScreenState extends State<ClientLoginScreen>
     }
   }
 
-  Future<void> _handleLogin() async {
-    final patientId = await ApiService.authenticatePatient(
-      _emailController.text,
-      _passwordController.text,
-    );
-
-    if (patientId != null) {
-      // Get the patient data
-      final patient = await ApiService.getPatient(patientId);
-      if (patient != null) {
-        UserStateManager().setCurrentPatient(patient);
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Login successful!'),
-              backgroundColor: Colors.green,
-            ),
-          );
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const MainAppScreen()),
-          );
-        }
-      } else {
-        throw Exception('Failed to retrieve patient data');
-      }
-    } else {
-      throw Exception('Invalid email or password');
-    }
-  }
-
   Future<void> _handleRegistration() async {
     final patient = Patient(
       id: null, // Will be assigned by Firebase Authentication
@@ -735,8 +788,8 @@ class _ClientLoginScreenState extends State<ClientLoginScreen>
       passwordHash: '', // Will be hashed by database service
       dateOfBirth: _selectedDate!,
       address: _addressController.text,
-      emergencyContact: '', // Optional field, now empty
-      emergencyPhone: '', // Optional field, now empty
+      emergencyContact: 'Emergency Contact', // Default value
+      emergencyPhone: '123-456-7890', // Default value
       serialNumber: _selectedClassification != 'Others'
           ? _serialNumberController.text
           : '',
@@ -759,6 +812,9 @@ class _ClientLoginScreenState extends State<ClientLoginScreen>
       final createdPatient = await ApiService.getPatient(patientId);
       if (createdPatient != null) {
         UserStateManager().setCurrentPatient(createdPatient);
+
+        // New patients haven't completed the survey yet
+        UserStateManager().updateSurveyStatus(false);
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

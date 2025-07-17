@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'services/appointment_service.dart';
 import 'services/patient_limit_service.dart';
 import 'services/api_service.dart';
-import 'models/appointment.dart';
+import 'services/survey_service.dart';
 import 'user_state_manager.dart';
 
 class AppointmentBookingScreen extends StatefulWidget {
@@ -28,6 +27,7 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen>
   // Database service is now handled by ApiService static methods
 
   bool _isLoading = false;
+  bool _isLoadingSurvey = false;
   Map<String, dynamic>? _surveyData;
 
   final List<String> services = [
@@ -56,37 +56,77 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen>
   }
 
   void _loadSurveyData() async {
+    setState(() {
+      _isLoadingSurvey = true;
+    });
+
     try {
       // Use authenticated patient ID
       final patientId = UserStateManager().currentPatientId;
 
       print('Attempting to load survey data for patient ID $patientId');
 
-      // Load survey data for authenticated patient
-      final surveyData = await ApiService.getDentalSurvey(patientId);
-      setState(() {
-        _surveyData = surveyData;
-      });
+      // Load survey data for authenticated patient using SurveyService
+      final surveyService = SurveyService();
+      final result = await surveyService.getSurveyData();
 
-      if (surveyData != null) {
-        print('Survey data loaded successfully: ${surveyData.keys}');
-        final patientInfo = surveyData['survey_data']?['patient_info'] ?? {};
+      if (result['success']) {
+        final survey = result['survey'];
+        // Handle both possible data structures
+        final surveyData = survey['surveyData'] ?? survey['survey_data'];
+
+        setState(() {
+          _surveyData = surveyData;
+        });
+
+        print('Survey data loaded successfully: ${_surveyData?.keys}');
+        final patientInfo = _surveyData?['patient_info'] ?? {};
         print('Patient name: ${patientInfo['name']}');
         // Update UserStateManager to reflect survey completion
         UserStateManager().updateSurveyStatus(true);
-      } else {
+      } else if (result['notFound'] == true) {
         print(
           'No survey data found for patient ID $patientId - user needs to complete survey first',
         );
         // Update UserStateManager to reflect no survey
         UserStateManager().updateSurveyStatus(false);
+        setState(() {
+          _surveyData = null;
+        });
+      } else {
+        print('Error loading survey data: ${result['message']}');
+        // Show error message to user if it's not a "not found" case
+        if (!result['notFound']) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error loading survey: ${result['message']}'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+        setState(() {
+          _surveyData = null;
+        });
       }
     } catch (e) {
       print('Error loading survey data: $e');
       print('Database may not be properly initialized or survey not saved');
+      // Show error message to user
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Failed to load survey data. Please try again.'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+        ),
+      );
       // Set survey data to null if there's an error
       setState(() {
         _surveyData = null;
+      });
+    } finally {
+      setState(() {
+        _isLoadingSurvey = false;
       });
     }
   }
@@ -124,6 +164,13 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Show survey status warning if needed
+              if (_surveyData == null && !_isLoadingSurvey)
+                _buildSurveyWarning(),
+
+              // Show loading indicator while survey is being loaded
+              if (_isLoadingSurvey) _buildSurveyLoading(),
+
               _buildSectionTitle('Select Service'),
               const SizedBox(height: 15),
               _buildServiceSelection(),
@@ -143,6 +190,94 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen>
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildSurveyLoading() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.blue.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.blue.shade200),
+      ),
+      child: Row(
+        children: [
+          const SizedBox(
+            width: 24,
+            height: 24,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+            ),
+          ),
+          const SizedBox(width: 12),
+          const Text(
+            'Loading survey data...',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.black87,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSurveyWarning() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.orange.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.orange.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.warning_amber,
+                  color: Colors.orange.shade700, size: 24),
+              const SizedBox(width: 12),
+              const Text(
+                'Survey Required',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: Colors.orange,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Please complete the dental self-assessment survey before booking an appointment. This helps us provide better care.',
+            style: TextStyle(fontSize: 14, color: Colors.black87),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                // Navigate to survey screen
+                Navigator.pushNamed(context, '/survey');
+              },
+              icon: const Icon(Icons.assignment, size: 18),
+              label: const Text('Complete Survey'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.orange.shade600,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -672,11 +807,13 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen>
       String surveyNotes = '';
 
       if (_surveyData != null) {
-        final patientInfo = _surveyData!['survey_data']['patient_info'] ?? {};
+        // Handle both possible data structures
+        final surveyData = _surveyData!;
+        final patientInfo = surveyData['patient_info'] ?? {};
         patientPhone = patientInfo['contact_number'] ?? '000-000-0000';
 
         // Create survey summary for notes
-        surveyNotes = _createSurveySummary(_surveyData!['survey_data']);
+        surveyNotes = _createSurveySummary(surveyData);
       }
 
       final result = await _appointmentService.bookAppointmentWithSurvey(
@@ -685,9 +822,9 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen>
         patientName: patientName,
         patientEmail: patientEmail,
         patientPhone: patientPhone,
-        surveyData: _surveyData?['survey_data'],
+        surveyData: _surveyData,
         surveyNotes: surveyNotes,
-        preferredTimeSlot: null, // Let system assign available time slot
+        preferredTimeSlot: null, // No time slot selected by patient
         patientId: UserStateManager().currentPatientId,
       );
 

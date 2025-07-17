@@ -34,7 +34,8 @@ const registerValidation = [
     .isLength({ min: 6, max: 128 })
     .withMessage('Password must be between 6 and 128 characters'),
   body('phone')
-    .isMobilePhone()
+    .trim()
+    .isLength({ min: 10, max: 20 })
     .withMessage('Please provide a valid phone number'),
   body('dateOfBirth')
     .isISO8601()

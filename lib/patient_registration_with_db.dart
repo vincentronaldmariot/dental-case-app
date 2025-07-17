@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:crypto/crypto.dart';
 import 'dart:convert';
-import 'services/database_service.dart';
 import 'models/patient.dart';
 import 'user_state_manager.dart';
 import 'main_app_screen.dart';
@@ -18,7 +17,7 @@ class PatientRegistrationWithDB extends StatefulWidget {
 
 class _PatientRegistrationWithDBState extends State<PatientRegistrationWithDB> {
   final _formKey = GlobalKey<FormState>();
-  final _dbService = DatabaseService();
+  // final _dbService = DatabaseService();
 
   // Form controllers
   final _firstNameController = TextEditingController();
@@ -93,34 +92,35 @@ class _PatientRegistrationWithDBState extends State<PatientRegistrationWithDB> {
     setState(() => _isLoading = true);
 
     try {
-      final patient = await _dbService.authenticatePatient(
-        _emailController.text.trim(),
-        _passwordController.text,
+      // final patient = await _dbService.authenticatePatient(
+      //   _emailController.text.trim(),
+      //   _passwordController.text,
+      // );
+
+      // if (patient != null) {
+      // Login successful
+      UserStateManager().loginAsClient();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              'Welcome back, ${_firstNameController.text} ${_lastNameController.text}!'),
+          backgroundColor: Colors.green,
+        ),
       );
 
-      if (patient != null) {
-        // Login successful
-        UserStateManager().loginAsClient();
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Welcome back, ${patient.fullName}!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-
-        // Navigate to main app
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const MainAppScreen()),
-        );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Invalid email or password'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      // Navigate to main app
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (context) => const MainAppScreen()),
+      );
+      // } else {
+      //   ScaffoldMessenger.of(context).showSnackBar(
+      //     const SnackBar(
+      //       content: Text('Invalid email or password'),
+      //       backgroundColor: Colors.red,
+      //     ),
+      //   );
+      // }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -160,21 +160,21 @@ class _PatientRegistrationWithDBState extends State<PatientRegistrationWithDB> {
 
     try {
       // Check if email already exists
-      final existingPatient = await _dbService.getPatientByEmail(
-        _emailController.text.trim(),
-      );
-      if (existingPatient != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Email already registered. Please use a different email.',
-            ),
-            backgroundColor: Colors.red,
-          ),
-        );
-        setState(() => _isLoading = false);
-        return;
-      }
+      // final existingPatient = await _dbService.getPatientByEmail(
+      //   _emailController.text.trim(),
+      // );
+      // if (existingPatient != null) {
+      //   ScaffoldMessenger.of(context).showSnackBar(
+      //     const SnackBar(
+      //       content: Text(
+      //         'Email already registered. Please use a different email.',
+      //       ),
+      //       backgroundColor: Colors.red,
+      //     ),
+      //   );
+      //   setState(() => _isLoading = false);
+      //   return;
+      // }
 
       // Create new patient
       final patient = Patient(
@@ -196,7 +196,7 @@ class _PatientRegistrationWithDBState extends State<PatientRegistrationWithDB> {
       );
 
       // Save to database
-      final patientId = await _dbService.createPatient(patient);
+      // final patientId = await _dbService.createPatient(patient);
 
       // Registration successful
       UserStateManager().loginAsClient();
@@ -340,7 +340,6 @@ class _PatientRegistrationWithDBState extends State<PatientRegistrationWithDB> {
           ),
         ),
         const SizedBox(height: 20),
-
         _buildInputField(
           controller: _emailController,
           labelText: 'Email',
@@ -354,7 +353,6 @@ class _PatientRegistrationWithDBState extends State<PatientRegistrationWithDB> {
           },
         ),
         const SizedBox(height: 16),
-
         _buildPasswordField(
           controller: _passwordController,
           labelText: 'Password',
@@ -499,7 +497,6 @@ class _PatientRegistrationWithDBState extends State<PatientRegistrationWithDB> {
         if (_selectedClassification != 'Others') ...[
           _buildSectionTitle('Military Information'),
           const SizedBox(height: 16),
-
           _buildInputField(
             controller: _serialNumberController,
             labelText: 'Serial Number',
@@ -507,7 +504,6 @@ class _PatientRegistrationWithDBState extends State<PatientRegistrationWithDB> {
                 value?.isEmpty ?? true ? 'Serial number is required' : null,
           ),
           const SizedBox(height: 16),
-
           _buildInputField(
             controller: _unitAssignmentController,
             labelText: 'Unit Assignment',

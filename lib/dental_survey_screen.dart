@@ -1,9 +1,15 @@
 import 'package:flutter/material.dart';
 import 'user_state_manager.dart';
 import 'services/survey_service.dart';
+import 'kiosk_receipt_screen.dart';
 
 class DentalSurveyScreen extends StatefulWidget {
-  const DentalSurveyScreen({super.key});
+  final bool isKioskMode;
+
+  const DentalSurveyScreen({
+    super.key,
+    this.isKioskMode = false,
+  });
 
   @override
   State<DentalSurveyScreen> createState() => _DentalSurveyScreenState();
@@ -24,7 +30,7 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
   String _selectedClassification = '';
 
   // Survey answers
-  Map<String, bool?> _toothConditions = {
+  final Map<String, bool?> _toothConditions = {
     'decayed_tooth': null,
     'worn_down_tooth': null,
     'impacted_tooth': null,
@@ -34,24 +40,24 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
   bool? _toothPain;
   bool? _toothSensitive;
 
-  Map<String, bool?> _damagedFillings = {
+  final Map<String, bool?> _damagedFillings = {
     'broken_tooth': null,
     'broken_pasta': null,
   };
 
   bool? _needDentures;
-  bool? _missingTeeth;
   bool? _hasMissingTeeth;
+  bool? _missingTeeth;
 
-  Map<String, bool?> _missingToothConditions = {
+  final Map<String, bool?> _missingToothConditions = {
     'missing_broken_tooth': null,
     'missing_broken_pasta': null,
   };
 
   // Pain assessment variables
-  Set<String> _painLocations = {};
-  Set<String> _painTypes = {};
-  Set<String> _painTriggers = {};
+  final Set<String> _painLocations = {};
+  final Set<String> _painTypes = {};
+  final Set<String> _painTriggers = {};
   String? _painDuration;
   String? _painFrequency;
 
@@ -70,66 +76,111 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    // Reset form if in kiosk mode to ensure clean state for each patient
+    if (widget.isKioskMode) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _resetForm();
+      });
+    }
+  }
+
+  void _resetForm() {
+    // Clear all text controllers
+    _nameController.clear();
+    _serialNumberController.clear();
+    _unitAssignmentController.clear();
+    _contactNumberController.clear();
+    _emailController.clear();
+    _emergencyContactController.clear();
+    _emergencyPhoneController.clear();
+    _lastVisitController.clear();
+    _otherClassificationController.clear();
+
+    // Reset all survey answers
+    setState(() {
+      _selectedClassification = '';
+      _toothConditions.forEach((key, value) => _toothConditions[key] = null);
+      _tartarLevel = null;
+      _toothPain = null;
+      _toothSensitive = null;
+      _damagedFillings.forEach((key, value) => _damagedFillings[key] = null);
+      _needDentures = null;
+      _hasMissingTeeth = null;
+      _missingTeeth = null;
+      _missingToothConditions
+          .forEach((key, value) => _missingToothConditions[key] = null);
+      _painLocations.clear();
+      _painTypes.clear();
+      _painTriggers.clear();
+      _painDuration = null;
+      _painFrequency = null;
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       body: SafeArea(
         child: Column(
           children: [
-            // Header with DSC logo and title
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [Color(0xFF0029B2), Color(0xFF000074)],
+            // Header with DSC logo and title (only show if not in kiosk mode)
+            if (!widget.isKioskMode)
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0xFF0029B2), Color(0xFF000074)],
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        IconButton(
+                          onPressed: () => Navigator.pop(context),
+                          icon: const Icon(
+                            Icons.arrow_back,
+                            color: Colors.white,
+                            size: 24,
+                          ),
+                        ),
+                        Container(
+                          width: 50,
+                          height: 50,
+                          decoration: const BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(8.0),
+                            child: Image.asset(
+                              'assets/image/main_logo.png',
+                              fit: BoxFit.contain,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 15),
+                        const Expanded(
+                          child: Text(
+                            'DENTAL SERVICE CENTER\nAFPHSC',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      IconButton(
-                        onPressed: () => Navigator.pop(context),
-                        icon: const Icon(
-                          Icons.arrow_back,
-                          color: Colors.white,
-                          size: 24,
-                        ),
-                      ),
-                      Container(
-                        width: 50,
-                        height: 50,
-                        decoration: const BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: Image.asset(
-                            'assets/image/main_logo.png',
-                            fit: BoxFit.contain,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 15),
-                      const Expanded(
-                        child: Text(
-                          'DENTAL SERVICE CENTER\nAFPHSC',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
 
             // Survey Form
             Expanded(
@@ -290,13 +341,17 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
 
                       const SizedBox(height: 15),
 
-                      _buildQuestionTitle(
+                      // Question 7: Missing/Extracted Teeth
+                      _buildSimpleYesNoQuestion(
                         '7. Do you have missing or extracted teeth?',
+                        _hasMissingTeeth,
+                        (value) {
+                          setState(() => _hasMissingTeeth = value);
+                        },
                       ),
                       const SizedBox(height: 15),
 
                       _buildMissingTeethSamplesSection(),
-
                       const SizedBox(height: 25),
 
                       // Question 8: Last Visit
@@ -1425,10 +1480,10 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
         child: InkWell(
           borderRadius: BorderRadius.circular(8),
           onTap: _submitSurvey,
-          child: const Center(
+          child: Center(
             child: Text(
-              'NEXT',
-              style: TextStyle(
+              widget.isKioskMode ? 'SUBMIT SURVEY' : 'NEXT',
+              style: const TextStyle(
                 color: Colors.white,
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
@@ -1505,8 +1560,26 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
             ),
           );
 
-          // Navigate back or to next screen
-          Navigator.pop(context);
+          // Handle navigation based on mode
+          if (widget.isKioskMode) {
+            // Generate receipt number
+            final receiptNumber =
+                'SRV-${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}';
+
+            // Navigate to receipt screen for kiosk mode
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => KioskReceiptScreen(
+                  surveyData: surveyData,
+                  receiptNumber: receiptNumber,
+                ),
+              ),
+            );
+          } else {
+            // Navigate back for normal mode
+            Navigator.pop(context);
+          }
         } else {
           // Show error message
           ScaffoldMessenger.of(context).showSnackBar(

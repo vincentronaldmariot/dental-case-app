@@ -24,13 +24,29 @@ const PORT = process.env.PORT || 3000;
 
 // Rate limiting
 console.log('Setting up rate limiting...');
-const limiter = rateLimit({
+
+// General rate limiter for all routes
+const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
+  max: process.env.NODE_ENV === 'development' ? 400 : 200, // Higher limit in development
   message: {
     error: 'Too many requests from this IP, please try again later.'
-  }
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
 });
+
+// More permissive rate limiter for admin routes
+const adminLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: process.env.NODE_ENV === 'development' ? 1000 : 500, // Higher limit in development
+  message: {
+    error: 'Too many admin requests from this IP, please try again later.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 console.log('Rate limiting set up.');
 
 // Middleware
@@ -41,7 +57,6 @@ app.use(cors({
   credentials: true
 }));
 app.use(morgan('combined'));
-app.use(limiter);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 console.log('Middleware set up.');
@@ -58,12 +73,17 @@ console.log('Health check endpoint set up.');
 
 // API Routes
 console.log('Registering API routes...');
-app.use('/api/auth', authRoutes);
-app.use('/api/patients', patientRoutes);
-app.use('/api/surveys', surveyRoutes);
-app.use('/api/appointments', appointmentRoutes);
-app.use('/api/emergency', emergencyRoutes);
-app.use('/api/admin', adminRoutes);
+
+// Apply general rate limiting to most routes
+app.use('/api/auth', generalLimiter, authRoutes);
+app.use('/api/patients', generalLimiter, patientRoutes);
+app.use('/api/surveys', generalLimiter, surveyRoutes);
+app.use('/api/appointments', generalLimiter, appointmentRoutes);
+app.use('/api/emergency', generalLimiter, emergencyRoutes);
+
+// Apply more permissive rate limiting to admin routes
+app.use('/api/admin', adminLimiter, adminRoutes);
+
 console.log('API routes registered.');
 
 // 404 handler

@@ -39,17 +39,24 @@ class Appointment {
   // Create from Map
   factory Appointment.fromMap(Map<String, dynamic> map) {
     return Appointment(
-      id: map['id'],
-      patientId: map['patient_id'].toString(),
-      service: map['service'],
-      date: DateTime.parse(map['date']),
-      timeSlot: map['time_slot'],
-      doctorName: map['doctor_name'],
-      status: AppointmentStatus.values.firstWhere(
-        (e) => e.name == map['status'],
-      ),
-      notes: map['notes'],
-      createdAt: DateTime.parse(map['created_at']),
+      id: map['id']?.toString() ?? '',
+      patientId: map['patient_id']?.toString() ?? '',
+      service: map['service']?.toString() ?? '',
+      date: map['date'] != null
+          ? DateTime.tryParse(map['date'].toString()) ?? DateTime.now()
+          : DateTime.now(),
+      timeSlot: map['time_slot']?.toString() ?? '',
+      doctorName: map['doctor_name']?.toString() ?? '',
+      status: map['status'] != null
+          ? AppointmentStatus.values.firstWhere(
+              (e) => e.name == map['status'].toString(),
+              orElse: () => AppointmentStatus.scheduled,
+            )
+          : AppointmentStatus.scheduled,
+      notes: map['notes']?.toString(),
+      createdAt: map['created_at'] != null
+          ? DateTime.tryParse(map['created_at'].toString()) ?? DateTime.now()
+          : DateTime.now(),
     );
   }
 

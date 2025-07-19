@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import './next_screen.dart';
-import './admin_login_screen.dart';
+import './unified_login_screen.dart';
 
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
@@ -352,53 +352,6 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                         ),
                       ),
                       const Spacer(flex: 2),
-
-                      // Enhanced admin login link
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: Colors.grey.withOpacity(0.3),
-                            width: 1,
-                          ),
-                          color: Colors.grey.withOpacity(0.05),
-                        ),
-                        child: GestureDetector(
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const AdminLoginScreen(),
-                              ),
-                            );
-                          },
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.admin_panel_settings_rounded,
-                                color: Colors.grey[600],
-                                size: 16,
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                'Log-in as admin',
-                                style: TextStyle(
-                                  color: Colors.grey[600],
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
-                                  decoration: TextDecoration.underline,
-                                  decorationColor: Colors.grey[400],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
 
                       const SizedBox(height: 30),
                     ],

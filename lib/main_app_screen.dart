@@ -37,7 +37,7 @@ class _MainAppScreenState extends State<MainAppScreen> {
   Future<void> _loadInitialNotifications() async {
     final patientId = UserStateManager().currentPatientId;
     final token = UserStateManager().patientToken;
-    if (token != null && patientId != null) {
+    if (token != null) {
       try {
         await _notificationService.fetchNotifications(patientId, token);
         print(
@@ -121,9 +121,14 @@ class _MainAppScreenState extends State<MainAppScreen> {
   }
 }
 
-class DashboardScreen extends StatelessWidget {
+class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
 
+  @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildUserStatusBanner(BuildContext context) {
     final userState = UserStateManager();
 
@@ -194,14 +199,14 @@ class DashboardScreen extends StatelessWidget {
             end: Alignment.centerRight,
           ),
         ),
-        child: SafeArea(
+        child: const SafeArea(
           bottom: false,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.verified_user, color: Colors.white, size: 16),
-              const SizedBox(width: 8),
-              const Text(
+              Icon(Icons.verified_user, color: Colors.white, size: 16),
+              SizedBox(width: 8),
+              Text(
                 'AUTHENTICATED USER',
                 style: TextStyle(
                   color: Colors.white,
@@ -225,18 +230,18 @@ class DashboardScreen extends StatelessWidget {
             end: Alignment.centerRight,
           ),
         ),
-        child: SafeArea(
+        child: const SafeArea(
           bottom: false,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(
+              Icon(
                 Icons.admin_panel_settings,
                 color: Colors.white,
                 size: 18,
               ),
-              const SizedBox(width: 8),
-              const Text(
+              SizedBox(width: 8),
+              Text(
                 'ADMINISTRATOR MODE',
                 style: TextStyle(
                   color: Colors.white,
@@ -263,11 +268,11 @@ class DashboardScreen extends StatelessWidget {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
-          title: Row(
+          title: const Row(
             children: [
               Icon(Icons.logout, color: Colors.red, size: 28),
-              const SizedBox(width: 12),
-              const Text(
+              SizedBox(width: 12),
+              Text(
                 'Logout',
                 style: TextStyle(
                   color: Colors.black87,
@@ -421,7 +426,7 @@ class DashboardScreen extends StatelessWidget {
     final token = UserStateManager().patientToken;
     if (token == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('You are not logged in.')),
+        const SnackBar(content: Text('You are not logged in.')),
       );
       return;
     }
@@ -464,9 +469,48 @@ class DashboardScreen extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 20),
-                const Text(
-                  'Notifications',
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Notifications',
+                      style:
+                          TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                    ),
+                    IconButton(
+                      onPressed: () async {
+                        final patientId = UserStateManager().currentPatientId;
+                        final token = UserStateManager().patientToken;
+                        if (token != null) {
+                          try {
+                            await NotificationService()
+                                .fetchNotifications(patientId, token);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                    'Notifications refreshed! ${NotificationService().unreadCount} unread'),
+                                backgroundColor: Colors.green,
+                                duration: const Duration(seconds: 2),
+                              ),
+                            );
+                            // Force rebuild of the modal
+                            setState(() {});
+                          } catch (e) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content:
+                                    Text('Failed to refresh notifications: $e'),
+                                backgroundColor: Colors.red,
+                                duration: const Duration(seconds: 2),
+                              ),
+                            );
+                          }
+                        }
+                      },
+                      icon: const Icon(Icons.refresh, color: Color(0xFF0029B2)),
+                      tooltip: 'Refresh notifications',
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 20),
                 Expanded(
@@ -587,6 +631,94 @@ class DashboardScreen extends StatelessWidget {
     }
   }
 
+  Future<void> _refreshData() async {
+    final patientId = UserStateManager().currentPatientId;
+    final token = UserStateManager().patientToken;
+
+    if (token == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('You are not logged in.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    try {
+      // Show loading indicator
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                ),
+              ),
+              SizedBox(width: 12),
+              Text('Refreshing data...'),
+            ],
+          ),
+          duration: Duration(seconds: 2),
+          backgroundColor: Color(0xFF0029B2),
+        ),
+      );
+
+      // Refresh notifications
+      await NotificationService().fetchNotifications(patientId, token);
+
+      // Refresh survey status
+      try {
+        final surveyResult = await SurveyService().checkSurveyStatus();
+        if (surveyResult['success']) {
+          UserStateManager()
+              .updateSurveyStatus(surveyResult['hasCompletedSurvey']);
+        }
+      } catch (e) {
+        print('Error refreshing survey status: $e');
+      }
+
+      // Refresh appointment data
+      try {
+        await ApiService.checkConnectionAndSync();
+      } catch (e) {
+        print('Error refreshing appointments: $e');
+      }
+
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle, color: Colors.white, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                  'Data refreshed successfully! ${NotificationService().unreadCount} new notifications'),
+            ],
+          ),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+
+      // Force UI rebuild
+      setState(() {});
+    } catch (e) {
+      print('Error refreshing data: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to refresh data: $e'),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -652,6 +784,18 @@ class DashboardScreen extends StatelessWidget {
                         ),
                         Row(
                           children: [
+                            // Refresh Button
+                            IconButton(
+                              onPressed: () => _refreshData(),
+                              icon: const Icon(
+                                Icons.refresh,
+                                color: Colors.white,
+                                size: 24,
+                              ),
+                              tooltip: 'Refresh',
+                            ),
+                            const SizedBox(width: 8),
+                            // Notifications Button
                             Stack(
                               children: [
                                 IconButton(
@@ -1207,12 +1351,12 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
             end: Alignment.centerRight,
           ),
         ),
-        child: Row(
+        child: const Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.person_outline, color: Colors.white, size: 14),
-            const SizedBox(width: 6),
-            const Text(
+            Icon(Icons.person_outline, color: Colors.white, size: 14),
+            SizedBox(width: 6),
+            Text(
               'GUEST MODE',
               style: TextStyle(
                 color: Colors.white,
@@ -1235,12 +1379,12 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
             end: Alignment.centerRight,
           ),
         ),
-        child: Row(
+        child: const Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.verified_user, color: Colors.white, size: 12),
-            const SizedBox(width: 6),
-            const Text(
+            Icon(Icons.verified_user, color: Colors.white, size: 12),
+            SizedBox(width: 6),
+            Text(
               'AUTHENTICATED USER',
               style: TextStyle(
                 color: Colors.white,
@@ -1646,9 +1790,9 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  Text(
+                  const Text(
                     'Appointment Details',
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: Colors.white,
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
@@ -1761,6 +1905,35 @@ class _ProfileScreenState extends State<ProfileScreen> {
         backgroundColor: const Color(0xFF0029B2),
         elevation: 0,
         automaticallyImplyLeading: false,
+        actions: [
+          IconButton(
+            onPressed: () async {
+              setState(() => _isLoadingSurvey = true);
+              try {
+                await _loadSurveyStatus();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Profile data refreshed!'),
+                    backgroundColor: Colors.green,
+                    duration: Duration(seconds: 2),
+                  ),
+                );
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Failed to refresh: $e'),
+                    backgroundColor: Colors.red,
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
+              } finally {
+                setState(() => _isLoadingSurvey = false);
+              }
+            },
+            icon: const Icon(Icons.refresh, color: Colors.white, size: 24),
+            tooltip: 'Refresh profile data',
+          ),
+        ],
       ),
       body: _buildProfileContent(),
     );
@@ -1847,15 +2020,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+            const Row(
               children: [
                 Icon(
                   Icons.assignment,
-                  color: const Color(0xFF0029B2),
+                  color: Color(0xFF0029B2),
                   size: 24,
                 ),
-                const SizedBox(width: 10),
-                const Text(
+                SizedBox(width: 10),
+                Text(
                   'Dental Health Assessment',
                   style: TextStyle(
                     fontSize: 18,
@@ -1880,11 +2053,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
+                    const Row(
                       children: [
                         Icon(Icons.check_circle, color: Colors.green, size: 20),
-                        const SizedBox(width: 8),
-                        const Text(
+                        SizedBox(width: 8),
+                        Text(
                           'Assessment Completed',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
@@ -1932,11 +2105,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
+                    const Row(
                       children: [
                         Icon(Icons.warning, color: Colors.orange, size: 20),
-                        const SizedBox(width: 8),
-                        const Text(
+                        SizedBox(width: 8),
+                        Text(
                           'Assessment Required',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
@@ -2003,7 +2176,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             const SizedBox(height: 15),
             ListTile(
-              leading: Icon(Icons.history, color: Colors.blue),
+              leading: const Icon(Icons.history, color: Colors.blue),
               title: const Text('Appointment History'),
               subtitle: const Text('View your past and upcoming appointments'),
               trailing: const Icon(Icons.arrow_forward_ios, size: 16),
@@ -2018,7 +2191,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             const Divider(),
             ListTile(
-              leading: Icon(Icons.logout, color: Colors.red),
+              leading: const Icon(Icons.logout, color: Colors.red),
               title: const Text('Logout'),
               subtitle: const Text('Sign out of your account'),
               trailing: const Icon(Icons.arrow_forward_ios, size: 16),
@@ -2038,11 +2211,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
-          title: Row(
+          title: const Row(
             children: [
               Icon(Icons.logout, color: Colors.red, size: 28),
-              const SizedBox(width: 12),
-              const Text(
+              SizedBox(width: 12),
+              Text(
                 'Logout',
                 style: TextStyle(
                   color: Colors.black87,
@@ -2100,11 +2273,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
-          title: Row(
+          title: const Row(
             children: [
               Icon(Icons.assignment, color: Colors.orange, size: 28),
-              const SizedBox(width: 12),
-              const Text(
+              SizedBox(width: 12),
+              Text(
                 'Retake Assessment',
                 style: TextStyle(
                   color: Colors.black87,

@@ -68,7 +68,9 @@ router.get('/patients', verifyAdmin, async (req, res) => {
     let queryText = `
       SELECT 
         id, first_name, last_name, email, phone, classification,
-        serial_number, unit_assignment, created_at
+        serial_number, unit_assignment, date_of_birth, address,
+        emergency_contact, emergency_phone, medical_history, allergies,
+        other_classification, created_at
       FROM patients
     `;
     const queryParams = [];
@@ -97,12 +99,21 @@ router.get('/patients', verifyAdmin, async (req, res) => {
     res.json({
       patients: result.rows.map(patient => ({
         id: patient.id,
-        name: `${patient.first_name} ${patient.last_name}`,
+        firstName: patient.first_name,
+        lastName: patient.last_name,
+        fullName: `${patient.first_name} ${patient.last_name}`,
         email: patient.email,
         phone: patient.phone,
         classification: patient.classification,
+        otherClassification: patient.other_classification,
         serialNumber: patient.serial_number,
         unitAssignment: patient.unit_assignment,
+        dateOfBirth: patient.date_of_birth,
+        address: patient.address,
+        emergencyContact: patient.emergency_contact,
+        emergencyPhone: patient.emergency_phone,
+        medicalHistory: patient.medical_history,
+        allergies: patient.allergies,
         createdAt: patient.created_at
       })),
       pagination: {
@@ -288,6 +299,82 @@ router.get('/appointments/pending', verifyAdmin, async (req, res) => {
   }
 });
 
+// GET /api/admin/appointments/approved - Get approved/scheduled appointments for treatments
+router.get('/appointments/approved', verifyAdmin, async (req, res) => {
+  try {
+    const { limit = 50, offset = 0 } = req.query;
+
+    const queryText = `
+      SELECT 
+        a.id,
+        a.service,
+        a.appointment_date,
+        a.time_slot,
+        a.doctor_name,
+        a.status,
+        a.notes,
+        a.created_at,
+        a.updated_at,
+        p.id as patient_id,
+        p.first_name,
+        p.last_name,
+        p.email,
+        p.phone,
+        p.classification,
+        p.other_classification,
+        ds.survey_data,
+        ds.completed_at as survey_completed_at
+      FROM appointments a
+      LEFT JOIN patients p ON a.patient_id = p.id
+      LEFT JOIN dental_surveys ds ON p.id = ds.patient_id
+      WHERE a.status IN ('scheduled', 'completed')
+      ORDER BY a.appointment_date DESC, a.time_slot ASC
+      LIMIT $1 OFFSET $2
+    `;
+
+    const result = await query(queryText, [parseInt(limit), parseInt(offset)]);
+
+    // Get total approved count
+    const countResult = await query('SELECT COUNT(*) FROM appointments WHERE status IN ($1, $2)', ['scheduled', 'completed']);
+    const totalCount = parseInt(countResult.rows[0].count);
+
+    res.json({
+      approvedAppointments: result.rows.map(appointment => ({
+        appointmentId: appointment.id,
+        patientId: appointment.patient_id,
+        patientName: `${appointment.first_name} ${appointment.last_name}`,
+        patientEmail: appointment.email,
+        patientPhone: appointment.phone,
+        patientClassification: appointment.classification,
+        patientOtherClassification: appointment.other_classification,
+        service: appointment.service || 'N/A',
+        appointmentDate: appointment.appointment_date,
+        timeSlot: appointment.time_slot || 'N/A',
+        doctorName: appointment.doctor_name || 'N/A',
+        status: appointment.status,
+        notes: appointment.notes,
+        createdAt: appointment.created_at,
+        updatedAt: appointment.updated_at,
+        surveyData: appointment.survey_data,
+        surveyCompletedAt: appointment.survey_completed_at,
+        hasSurveyData: appointment.survey_data !== null
+      })),
+      pagination: {
+        total: totalCount,
+        limit: parseInt(limit),
+        offset: parseInt(offset),
+        hasMore: totalCount > parseInt(offset) + parseInt(limit)
+      }
+    });
+
+  } catch (error) {
+    console.error('Admin get approved appointments error:', error);
+    res.status(500).json({
+      error: 'Failed to retrieve approved appointments. Please try again.'
+    });
+  }
+});
+
 // GET /api/admin/appointments/:id - Get specific appointment with full details
 router.get('/appointments/:id', verifyAdmin, async (req, res) => {
   try {
@@ -373,6 +460,88 @@ router.get('/appointments/:id', verifyAdmin, async (req, res) => {
     console.error('Admin get appointment error:', error);
     res.status(500).json({
       error: 'Failed to retrieve appointment. Please try again.'
+    });
+  }
+});
+
+// PUT /api/admin/appointments/:id/update - Update appointment details (date, time, service)
+router.put('/appointments/:id/update', verifyAdmin, [
+  body('date').optional().isISO8601().withMessage('Date must be a valid ISO 8601 date'),
+  body('time_slot').optional().isString().withMessage('Time slot must be a string'),
+  body('service').optional().isString().withMessage('Service must be a string')
+], async (req, res) => {
+  try {
+    // Check validation errors
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        error: 'Validation failed',
+        details: errors.array()
+      });
+    }
+
+    const appointmentId = req.params.id;
+    const { date, time_slot, service } = req.body;
+
+    // Build dynamic update query based on provided fields
+    const updateFields = [];
+    const queryParams = [];
+    let paramIndex = 1;
+
+    if (date !== undefined) {
+      updateFields.push(`appointment_date = $${paramIndex++}`);
+      queryParams.push(date);
+    }
+
+    if (time_slot !== undefined) {
+      updateFields.push(`time_slot = $${paramIndex++}`);
+      queryParams.push(time_slot);
+    }
+
+    if (service !== undefined) {
+      updateFields.push(`service = $${paramIndex++}`);
+      queryParams.push(service);
+    }
+
+    if (updateFields.length === 0) {
+      return res.status(400).json({
+        error: 'No fields to update provided'
+      });
+    }
+
+    // Add appointment ID to query params
+    queryParams.push(appointmentId);
+
+    const result = await query(`
+      UPDATE appointments 
+      SET ${updateFields.join(', ')}, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $${paramIndex}
+      RETURNING id, appointment_date, time_slot, service, updated_at
+    `, queryParams);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        error: 'Appointment not found'
+      });
+    }
+
+    const appointment = result.rows[0];
+
+    res.json({
+      message: 'Appointment updated successfully',
+      appointment: {
+        id: appointment.id,
+        appointmentDate: appointment.appointment_date,
+        timeSlot: appointment.time_slot,
+        service: appointment.service,
+        updatedAt: appointment.updated_at
+      }
+    });
+
+  } catch (error) {
+    console.error('Admin update appointment error:', error);
+    res.status(500).json({
+      error: 'Failed to update appointment. Please try again.'
     });
   }
 });

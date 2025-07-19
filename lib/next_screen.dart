@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import './admin_login_screen.dart';
+import './unified_login_screen.dart';
 import './main_app_screen.dart';
-import './client_login_screen.dart';
 import './user_state_manager.dart';
 
 class NextScreen extends StatefulWidget {
@@ -199,12 +198,12 @@ class _NextScreenState extends State<NextScreen>
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const ClientLoginScreen(),
+                          builder: (context) => const UnifiedLoginScreen(),
                         ),
                       );
                     },
                     child: const Text(
-                      'Client Login',
+                      'Login',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -236,25 +235,6 @@ class _NextScreenState extends State<NextScreen>
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  TextButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const AdminLoginScreen(),
-                        ),
-                      );
-                    },
-                    child: const Text(
-                      'Log-in as admin',
-                      style: TextStyle(
-                        color: Colors.grey,
-                        fontSize: 14,
-                        decoration: TextDecoration.underline,
                       ),
                     ),
                   ),

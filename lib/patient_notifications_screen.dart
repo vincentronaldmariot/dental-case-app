@@ -50,7 +50,7 @@ class _PatientNotificationsScreenState
         print('Loaded ${_notifications.length} notifications');
         int unreadInList = 0;
         for (var notification in _notifications) {
-          if (!notification['isRead']) {
+          if (!(notification['isRead'] ?? false)) {
             unreadInList++;
           }
         }
@@ -240,7 +240,7 @@ class _PatientNotificationsScreenState
                           itemCount: _notifications.length,
                           itemBuilder: (context, index) {
                             final notification = _notifications[index];
-                            final isUnread = !notification.isRead;
+                            final isUnread = !(notification['isRead'] ?? false);
 
                             return Card(
                               margin: const EdgeInsets.only(bottom: 12),
@@ -265,7 +265,12 @@ class _PatientNotificationsScreenState
                                     onTap: () {
                                       print('=== INKWELL TAP DETECTED ===');
                                       print(
-                                          'Notification ID: ${notification.id}');
+                                          'Notification ID: ${notification['id']}');
+                                      // Mark as read when tapped
+                                      if (isUnread) {
+                                        _markAsRead(
+                                            notification['id'].toString());
+                                      }
                                     },
                                     borderRadius: BorderRadius.circular(12),
                                     child: Padding(
@@ -285,9 +290,9 @@ class _PatientNotificationsScreenState
                                             ),
                                             child: Icon(
                                               _getNotificationIcon(
-                                                  notification.type),
+                                                  notification['type']),
                                               color: _getNotificationColor(
-                                                  notification.type),
+                                                  notification['type']),
                                               size: 24,
                                             ),
                                           ),
@@ -301,7 +306,7 @@ class _PatientNotificationsScreenState
                                                   children: [
                                                     Expanded(
                                                       child: Text(
-                                                        notification.title,
+                                                        notification['title'],
                                                         style: TextStyle(
                                                           fontWeight: isUnread
                                                               ? FontWeight.bold
@@ -322,8 +327,8 @@ class _PatientNotificationsScreenState
                                                             BoxDecoration(
                                                           color:
                                                               _getNotificationColor(
-                                                                  notification
-                                                                      .type),
+                                                                  notification[
+                                                                      'type']),
                                                           shape:
                                                               BoxShape.circle,
                                                         ),
@@ -332,7 +337,7 @@ class _PatientNotificationsScreenState
                                                 ),
                                                 const SizedBox(height: 4),
                                                 Text(
-                                                  notification.message,
+                                                  notification['message'],
                                                   style: TextStyle(
                                                     fontSize: 14,
                                                     color: Colors.grey[600],
@@ -341,7 +346,8 @@ class _PatientNotificationsScreenState
                                                 const SizedBox(height: 8),
                                                 Text(
                                                   _formatDate(DateTime.parse(
-                                                      notification.createdAt)),
+                                                      notification[
+                                                          'createdAt'])),
                                                   style: TextStyle(
                                                     fontSize: 12,
                                                     color: Colors.grey[500],

@@ -67,30 +67,55 @@ class Patient {
   // Create Patient from Map (database retrieval)
   factory Patient.fromMap(Map<String, dynamic> map) {
     return Patient(
-      id: map['id'],
-      firstName: map['firstName'] ?? map['first_name'] ?? '',
-      lastName: map['lastName'] ?? map['last_name'] ?? '',
-      email: map['email'] ?? '',
-      phone: map['phone'] ?? '',
-      passwordHash: map['passwordHash'] ?? map['password_hash'] ?? '',
-      dateOfBirth: DateTime.parse(map['dateOfBirth'] ?? map['date_of_birth']),
-      address: map['address'] ?? '',
-      emergencyContact:
-          map['emergencyContact'] ?? map['emergency_contact'] ?? '',
-      emergencyPhone: map['emergencyPhone'] ?? map['emergency_phone'] ?? '',
-      medicalHistory: map['medicalHistory'] ?? map['medical_history'] ?? '',
-      allergies: map['allergies'] ?? '',
-      serialNumber: map['serialNumber'] ?? map['serial_number'] ?? '',
-      unitAssignment: map['unitAssignment'] ?? map['unit_assignment'] ?? '',
-      classification: map['classification'] ?? '',
-      otherClassification:
-          map['otherClassification'] ?? map['other_classification'] ?? '',
-      createdAt: DateTime.parse(map['createdAt'] ??
-          map['created_at'] ??
-          DateTime.now().toIso8601String()),
-      updatedAt: DateTime.parse(map['updatedAt'] ??
-          map['updated_at'] ??
-          DateTime.now().toIso8601String()),
+      id: map['id']?.toString(),
+      firstName:
+          map['firstName']?.toString() ?? map['first_name']?.toString() ?? '',
+      lastName:
+          map['lastName']?.toString() ?? map['last_name']?.toString() ?? '',
+      email: map['email']?.toString() ?? '',
+      phone: map['phone']?.toString() ?? '',
+      passwordHash: map['passwordHash']?.toString() ??
+          map['password_hash']?.toString() ??
+          '',
+      dateOfBirth: map['dateOfBirth'] != null
+          ? DateTime.tryParse(map['dateOfBirth'].toString()) ?? DateTime.now()
+          : (map['date_of_birth'] != null
+              ? DateTime.tryParse(map['date_of_birth'].toString()) ??
+                  DateTime.now()
+              : DateTime.now()),
+      address: map['address']?.toString() ?? '',
+      emergencyContact: map['emergencyContact']?.toString() ??
+          map['emergency_contact']?.toString() ??
+          '',
+      emergencyPhone: map['emergencyPhone']?.toString() ??
+          map['emergency_phone']?.toString() ??
+          '',
+      medicalHistory: map['medicalHistory']?.toString() ??
+          map['medical_history']?.toString() ??
+          '',
+      allergies: map['allergies']?.toString() ?? '',
+      serialNumber: map['serialNumber']?.toString() ??
+          map['serial_number']?.toString() ??
+          '',
+      unitAssignment: map['unitAssignment']?.toString() ??
+          map['unit_assignment']?.toString() ??
+          '',
+      classification: map['classification']?.toString() ?? '',
+      otherClassification: map['otherClassification']?.toString() ??
+          map['other_classification']?.toString() ??
+          '',
+      createdAt: map['createdAt'] != null
+          ? DateTime.tryParse(map['createdAt'].toString()) ?? DateTime.now()
+          : (map['created_at'] != null
+              ? DateTime.tryParse(map['created_at'].toString()) ??
+                  DateTime.now()
+              : DateTime.now()),
+      updatedAt: map['updatedAt'] != null
+          ? DateTime.tryParse(map['updatedAt'].toString()) ?? DateTime.now()
+          : (map['updated_at'] != null
+              ? DateTime.tryParse(map['updated_at'].toString()) ??
+                  DateTime.now()
+              : DateTime.now()),
     );
   }
 

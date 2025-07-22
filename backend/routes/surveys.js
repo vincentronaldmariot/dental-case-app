@@ -187,10 +187,25 @@ router.delete('/', verifyPatient, async (req, res) => {
 router.get('/admin/surveys/:patientId', verifyAdmin, async (req, res) => {
   try {
     const { patientId } = req.params;
-    const result = await query(
-      `SELECT id, survey_data, completed_at, updated_at FROM dental_surveys WHERE patient_id = $1 ORDER BY updated_at DESC LIMIT 1`,
+    const { email } = req.query;
+    console.log('Admin survey fetch for patientId:', patientId, 'length:', patientId.length, 'email:', email);
+    let result = await query(
+      `SELECT id, survey_data, completed_at, updated_at FROM dental_surveys WHERE patient_id = $1::uuid ORDER BY updated_at DESC LIMIT 1`,
       [patientId]
     );
+    console.log('Survey query result by patientId:', result.rows);
+    if (result.rows.length === 0 && email) {
+      // Fallback: try by email
+      result = await query(
+        `SELECT ds.id, ds.survey_data, ds.completed_at, ds.updated_at
+         FROM dental_surveys ds
+         JOIN patients p ON ds.patient_id = p.id
+         WHERE LOWER(p.email) = LOWER($1)
+         ORDER BY ds.updated_at DESC LIMIT 1`,
+        [email]
+      );
+      console.log('Survey query result by email:', result.rows);
+    }
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'No survey found for this patient' });
     }

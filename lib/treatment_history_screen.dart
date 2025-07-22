@@ -4,9 +4,13 @@ import 'models/treatment_record.dart';
 import 'services/history_service.dart';
 import 'services/patient_history_service.dart';
 import 'user_state_manager.dart';
+import 'services/api_service.dart'; // Added import for ApiService
 
 class TreatmentHistoryScreen extends StatefulWidget {
-  const TreatmentHistoryScreen({super.key});
+  final String? patientId;
+  final String? patientEmail;
+  const TreatmentHistoryScreen({Key? key, this.patientId, this.patientEmail})
+      : super(key: key);
 
   @override
   State<TreatmentHistoryScreen> createState() => _TreatmentHistoryScreenState();
@@ -50,40 +54,46 @@ class _TreatmentHistoryScreenState extends State<TreatmentHistoryScreen> {
 
   Future<void> _loadPatientHistory() async {
     setState(() => _isLoading = true);
-
     try {
-      final patientId = UserStateManager().currentPatientId;
-      final token = UserStateManager().patientToken;
-
-      if (token != null && patientId != 'guest') {
-        // Load comprehensive history from API
+      final String patientId = (widget.patientId != null &&
+              widget.patientId!.isNotEmpty &&
+              widget.patientId != 'null')
+          ? widget.patientId!
+          : (UserStateManager().currentPatientId ?? '');
+      final String token = UserStateManager().adminToken ??
+          UserStateManager().patientToken ??
+          '';
+      Map<String, dynamic>? surveyData;
+      if (UserStateManager().isAdminLoggedIn &&
+          widget.patientId != null &&
+          widget.patientId!.isNotEmpty &&
+          widget.patientId != 'null') {
+        final String adminPatientId = widget.patientId!;
+        surveyData = await ApiService.getPatientSurveyAsAdmin(adminPatientId);
+        if (surveyData == null &&
+            widget.patientEmail != null &&
+            widget.patientEmail!.isNotEmpty) {
+          // Try fetching by email as fallback
+          surveyData = await ApiService.getPatientSurveyAsAdmin(adminPatientId,
+              email: widget.patientEmail);
+        }
+        _surveyData = surveyData != null ? surveyData['surveyData'] : null;
+        print('Admin survey data: $_surveyData');
+      } else {
         final history =
             await _patientHistoryService.getPatientHistory(patientId, token);
-
-        setState(() {
-          _surveyData = history['survey']?['surveyData'];
-          _appointments = history['appointments'] ?? [];
-          _emergencies = history['emergencies'] ?? [];
-          _treatmentRecords = _patientHistoryService
-              .parseTreatments(history['treatments'] ?? []);
-          _isLoading = false;
-        });
-      } else {
-        // Fallback to local data
-        setState(() {
-          _treatmentRecords = _historyService.getTreatmentRecords(
-            patientId: UserStateManager().currentPatientId,
-          );
-          _isLoading = false;
-        });
+        _surveyData = history['survey']?['surveyData'];
+        _appointments = history['appointments'] ?? [];
+        _emergencies = history['emergencies'] ?? [];
+        _treatmentRecords =
+            _patientHistoryService.parseTreatments(history['treatments'] ?? []);
       }
+      setState(() {
+        _isLoading = false;
+      });
     } catch (e) {
       print('Error loading patient history: $e');
-      // Fallback to local data
       setState(() {
-        _treatmentRecords = _historyService.getTreatmentRecords(
-          patientId: UserStateManager().currentPatientId,
-        );
         _isLoading = false;
       });
     }
@@ -317,9 +327,25 @@ class _TreatmentHistoryScreenState extends State<TreatmentHistoryScreen> {
       );
     }
 
+    // If admin, show the full original survey Q&A
+    if (UserStateManager().isAdminLoggedIn) {
+      return SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Card(
+          elevation: 3,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: _buildFullSurveyQA(_surveyData!),
+          ),
+        ),
+      );
+    }
+
+    // Default: mapped Q&A style
     final parsedSurveyData =
         _patientHistoryService.parseSurveyData(_surveyData!);
-
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -356,7 +382,6 @@ class _TreatmentHistoryScreenState extends State<TreatmentHistoryScreen> {
                   ...parsedSurveyData.entries.map((entry) {
                     final question = entry.key;
                     final answer = entry.value;
-
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 16),
                       child: Column(
@@ -865,6 +890,68 @@ class _TreatmentHistoryScreenState extends State<TreatmentHistoryScreen> {
         ),
       ],
     );
+  }
+
+  Widget _buildFullSurveyQA(Map<String, dynamic> surveyData) {
+    List<Widget> qaWidgets = [];
+    void addQA(String question, dynamic answer) {
+      qaWidgets.add(Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              question,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                answer == null || answer.toString().isEmpty
+                    ? '—'
+                    : answer.toString(),
+                style:
+                    const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+              ),
+            ),
+          ],
+        ),
+      ));
+    }
+
+    surveyData.forEach((key, value) {
+      if (value is Map<String, dynamic>) {
+        value.forEach((subKey, subValue) {
+          addQA('${_humanize(key)} - ${_humanize(subKey)}', subValue);
+        });
+      } else {
+        addQA(_humanize(key), value);
+      }
+    });
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: qaWidgets,
+    );
+  }
+
+  String _humanize(String key) {
+    return key
+        .replaceAll('_', ' ')
+        .replaceAll(RegExp(r'([a-z])([A-Z])'), r'$1 $2')
+        .replaceAllMapped(
+            RegExp(r'\b([a-z])'), (m) => m.group(0)!.toUpperCase())
+        .replaceFirstMapped(
+            RegExp(r'^[a-z]'), (m) => m.group(0)!.toUpperCase());
   }
 
   IconData _getIconForTreatmentType(String treatmentType) {

@@ -674,6 +674,14 @@ router.get('/appointments/statistics', verifyAdmin, async (req, res) => {
     `);
     const todayAppointments = parseInt(todayResult.rows[0].count);
 
+    // Get today's approved appointments
+    const todayApprovedResult = await query(`
+      SELECT COUNT(*) as count
+      FROM appointments
+      WHERE DATE(appointment_date) = CURRENT_DATE AND status = 'approved'
+    `);
+    const todaysApprovedAppointments = parseInt(todayApprovedResult.rows[0].count);
+
     // Get pending appointments count
     const pendingCount = statusStats.pending || 0;
 
@@ -686,7 +694,8 @@ router.get('/appointments/statistics', verifyAdmin, async (req, res) => {
         cancelled: statusStats.cancelled || 0,
         missed: statusStats.missed || 0,
         rescheduled: statusStats.rescheduled || 0,
-        todayAppointments
+        todayAppointments,
+        todaysApprovedAppointments // <-- new field
       }
     });
 

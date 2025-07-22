@@ -1253,24 +1253,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   }
 
   Widget _buildDashboardTab() {
-    // Calculate today's appointments
-    final today = DateTime.now();
-    final todayAppointments = _appointments.where((appointment) {
-      try {
-        final appointmentDate =
-            appointment['booking_date'] ?? appointment['date'];
-        if (appointmentDate != null) {
-          final date = DateTime.parse(appointmentDate);
-          return date.year == today.year &&
-              date.month == today.month &&
-              date.day == today.day;
-        }
-        return false;
-      } catch (e) {
-        return false;
-      }
-    }).length;
-
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -1326,7 +1308,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       Expanded(
                         child: _buildStatCard(
                           "Today's Appointments",
-                          todayAppointments.toString(),
+                          _pendingAppointments.length.toString(),
                           Icons.today,
                           Colors.purple,
                         ),
@@ -1627,24 +1609,27 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                   children: [
                     Expanded(
                       child: ElevatedButton.icon(
-                        onPressed: () =>
-                            _showPatientSurveyDetails(context, patient['id']),
-                        icon: const Icon(Icons.assignment, size: 16),
-                        label: const Text('Details'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue,
-                          foregroundColor: Colors.white,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: ElevatedButton.icon(
                         onPressed: () {
+                          final cleanId = (RegExp(r'[0-9a-fA-F\-]{36}')
+                                      .stringMatch(patient['id'].toString()) ??
+                                  patient['id']
+                                      .toString()
+                                      .replaceAll('\\', '')
+                                      .trim())
+                              .toLowerCase();
+                          final email = patient['email']?.toString() ?? '';
+                          print(
+                              'Navigating to history for cleaned patientId: ' +
+                                  cleanId +
+                                  ' (length: ' +
+                                  cleanId.length.toString() +
+                                  '), email: ' +
+                                  email);
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => TreatmentHistoryScreen(),
+                              builder: (context) => TreatmentHistoryScreen(
+                                  patientId: cleanId, patientEmail: email),
                             ),
                           );
                         },
@@ -2515,41 +2500,5 @@ $allPatientsData
         );
       },
     );
-  }
-
-  void _showPatientSurveyDetails(BuildContext context, String patientId) async {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(child: CircularProgressIndicator()),
-    );
-    try {
-      final survey = await ApiService.getPatientSurveyAsAdmin(patientId);
-      Navigator.of(context).pop(); // Remove loading dialog
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => DentalSurveyScreen(
-            initialSurveyData: survey != null ? survey['surveyData'] : null,
-            readOnly: true,
-          ),
-        ),
-      );
-    } catch (e) {
-      Navigator.of(context).pop(); // Remove loading dialog
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Error'),
-          content: Text('Failed to fetch self-assessment survey: $e'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('OK'),
-            ),
-          ],
-        ),
-      );
-    }
   }
 }

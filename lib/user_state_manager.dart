@@ -25,13 +25,7 @@ class UserStateManager extends ChangeNotifier {
   String? get adminToken => _adminToken;
 
   // Get current patient ID (for use in database operations)
-  String get currentPatientId {
-    final id = _currentPatient?.id ?? 'guest';
-    print('🔍 UserStateManager.currentPatientId called: "$id"');
-    print('🔍 _currentPatient: $_currentPatient');
-    print('🔍 _currentPatient?.id: ${_currentPatient?.id}');
-    return id;
-  }
+  String get currentPatientId => _currentPatient?.id ?? '';
 
   void completeSurvey() {
     _isSurveyCompleted = true;

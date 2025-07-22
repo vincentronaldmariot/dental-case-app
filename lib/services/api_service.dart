@@ -411,11 +411,15 @@ class ApiService {
   }
 
   /// Admin: Get any patient's dental survey
-  static Future<Map<String, dynamic>?> getPatientSurveyAsAdmin(
-      String patientId) async {
+  static Future<Map<String, dynamic>?> getPatientSurveyAsAdmin(String patientId,
+      {String? email}) async {
     try {
+      final uri = email != null && email.isNotEmpty
+          ? Uri.parse(
+              '$baseUrl/admin/surveys/$patientId?email=${Uri.encodeComponent(email)}')
+          : Uri.parse('$baseUrl/admin/surveys/$patientId');
       final response = await http.get(
-        Uri.parse('$baseUrl/admin/surveys/$patientId'),
+        uri,
         headers: _headers,
       );
       if (response.statusCode == 200) {

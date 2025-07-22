@@ -78,7 +78,6 @@ class _MainAppScreenState extends State<MainAppScreen> {
     const DashboardScreen(),
     const AppointmentsScreen(),
     const ProfileScreen(),
-    const MoreScreen(),
   ];
 
   @override
@@ -118,11 +117,6 @@ class _MainAppScreenState extends State<MainAppScreen> {
               icon: Icon(Icons.person_outline),
               activeIcon: Icon(Icons.person),
               label: 'Profile',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.more_horiz),
-              activeIcon: Icon(Icons.menu),
-              label: 'More',
             ),
           ],
         ),
@@ -968,7 +962,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             );
                           },
                         ),
-                        _buildTreatmentHistoryCard(context),
+                        _buildQuickActionCard(
+                          context,
+                          'Appointment History',
+                          Icons.calendar_month,
+                          const Color(0xFF0029B2),
+                          () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    const AppointmentHistoryScreen(),
+                              ),
+                            );
+                          },
+                        ),
                       ],
                     ),
                   ],
@@ -2130,21 +2138,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             const SizedBox(height: 15),
             ListTile(
-              leading: const Icon(Icons.history, color: Colors.blue),
-              title: const Text('Appointment History'),
-              subtitle: const Text('View your past and upcoming appointments'),
-              trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const TreatmentHistoryScreen(),
-                  ),
-                );
-              },
-            ),
-            const Divider(),
-            ListTile(
               leading: const Icon(Icons.logout, color: Colors.red),
               title: const Text('Logout'),
               subtitle: const Text('Sign out of your account'),
@@ -2302,6 +2295,24 @@ class MoreScreen extends StatelessWidget {
           style: TextStyle(fontSize: 18),
           textAlign: TextAlign.center,
         ),
+      ),
+    );
+  }
+}
+
+class AppointmentHistoryScreen extends StatelessWidget {
+  const AppointmentHistoryScreen({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Appointment History'),
+        backgroundColor: Color(0xFF0029B2),
+        foregroundColor: Colors.white,
+      ),
+      body: const Center(
+        child: Text('Appointment history will be shown here.'),
       ),
     );
   }

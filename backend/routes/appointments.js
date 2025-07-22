@@ -62,7 +62,7 @@ router.post('/', verifyPatient, appointmentValidation, async (req, res) => {
     const result = await query(`
       INSERT INTO appointments (
         patient_id, service, appointment_date, time_slot, doctor_name, notes, status
-      ) VALUES ($1, $2, $3, $4, $5, $6, 'pending')
+      ) VALUES ($1, $2, $3::date, $4, $5, $6, 'pending')
       RETURNING id, service, appointment_date, time_slot, doctor_name, status, notes, created_at
     `, [patientId, service, appointmentDate, timeSlot, doctorName || 'Dr. Smith', notes || null]);
 
@@ -254,7 +254,7 @@ router.put('/:id', verifyPatient, async (req, res) => {
     // Update appointment
     const result = await query(`
       UPDATE appointments 
-      SET appointment_date = COALESCE($1, appointment_date),
+      SET appointment_date = COALESCE($1::date, appointment_date),
           time_slot = COALESCE($2, time_slot),
           notes = COALESCE($3, notes),
           updated_at = CURRENT_TIMESTAMP

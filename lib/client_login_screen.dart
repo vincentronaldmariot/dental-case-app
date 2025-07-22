@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'services/api_service.dart';
 import 'services/survey_service.dart';
 import 'models/patient.dart';
 import 'user_state_manager.dart';
+import 'utils/phone_validator.dart';
 import './main_app_screen.dart';
 
 class ClientLoginScreen extends StatefulWidget {
@@ -405,9 +407,12 @@ class _ClientLoginScreenState extends State<ClientLoginScreen>
                                   labelText: 'Phone Number',
                                   prefixIcon: Icons.phone_outlined,
                                   keyboardType: TextInputType.phone,
-                                  validator: (value) => value?.isEmpty ?? true
-                                      ? 'Phone number is required'
-                                      : null,
+                                  validator: PhoneValidator.validatePhoneNumber,
+                                  inputFormatters:
+                                      PhoneValidator.getPhoneInputFormatters(),
+                                  hintText: '09XX XXX XXXX',
+                                  helperText:
+                                      'Must start with 09 and be 11 digits',
                                 ),
                                 const SizedBox(height: 16),
 
@@ -536,6 +541,9 @@ class _ClientLoginScreenState extends State<ClientLoginScreen>
     Widget? suffixIcon,
     TextInputType? keyboardType,
     int maxLines = 1,
+    List<TextInputFormatter>? inputFormatters,
+    String? hintText,
+    String? helperText,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -555,6 +563,7 @@ class _ClientLoginScreenState extends State<ClientLoginScreen>
         obscureText: obscureText,
         keyboardType: keyboardType,
         maxLines: maxLines,
+        inputFormatters: inputFormatters,
         decoration: InputDecoration(
           labelText: labelText,
           prefixIcon: Icon(prefixIcon, color: const Color(0xFF0029B2)),
@@ -569,6 +578,8 @@ class _ClientLoginScreenState extends State<ClientLoginScreen>
             horizontal: 20,
             vertical: 16,
           ),
+          hintText: hintText,
+          helperText: helperText,
         ),
       ),
     );

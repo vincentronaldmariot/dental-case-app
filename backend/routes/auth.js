@@ -41,7 +41,7 @@ const registerValidation = [
     .isISO8601()
     .withMessage('Please provide a valid date of birth'),
   body('classification')
-    .isIn(['Military', 'AD/HR', 'Department', 'Others'])
+    .isIn(['Military', 'AD/HR', 'Department', 'Others', 'Other'])
     .withMessage('Please select a valid classification')
 ];
 

@@ -34,7 +34,7 @@ class ApiService {
         final response = await http.get(
           Uri.parse('http://localhost:3000/health'),
           headers: {'Content-Type': 'application/json'},
-        ).timeout(Duration(seconds: 5));
+        ).timeout(const Duration(seconds: 5));
 
         if (response.statusCode == 200) {
           _offlineMode = false;
@@ -58,7 +58,7 @@ class ApiService {
       retryCount++;
       if (retryCount < maxRetries) {
         print('⏳ Retrying in 2 seconds...');
-        await Future.delayed(Duration(seconds: 2));
+        await Future.delayed(const Duration(seconds: 2));
       }
     }
 
@@ -74,7 +74,7 @@ class ApiService {
       final response = await http.get(
         Uri.parse('http://localhost:3000/health'),
         headers: {'Content-Type': 'application/json'},
-      ).timeout(Duration(seconds: 5));
+      ).timeout(const Duration(seconds: 5));
 
       if (response.statusCode == 200) {
         _offlineMode = false;
@@ -135,11 +135,11 @@ class ApiService {
       String email, String password) async {
     if (_offlineMode) {
       // Offline mode - validate credentials
-      await Future.delayed(Duration(milliseconds: 500));
+      await Future.delayed(const Duration(milliseconds: 500));
 
       // Check if this is a valid demo account
       if (email == 'demo@dental.com' && password == 'demo123') {
-        final patientId = 'offline_demo_user';
+        const patientId = 'offline_demo_user';
         await _storeToken('offline_token_$patientId');
 
         _localData[patientId] = {
@@ -185,7 +185,7 @@ class ApiService {
         print('Authentication successful for patient: ${patientData['id']}');
         return {
           'token': token,
-          'patientId': patientData['id'],
+          'patient': patientData, // Return the full patient data
         };
       } else {
         _handleError(response);
@@ -202,7 +202,7 @@ class ApiService {
       Patient patient, String password) async {
     if (_offlineMode) {
       // Offline mode - simulate registration
-      await Future.delayed(Duration(milliseconds: 500));
+      await Future.delayed(const Duration(milliseconds: 500));
 
       // Check if email already exists
       for (final existingPatient in _localData.values) {
@@ -287,7 +287,7 @@ class ApiService {
           email: patientData['email'] ?? 'demo@example.com',
           phone: patientData['phone'] ?? '123-456-7890',
           passwordHash: 'hashed',
-          dateOfBirth: DateTime.now().subtract(Duration(days: 365 * 25)),
+          dateOfBirth: DateTime.now().subtract(const Duration(days: 365 * 25)),
           address: '123 Demo Street',
           emergencyContact: 'Emergency Contact',
           emergencyPhone: '098-765-4321',
@@ -410,6 +410,29 @@ class ApiService {
     }
   }
 
+  /// Admin: Get any patient's dental survey
+  static Future<Map<String, dynamic>?> getPatientSurveyAsAdmin(
+      String patientId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/admin/surveys/$patientId'),
+        headers: _headers,
+      );
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return data['survey'];
+      } else if (response.statusCode == 404) {
+        return null;
+      } else {
+        _handleError(response);
+        return null;
+      }
+    } catch (e) {
+      print('Admin get patient survey error: $e');
+      return null;
+    }
+  }
+
   // APPOINTMENT METHODS
 
   /// Save appointment
@@ -438,7 +461,8 @@ class ApiService {
         headers: _headers,
         body: json.encode({
           'service': appointmentData['service'],
-          'appointmentDate': appointmentData['date'],
+          'appointmentDate':
+              appointmentData['date'], // This should now be YYYY-MM-DD format
           'timeSlot': appointmentData['timeSlot'],
           'doctorName': appointmentData['doctorName'],
           'notes': appointmentData['notes'],
@@ -474,7 +498,7 @@ class ApiService {
       final healthResponse = await http.get(
         Uri.parse('http://localhost:3000/health'),
         headers: {'Content-Type': 'application/json'},
-      ).timeout(Duration(seconds: 5));
+      ).timeout(const Duration(seconds: 5));
 
       if (healthResponse.statusCode == 200) {
         print('🔄 Backend available, syncing appointment to database...');
@@ -484,7 +508,8 @@ class ApiService {
           headers: _headers,
           body: json.encode({
             'service': appointmentData['service'],
-            'appointmentDate': appointmentData['date'],
+            'appointmentDate':
+                appointmentData['date'], // This should now be YYYY-MM-DD format
             'timeSlot': appointmentData['timeSlot'],
             'doctorName': appointmentData['doctorName'],
             'notes': appointmentData['notes'],
@@ -546,7 +571,7 @@ class ApiService {
           'patient_id': patientId,
           'service': 'General Checkup',
           'appointment_date':
-              DateTime.now().add(Duration(days: 7)).toIso8601String(),
+              DateTime.now().add(const Duration(days: 7)).toIso8601String(),
           'time_slot': '10:00 AM',
           'doctor_name': 'Dr. Demo',
           'status': 'pending',

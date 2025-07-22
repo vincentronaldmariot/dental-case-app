@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
+import '../user_state_manager.dart';
 
 class SurveyService {
   static final SurveyService _instance = SurveyService._internal();
@@ -9,17 +9,17 @@ class SurveyService {
 
   static const String baseUrl = 'http://localhost:3000/api';
 
-  // Get auth token from shared preferences
-  Future<String?> _getAuthToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('auth_token');
+  // Get auth token from UserStateManager
+  String? _getAuthToken() {
+    return UserStateManager().patientToken;
   }
 
   // Submit or update survey data
   Future<Map<String, dynamic>> submitSurvey(
       Map<String, dynamic> surveyData) async {
     try {
-      final token = await _getAuthToken();
+      final token = _getAuthToken();
+      print('Survey service - Token found: ${token != null}');
       if (token == null) {
         throw Exception('No authentication token found');
       }
@@ -34,6 +34,9 @@ class SurveyService {
           'surveyData': surveyData,
         }),
       );
+
+      print('Survey API response status: ${response.statusCode}');
+      print('Survey API response body: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -60,7 +63,7 @@ class SurveyService {
   // Get patient's survey data
   Future<Map<String, dynamic>> getSurveyData() async {
     try {
-      final token = await _getAuthToken();
+      final token = _getAuthToken();
       if (token == null) {
         throw Exception('No authentication token found');
       }
@@ -102,7 +105,7 @@ class SurveyService {
   // Check if patient has completed survey
   Future<Map<String, dynamic>> checkSurveyStatus() async {
     try {
-      final token = await _getAuthToken();
+      final token = _getAuthToken();
       if (token == null) {
         throw Exception('No authentication token found');
       }
@@ -139,7 +142,7 @@ class SurveyService {
   // Delete survey (for testing purposes)
   Future<Map<String, dynamic>> deleteSurvey() async {
     try {
-      final token = await _getAuthToken();
+      final token = _getAuthToken();
       if (token == null) {
         throw Exception('No authentication token found');
       }

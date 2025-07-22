@@ -15,35 +15,7 @@ class _EmergencyCenterScreenState extends State<EmergencyCenterScreen> {
   Widget _buildUserStatusBanner(BuildContext context) {
     final userState = UserStateManager();
 
-    if (userState.isGuestUser) {
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 16),
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFFFF6B35), Color(0xFFE74C3C)],
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.person_outline, color: Colors.white, size: 14),
-            const SizedBox(width: 6),
-            const Text(
-              'GUEST MODE',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 1.0,
-              ),
-            ),
-          ],
-        ),
-      );
-    } else if (userState.isClientLoggedIn) {
+    if (userState.isClientLoggedIn) {
       return Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 3, horizontal: 16),
@@ -54,12 +26,12 @@ class _EmergencyCenterScreenState extends State<EmergencyCenterScreen> {
             end: Alignment.centerRight,
           ),
         ),
-        child: Row(
+        child: const Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.verified_user, color: Colors.white, size: 12),
-            const SizedBox(width: 6),
-            const Text(
+            Icon(Icons.verified_user, color: Colors.white, size: 12),
+            SizedBox(width: 6),
+            Text(
               'AUTHENTICATED USER',
               style: TextStyle(
                 color: Colors.white,

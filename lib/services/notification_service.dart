@@ -62,31 +62,54 @@ class NotificationService extends ChangeNotifier {
   }
 
   Future<void> fetchNotifications(String patientId, String token) async {
-    final response = await http.get(
-      Uri.parse('http://localhost:3000/api/patients/$patientId/notifications'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-    );
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      print('Backend response: $data');
-      print('Notifications count: ${data['notifications']?.length ?? 0}');
-      _notifications.clear();
-      for (var n in data['notifications']) {
-        _notifications.add(AppNotification(
-          id: n['id'].toString(),
-          title: n['title'],
-          message: n['message'],
-          type: NotificationType
-              .appointment, // You can map backend type if needed
-          isRead: n['isRead'],
-          createdAt: DateTime.parse(n['createdAt']),
-        ));
+    try {
+      print('🔍 Fetching notifications for patient: "$patientId"');
+      print('🔍 Patient ID length: ${patientId.length}');
+      print('🔍 Patient ID is empty: ${patientId.isEmpty}');
+      print('🔍 Using token: ${token.substring(0, 20)}...');
+
+      if (patientId.isEmpty || patientId == 'guest') {
+        throw Exception('Invalid patient ID: $patientId');
       }
-    } else {
-      throw Exception('Failed to fetch notifications');
+
+      final response = await http.get(
+        Uri.parse(
+            'http://localhost:3000/api/patients/$patientId/notifications'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      print('🔍 Response status code: ${response.statusCode}');
+      print('🔍 Response headers: ${response.headers}');
+      print('🔍 Response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        print('✅ Backend response: $data');
+        print('✅ Notifications count: ${data['notifications']?.length ?? 0}');
+        _notifications.clear();
+        for (var n in data['notifications']) {
+          _notifications.add(AppNotification(
+            id: n['id'].toString(),
+            title: n['title'],
+            message: n['message'],
+            type: NotificationType
+                .appointment, // You can map backend type if needed
+            isRead: n['isRead'],
+            createdAt: DateTime.parse(n['createdAt']),
+          ));
+        }
+        notifyListeners();
+      } else {
+        print('❌ Error response: ${response.statusCode} - ${response.body}');
+        throw Exception(
+            'Failed to fetch notifications: ${response.statusCode} - ${response.body}');
+      }
+    } catch (e) {
+      print('❌ Exception in fetchNotifications: $e');
+      throw Exception('Failed to fetch notifications: $e');
     }
   }
 }

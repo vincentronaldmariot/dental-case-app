@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'user_state_manager.dart';
 import 'services/survey_service.dart';
+import 'services/receipt_counter_service.dart';
+import 'utils/phone_validator.dart';
 import 'kiosk_receipt_screen.dart';
 
 class DentalSurveyScreen extends StatefulWidget {
@@ -54,13 +57,6 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
     'missing_broken_pasta': null,
   };
 
-  // Pain assessment variables
-  final Set<String> _painLocations = {};
-  final Set<String> _painTypes = {};
-  final Set<String> _painTriggers = {};
-  String? _painDuration;
-  String? _painFrequency;
-
   @override
   void dispose() {
     _nameController.dispose();
@@ -111,11 +107,6 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
       _missingTeeth = null;
       _missingToothConditions
           .forEach((key, value) => _missingToothConditions[key] = null);
-      _painLocations.clear();
-      _painTypes.clear();
-      _painTriggers.clear();
-      _painDuration = null;
-      _painFrequency = null;
     });
   }
 
@@ -245,9 +236,11 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
                         controller: _contactNumberController,
                         labelText: 'CONTACT NUMBER:',
                         keyboardType: TextInputType.phone,
-                        validator: (value) => value?.isEmpty ?? true
-                            ? 'Contact number is required'
-                            : null,
+                        validator: PhoneValidator.validatePhoneNumber,
+                        inputFormatters:
+                            PhoneValidator.getPhoneInputFormatters(),
+                        hintText: '09XX XXX XXXX',
+                        helperText: 'Must start with 09 and be 11 digits',
                       ),
                       const SizedBox(height: 12),
 
@@ -280,9 +273,11 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
                         controller: _emergencyPhoneController,
                         labelText: 'EMERGENCY PHONE:',
                         keyboardType: TextInputType.phone,
-                        validator: (value) => value?.isEmpty ?? true
-                            ? 'Emergency phone is required'
-                            : null,
+                        validator: PhoneValidator.validatePhoneNumber,
+                        inputFormatters:
+                            PhoneValidator.getPhoneInputFormatters(),
+                        hintText: '09XX XXX XXXX',
+                        helperText: 'Must start with 09 and be 11 digits',
                       ),
 
                       const SizedBox(height: 25),
@@ -316,6 +311,15 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
                         '3. Do your teeth feel sensitive to hot, cold, or sweet foods?',
                         _toothSensitive,
                         (value) => setState(() => _toothSensitive = value),
+                      ),
+
+                      const SizedBox(height: 25),
+
+                      // Question 4: Tooth Pain
+                      _buildSimpleYesNoQuestion(
+                        '4. Do you experience tooth pain?',
+                        _toothPain,
+                        (value) => setState(() => _toothPain = value),
                       ),
 
                       const SizedBox(height: 25),
@@ -412,6 +416,9 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
     int maxLines = 1,
     TextInputType? keyboardType,
     bool enabled = true,
+    List<TextInputFormatter>? inputFormatters,
+    String? hintText,
+    String? helperText,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -424,6 +431,7 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
         maxLines: maxLines,
         keyboardType: keyboardType,
         enabled: enabled,
+        inputFormatters: inputFormatters,
         decoration: InputDecoration(
           labelText: labelText,
           labelStyle: TextStyle(
@@ -440,6 +448,8 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
             horizontal: 16,
             vertical: 12,
           ),
+          hintText: hintText,
+          helperText: helperText,
           suffixIcon: !enabled
               ? Icon(Icons.lock, color: Colors.grey.shade400, size: 20)
               : null,
@@ -572,317 +582,6 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
         ],
       ),
     );
-  }
-
-  Widget _buildPainLocationSection() {
-    final locations = [
-      'Upper Front Teeth',
-      'Upper Back Teeth',
-      'Lower Front Teeth',
-      'Lower Back Teeth',
-      'Left Side',
-      'Right Side',
-      'Entire Mouth',
-    ];
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Where is the pain located? (Select all that apply)',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: Colors.red.shade700,
-          ),
-        ),
-        const SizedBox(height: 10),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: locations.map((location) {
-            final isSelected = _painLocations.contains(location);
-            return GestureDetector(
-              onTap: () {
-                setState(() {
-                  if (isSelected) {
-                    _painLocations.remove(location);
-                  } else {
-                    _painLocations.add(location);
-                  }
-                });
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: isSelected ? Colors.red.shade600 : Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color:
-                        isSelected ? Colors.red.shade600 : Colors.red.shade300,
-                  ),
-                ),
-                child: Text(
-                  location,
-                  style: TextStyle(
-                    color: isSelected ? Colors.white : Colors.red.shade700,
-                    fontWeight: FontWeight.w500,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-            );
-          }).toList(),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPainTypeSection() {
-    final painTypes = [
-      'Sharp/Stabbing',
-      'Dull/Aching',
-      'Throbbing',
-      'Burning',
-      'Shooting',
-      'Pressure',
-      'Electric-like',
-    ];
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'What type of pain do you experience? (Select all that apply)',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: Colors.red.shade700,
-          ),
-        ),
-        const SizedBox(height: 10),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: painTypes.map((type) {
-            final isSelected = _painTypes.contains(type);
-            return GestureDetector(
-              onTap: () {
-                setState(() {
-                  if (isSelected) {
-                    _painTypes.remove(type);
-                  } else {
-                    _painTypes.add(type);
-                  }
-                });
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: isSelected ? Colors.orange.shade600 : Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: isSelected
-                        ? Colors.orange.shade600
-                        : Colors.orange.shade300,
-                  ),
-                ),
-                child: Text(
-                  type,
-                  style: TextStyle(
-                    color: isSelected ? Colors.white : Colors.orange.shade700,
-                    fontWeight: FontWeight.w500,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-            );
-          }).toList(),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPainTriggersSection() {
-    final triggers = [
-      'Hot Foods/Drinks',
-      'Cold Foods/Drinks',
-      'Sweet Foods',
-      'Chewing/Biting',
-      'Brushing Teeth',
-      'Air/Breathing',
-      'Pressure',
-    ];
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'What triggers your pain? (Select all that apply)',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: Colors.red.shade700,
-          ),
-        ),
-        const SizedBox(height: 10),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: triggers.map((trigger) {
-            final isSelected = _painTriggers.contains(trigger);
-            return GestureDetector(
-              onTap: () {
-                setState(() {
-                  if (isSelected) {
-                    _painTriggers.remove(trigger);
-                  } else {
-                    _painTriggers.add(trigger);
-                  }
-                });
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: isSelected ? Colors.blue.shade600 : Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: isSelected
-                        ? Colors.blue.shade600
-                        : Colors.blue.shade300,
-                  ),
-                ),
-                child: Text(
-                  trigger,
-                  style: TextStyle(
-                    color: isSelected ? Colors.white : Colors.blue.shade700,
-                    fontWeight: FontWeight.w500,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-            );
-          }).toList(),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPainDurationFrequency() {
-    return Row(
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'How long does pain last?',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.red.shade700,
-                ),
-              ),
-              const SizedBox(height: 8),
-              DropdownButtonFormField<String>(
-                value: _painDuration?.isEmpty ?? true ? null : _painDuration,
-                decoration: InputDecoration(
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: Colors.red.shade300),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                ),
-                items: ['Seconds', 'Minutes', 'Hours', 'Days', 'Constant'].map((
-                  duration,
-                ) {
-                  return DropdownMenuItem<String>(
-                    value: duration,
-                    child: Text(duration, style: const TextStyle(fontSize: 12)),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  setState(() {
-                    _painDuration = value ?? '';
-                  });
-                },
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 15),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'How often does it occur?',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.red.shade700,
-                ),
-              ),
-              const SizedBox(height: 8),
-              DropdownButtonFormField<String>(
-                value: _painFrequency?.isEmpty ?? true ? null : _painFrequency,
-                decoration: InputDecoration(
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: Colors.red.shade300),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                ),
-                items: ['Rarely', 'Occasionally', 'Daily', 'Constantly'].map((
-                  frequency,
-                ) {
-                  return DropdownMenuItem<String>(
-                    value: frequency,
-                    child: Text(
-                      frequency,
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  setState(() {
-                    _painFrequency = value ?? '';
-                  });
-                },
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  String _getPainDescription(int level) {
-    if (level == 0) return 'No pain';
-    if (level <= 2) return 'Mild discomfort';
-    if (level <= 4) return 'Moderate pain';
-    if (level <= 6) return 'Significant pain';
-    if (level <= 8) return 'Severe pain';
-    return 'Extreme/Unbearable pain';
   }
 
   Widget _buildToothConditionsSection() {
@@ -1530,18 +1229,13 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
           'need_dentures': _needDentures,
           'has_missing_teeth': _hasMissingTeeth,
           'missing_tooth_conditions': _missingToothConditions,
-          'pain_assessment': {
-            'pain_locations': _painLocations.toList(),
-            'pain_types': _painTypes.toList(),
-            'pain_triggers': _painTriggers.toList(),
-            'pain_duration': _painDuration,
-            'pain_frequency': _painFrequency,
-          },
         };
 
         // Import survey service
         final surveyService = SurveyService();
+        print('Submitting survey data: ${surveyData.keys.toList()}');
         final result = await surveyService.submitSurvey(surveyData);
+        print('Survey submission result: $result');
 
         // Close loading dialog
         Navigator.pop(context);
@@ -1562,9 +1256,11 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
 
           // Handle navigation based on mode
           if (widget.isKioskMode) {
-            // Generate receipt number
-            final receiptNumber =
-                'SRV-${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}';
+            // Generate receipt number using daily counter
+            final receiptCounterService = ReceiptCounterService();
+            final dailyNumber =
+                await receiptCounterService.getNextReceiptNumber();
+            final receiptNumber = 'SRV-$dailyNumber';
 
             // Navigate to receipt screen for kiosk mode
             Navigator.pushReplacement(

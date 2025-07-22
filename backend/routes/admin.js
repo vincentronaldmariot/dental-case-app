@@ -5,6 +5,17 @@ const { verifyAdmin } = require('../middleware/auth');
 
 const router = express.Router();
 
+// Helper function to format date in local timezone
+function formatDateLocal(date) {
+  if (!date) return null;
+  const year = date.getFullYear();
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const day = date.getDate().toString().padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+
+
 // GET /api/admin/dashboard - Get admin dashboard data
 router.get('/dashboard', verifyAdmin, async (req, res) => {
   try {
@@ -67,20 +78,22 @@ router.get('/patients', verifyAdmin, async (req, res) => {
 
     let queryText = `
       SELECT 
-        id, first_name, last_name, email, phone, classification,
-        serial_number, unit_assignment, date_of_birth, address,
-        emergency_contact, emergency_phone, medical_history, allergies,
-        other_classification, created_at
-      FROM patients
+        p.id, p.first_name, p.last_name, p.email, p.phone, p.classification,
+        p.serial_number, p.unit_assignment, p.date_of_birth, p.address,
+        p.emergency_contact, p.emergency_phone, p.medical_history, p.allergies,
+        p.other_classification, p.created_at,
+        ds.survey_data
+      FROM patients p
+      LEFT JOIN dental_surveys ds ON p.id = ds.patient_id
     `;
     const queryParams = [];
 
     if (search) {
-      queryText += ` WHERE first_name ILIKE $1 OR last_name ILIKE $1 OR email ILIKE $1`;
+      queryText += ` WHERE p.first_name ILIKE $1 OR p.last_name ILIKE $1 OR p.email ILIKE $1`;
       queryParams.push(`%${search}%`);
     }
 
-    queryText += ` ORDER BY created_at DESC LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}`;
+    queryText += ` ORDER BY p.created_at DESC LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}`;
     queryParams.push(parseInt(limit), parseInt(offset));
 
     const result = await query(queryText, queryParams);
@@ -114,7 +127,8 @@ router.get('/patients', verifyAdmin, async (req, res) => {
         emergencyPhone: patient.emergency_phone,
         medicalHistory: patient.medical_history,
         allergies: patient.allergies,
-        createdAt: patient.created_at
+        createdAt: patient.created_at,
+        survey_data: patient.survey_data
       })),
       pagination: {
         total: totalCount,
@@ -339,26 +353,35 @@ router.get('/appointments/approved', verifyAdmin, async (req, res) => {
     const totalCount = parseInt(countResult.rows[0].count);
 
     res.json({
-      approvedAppointments: result.rows.map(appointment => ({
-        appointmentId: appointment.id,
-        patientId: appointment.patient_id,
-        patientName: `${appointment.first_name} ${appointment.last_name}`,
-        patientEmail: appointment.email,
-        patientPhone: appointment.phone,
-        patientClassification: appointment.classification,
-        patientOtherClassification: appointment.other_classification,
-        service: appointment.service || 'N/A',
-        appointmentDate: appointment.appointment_date,
-        timeSlot: appointment.time_slot || 'N/A',
-        doctorName: appointment.doctor_name || 'N/A',
-        status: appointment.status,
-        notes: appointment.notes,
-        createdAt: appointment.created_at,
-        updatedAt: appointment.updated_at,
-        surveyData: appointment.survey_data,
-        surveyCompletedAt: appointment.survey_completed_at,
-        hasSurveyData: appointment.survey_data !== null
-      })),
+      approvedAppointments: result.rows.map(appointment => {
+        // Format the date properly to avoid timezone issues
+        let formattedDate = appointment.appointment_date;
+        if (appointment.appointment_date) {
+          // Extract date in local timezone, not UTC
+          formattedDate = formatDateLocal(appointment.appointment_date);
+        }
+        
+        return {
+          appointmentId: appointment.id,
+          patientId: appointment.patient_id,
+          patientName: `${appointment.first_name} ${appointment.last_name}`,
+          patientEmail: appointment.email,
+          patientPhone: appointment.phone,
+          patientClassification: appointment.classification,
+          patientOtherClassification: appointment.other_classification,
+          service: appointment.service || 'N/A',
+          appointmentDate: formattedDate,
+          timeSlot: appointment.time_slot || 'N/A',
+          doctorName: appointment.doctor_name || 'N/A',
+          status: appointment.status,
+          notes: appointment.notes,
+          createdAt: appointment.created_at,
+          updatedAt: appointment.updated_at,
+          surveyData: appointment.survey_data,
+          surveyCompletedAt: appointment.survey_completed_at,
+          hasSurveyData: appointment.survey_data !== null
+        };
+      }),
       pagination: {
         total: totalCount,
         limit: parseInt(limit),
@@ -444,7 +467,13 @@ router.get('/appointments/:id', verifyAdmin, async (req, res) => {
           otherClassification: appointment.other_classification
         },
         service: appointment.service || 'N/A',
-        appointmentDate: appointment.appointment_date,
+        appointmentDate: (() => {
+          // Format the date properly to avoid timezone issues
+          if (appointment.appointment_date) {
+            return formatDateLocal(appointment.appointment_date);
+          }
+          return appointment.appointment_date;
+        })(),
         timeSlot: appointment.time_slot || 'N/A', // Handle null time slots
         doctorName: appointment.doctor_name || 'N/A',
         status: appointment.status,
@@ -466,10 +495,11 @@ router.get('/appointments/:id', verifyAdmin, async (req, res) => {
 
 // PUT /api/admin/appointments/:id/update - Update appointment details (date, time, service)
 router.put('/appointments/:id/update', verifyAdmin, [
-  body('date').optional().isISO8601().withMessage('Date must be a valid ISO 8601 date'),
+  body('date').optional().isDate().withMessage('Date must be a valid date in YYYY-MM-DD format'),
   body('time_slot').optional().isString().withMessage('Time slot must be a string'),
   body('service').optional().isString().withMessage('Service must be a string')
 ], async (req, res) => {
+  console.log('Update appointment request body:', req.body);
   try {
     // Check validation errors
     const errors = validationResult(req);
@@ -483,13 +513,19 @@ router.put('/appointments/:id/update', verifyAdmin, [
     const appointmentId = req.params.id;
     const { date, time_slot, service } = req.body;
 
+    console.log('🔍 Admin update appointment request:');
+    console.log('🔍 Appointment ID:', appointmentId);
+    console.log('🔍 Date received:', date);
+    console.log('🔍 Time slot:', time_slot);
+    console.log('🔍 Service:', service);
+
     // Build dynamic update query based on provided fields
     const updateFields = [];
     const queryParams = [];
     let paramIndex = 1;
 
     if (date !== undefined) {
-      updateFields.push(`appointment_date = $${paramIndex++}`);
+      updateFields.push(`appointment_date = $${paramIndex++}::date`);
       queryParams.push(date);
     }
 
@@ -512,12 +548,21 @@ router.put('/appointments/:id/update', verifyAdmin, [
     // Add appointment ID to query params
     queryParams.push(appointmentId);
 
+    console.log('🔍 Update query:', `UPDATE appointments SET ${updateFields.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = $${paramIndex}`);
+    console.log('🔍 Query params:', queryParams);
+    console.log('🔍 Date being updated:', date);
+
     const result = await query(`
       UPDATE appointments 
       SET ${updateFields.join(', ')}, updated_at = CURRENT_TIMESTAMP
       WHERE id = $${paramIndex}
       RETURNING id, appointment_date, time_slot, service, updated_at
     `, queryParams);
+
+    console.log('🔍 Update result:', result.rows[0]);
+    console.log('🔍 Updated appointment_date:', result.rows[0].appointment_date);
+    console.log('🔍 Updated appointment_date ISO:', result.rows[0].appointment_date.toISOString());
+    console.log('🔍 Updated appointment_date date part:', formatDateLocal(result.rows[0].appointment_date));
 
     if (result.rows.length === 0) {
       return res.status(404).json({
@@ -527,11 +572,18 @@ router.put('/appointments/:id/update', verifyAdmin, [
 
     const appointment = result.rows[0];
 
+    // Format the date properly to avoid timezone issues
+    let formattedDate = appointment.appointment_date;
+    if (appointment.appointment_date) {
+      // Extract date in local timezone, not UTC
+      formattedDate = formatDateLocal(appointment.appointment_date);
+    }
+
     res.json({
       message: 'Appointment updated successfully',
       appointment: {
         id: appointment.id,
-        appointmentDate: appointment.appointment_date,
+        appointmentDate: formattedDate,
         timeSlot: appointment.time_slot,
         service: appointment.service,
         updatedAt: appointment.updated_at
@@ -879,6 +931,8 @@ router.get('/pending-appointments', verifyAdmin, async (req, res) => {
         p.first_name, p.last_name, p.email,
         p.phone,
         p.classification,
+        p.unit_assignment,
+        p.serial_number,
         s.survey_data
       FROM appointments a
       JOIN patients p ON a.patient_id = p.id
@@ -888,19 +942,35 @@ router.get('/pending-appointments', verifyAdmin, async (req, res) => {
     `);
     
     // Transform the data to handle missing time slots
-    const transformedRows = result.rows.map(row => ({
-      appointment_id: row.appointment_id,
-      service: row.service || 'N/A',
-      booking_date: row.booking_date,
-      time_slot: row.time_slot || 'N/A', // Handle null time slots
-      status: row.status,
-      patient_name: `${row.first_name} ${row.last_name}`,
-      patient_email: row.email,
-      patient_phone: row.phone,
-      patient_classification: row.classification,
-      survey_data: row.survey_data,
-      has_survey_data: row.survey_data !== null
-    }));
+    const transformedRows = result.rows.map(row => {
+      // Format the date properly to avoid timezone issues
+      let formattedDate = row.booking_date;
+      if (row.booking_date) {
+        // Extract date in local timezone, not UTC
+        const year = row.booking_date.getFullYear();
+        const month = (row.booking_date.getMonth() + 1).toString().padStart(2, '0');
+        const day = row.booking_date.getDate().toString().padStart(2, '0');
+        formattedDate = `${year}-${month}-${day}`;
+        console.log(`🔍 Backend: Raw booking_date: ${row.booking_date}`);
+        console.log(`🔍 Backend: Formatted booking_date: ${formattedDate}`);
+      }
+      
+      return {
+        appointment_id: row.appointment_id,
+        service: row.service || 'N/A',
+        booking_date: formattedDate,
+        time_slot: row.time_slot || 'N/A', // Handle null time slots
+        status: row.status,
+        patient_name: `${row.first_name} ${row.last_name}`,
+        patient_email: row.email,
+        patient_phone: row.phone,
+        patient_classification: row.classification,
+        patient_unit_assignment: row.unit_assignment || 'N/A',
+        patient_serial_number: row.serial_number || 'N/A',
+        survey_data: row.survey_data,
+        has_survey_data: row.survey_data !== null
+      };
+    });
     
     res.json(transformedRows);
   } catch (err) {
@@ -965,11 +1035,11 @@ router.put('/update-appointment-datetime', verifyAdmin, [
     // Update the appointment - only update time_slot if it's not 'N/A'
     const updateQuery = newTimeSlot === 'N/A' || !newTimeSlot
       ? `UPDATE appointments 
-         SET appointment_date = $1, updated_at = CURRENT_TIMESTAMP
+         SET appointment_date = $1::date, updated_at = CURRENT_TIMESTAMP
          WHERE id = $2
          RETURNING id, appointment_date, time_slot`
       : `UPDATE appointments 
-         SET appointment_date = $1, time_slot = $2, updated_at = CURRENT_TIMESTAMP
+         SET appointment_date = $1::date, time_slot = $2, updated_at = CURRENT_TIMESTAMP
          WHERE id = $3
          RETURNING id, appointment_date, time_slot`;
     
@@ -981,11 +1051,18 @@ router.put('/update-appointment-datetime', verifyAdmin, [
 
     const updatedAppointment = updateResult.rows[0];
 
+    // Format the date properly to avoid timezone issues
+    let formattedDate = updatedAppointment.appointment_date;
+    if (updatedAppointment.appointment_date) {
+      // Extract date in local timezone, not UTC
+      formattedDate = formatDateLocal(updatedAppointment.appointment_date);
+    }
+
     res.json({
       message: 'Appointment date and time updated successfully',
       appointment: {
         id: updatedAppointment.id,
-        appointment_date: updatedAppointment.appointment_date,
+        appointment_date: formattedDate,
         time_slot: updatedAppointment.time_slot
       }
     });
@@ -1055,6 +1132,34 @@ router.put('/update-appointment-service', verifyAdmin, [
     console.error('Error updating appointment service:', error);
     res.status(500).json({
       error: 'Failed to update appointment service'
+    });
+  }
+});
+
+// POST /api/admin/logout - Admin logout
+router.post('/logout', verifyAdmin, async (req, res) => {
+  try {
+    // In a real application, you might want to:
+    // 1. Add the token to a blacklist
+    // 2. Update the admin's last logout time
+    // 3. Log the logout event
+    
+    console.log('🔍 Admin logout requested');
+    console.log('🔍 Admin ID:', req.admin.id);
+    console.log('🔍 Admin username:', req.admin.username);
+    
+    // For now, we'll just return success
+    // In production, you should implement proper token invalidation
+    
+    res.json({
+      success: true,
+      message: 'Successfully logged out'
+    });
+  } catch (error) {
+    console.error('❌ Logout error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to logout'
     });
   }
 });
@@ -1319,6 +1424,183 @@ router.get('/patients/history', verifyAdmin, async (req, res) => {
     console.error('Get patient history error:', error);
     res.status(500).json({
       error: 'Failed to retrieve patient history. Please try again.'
+    });
+  }
+});
+
+// PUT /api/admin/patients/:id/notes - Update admin notes for a patient
+router.put('/patients/:id/notes', verifyAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { admin_notes } = req.body;
+
+    if (!admin_notes) {
+      return res.status(400).json({
+        error: 'Admin notes are required'
+      });
+    }
+
+    const result = await query(
+      'UPDATE patients SET admin_notes = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      [admin_notes, id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        error: 'Patient not found'
+      });
+    }
+
+    res.json({
+      message: 'Admin notes updated successfully',
+      patient: result.rows[0]
+    });
+
+  } catch (error) {
+    console.error('Error updating admin notes:', error);
+    res.status(500).json({
+      error: 'Failed to update admin notes'
+    });
+  }
+});
+
+// POST /api/admin/appointments/rebook - Rebook appointment and notify patient
+router.post('/appointments/rebook', verifyAdmin, [
+  body('patient_id').notEmpty().withMessage('Patient ID is required'),
+  body('date').notEmpty().withMessage('Date is required'),
+  body('time_slot').notEmpty().withMessage('Time slot is required'),
+  body('service').notEmpty().withMessage('Service is required'),
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        error: 'Validation failed',
+        details: errors.array()
+      });
+    }
+
+    const { patient_id, date, time_slot, service, notify_patient = true } = req.body;
+
+    // Validate date format
+    const appointmentDate = new Date(date);
+    if (isNaN(appointmentDate.getTime())) {
+      return res.status(400).json({
+        error: 'Invalid date format. Use YYYY-MM-DD'
+      });
+    }
+
+    // Check if patient exists
+    const patientResult = await query(
+      'SELECT id, first_name, last_name, email, phone FROM patients WHERE id = $1',
+      [patient_id]
+    );
+
+    if (patientResult.rows.length === 0) {
+      return res.status(404).json({
+        error: 'Patient not found'
+      });
+    }
+
+    const patient = patientResult.rows[0];
+
+    // Create new appointment
+    const appointmentResult = await query(
+      `INSERT INTO appointments 
+       (patient_id, service, appointment_date, time_slot, status, notes, created_at, updated_at)
+       VALUES ($1, $2, ($3::date AT TIME ZONE 'Asia/Manila'), $4, 'scheduled', 'Rebooked by admin', NOW(), NOW())
+       RETURNING *`,
+      [patient_id, service, date, time_slot]
+    );
+
+    const newAppointment = appointmentResult.rows[0];
+
+    // Send notification to patient if requested
+    if (notify_patient && patient.email) {
+      try {
+        // In a real implementation, you would send an email notification here
+        console.log(`📧 Notification sent to ${patient.email} about rebooked appointment`);
+        
+        // You could integrate with a notification service like:
+        // - Email service (SendGrid, Mailgun, etc.)
+        // - SMS service (Twilio, etc.)
+        // - Push notifications
+        
+        // For now, we'll just log the notification
+        await query(
+          `INSERT INTO notifications 
+           (patient_id, type, title, message, created_at)
+           VALUES ($1, 'appointment_rebooked', 'Appointment Rebooked', 
+                   'Your appointment has been rebooked for ${date} at ${time_slot} for ${service}', NOW())`,
+          [patient_id]
+        );
+        
+      } catch (notificationError) {
+        console.error('Error sending notification:', notificationError);
+        // Don't fail the entire request if notification fails
+      }
+    }
+
+    res.json({
+      message: 'Appointment rebooked successfully',
+      appointment: {
+        id: newAppointment.id,
+        patientId: newAppointment.patient_id,
+        patientName: `${patient.first_name} ${patient.last_name}`,
+        service: newAppointment.service,
+        appointmentDate: newAppointment.appointment_date,
+        timeSlot: newAppointment.time_slot,
+        status: newAppointment.status,
+        createdAt: newAppointment.created_at
+      },
+      notificationSent: notify_patient
+    });
+
+  } catch (error) {
+    console.error('Error rebooking appointment:', error);
+    res.status(500).json({
+      error: 'Failed to rebook appointment'
+    });
+  }
+});
+
+// GET /api/admin/patients/:id/survey - Get patient survey data
+router.get('/patients/:id/survey', verifyAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const result = await query(
+      'SELECT survey_data, completed_at FROM dental_surveys WHERE patient_id = $1',
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        error: 'Survey not found for this patient'
+      });
+    }
+
+    const survey = result.rows[0];
+    
+    // Parse survey data if it's stored as JSON string
+    let surveyData;
+    try {
+      surveyData = typeof survey.survey_data === 'string' 
+        ? JSON.parse(survey.survey_data) 
+        : survey.survey_data;
+    } catch (parseError) {
+      surveyData = survey.survey_data;
+    }
+
+    res.json({
+      surveyData: surveyData,
+      completedAt: survey.completed_at
+    });
+
+  } catch (error) {
+    console.error('Error getting patient survey:', error);
+    res.status(500).json({
+      error: 'Failed to retrieve patient survey'
     });
   }
 });

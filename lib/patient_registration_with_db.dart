@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:crypto/crypto.dart';
 import 'dart:convert';
 import 'models/patient.dart';
 import 'user_state_manager.dart';
+import 'utils/phone_validator.dart';
 import 'main_app_screen.dart';
 
 class PatientRegistrationWithDB extends StatefulWidget {
@@ -63,7 +65,7 @@ class _PatientRegistrationWithDBState extends State<PatientRegistrationWithDB> {
   }
 
   String _hashPassword(String password) {
-    var bytes = utf8.encode(password + 'dental_clinic_salt');
+    var bytes = utf8.encode('${password}dental_clinic_salt');
     var digest = sha256.convert(bytes);
     return digest.toString();
   }
@@ -443,8 +445,10 @@ class _PatientRegistrationWithDBState extends State<PatientRegistrationWithDB> {
           controller: _phoneController,
           labelText: 'Phone Number',
           keyboardType: TextInputType.phone,
-          validator: (value) =>
-              value?.isEmpty ?? true ? 'Phone number is required' : null,
+          validator: PhoneValidator.validatePhoneNumber,
+          inputFormatters: PhoneValidator.getPhoneInputFormatters(),
+          hintText: '09XX XXX XXXX',
+          helperText: 'Must start with 09 and be 11 digits',
         ),
         const SizedBox(height: 16),
 
@@ -488,8 +492,10 @@ class _PatientRegistrationWithDBState extends State<PatientRegistrationWithDB> {
           controller: _emergencyPhoneController,
           labelText: 'Emergency Phone Number',
           keyboardType: TextInputType.phone,
-          validator: (value) =>
-              value?.isEmpty ?? true ? 'Emergency phone is required' : null,
+          validator: PhoneValidator.validatePhoneNumber,
+          inputFormatters: PhoneValidator.getPhoneInputFormatters(),
+          hintText: '09XX XXX XXXX',
+          helperText: 'Must start with 09 and be 11 digits',
         ),
         const SizedBox(height: 16),
 
@@ -543,8 +549,9 @@ class _PatientRegistrationWithDBState extends State<PatientRegistrationWithDB> {
               setState(() => _passwordVisible = !_passwordVisible),
           validator: (value) {
             if (value?.isEmpty ?? true) return 'Password is required';
-            if (value!.length < 6)
+            if (value!.length < 6) {
               return 'Password must be at least 6 characters';
+            }
             return null;
           },
         ),
@@ -559,8 +566,9 @@ class _PatientRegistrationWithDBState extends State<PatientRegistrationWithDB> {
           ),
           validator: (value) {
             if (value?.isEmpty ?? true) return 'Please confirm your password';
-            if (value != _passwordController.text)
+            if (value != _passwordController.text) {
               return 'Passwords do not match';
+            }
             return null;
           },
         ),
@@ -587,6 +595,9 @@ class _PatientRegistrationWithDBState extends State<PatientRegistrationWithDB> {
     TextInputType? keyboardType,
     bool enabled = true,
     Widget? suffixIcon,
+    List<TextInputFormatter>? inputFormatters,
+    String? hintText,
+    String? helperText,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -600,6 +611,7 @@ class _PatientRegistrationWithDBState extends State<PatientRegistrationWithDB> {
         maxLines: maxLines,
         keyboardType: keyboardType,
         enabled: enabled,
+        inputFormatters: inputFormatters,
         decoration: InputDecoration(
           labelText: labelText,
           labelStyle: TextStyle(
@@ -617,6 +629,8 @@ class _PatientRegistrationWithDBState extends State<PatientRegistrationWithDB> {
             vertical: 16,
           ),
           suffixIcon: suffixIcon,
+          hintText: hintText,
+          helperText: helperText,
         ),
       ),
     );

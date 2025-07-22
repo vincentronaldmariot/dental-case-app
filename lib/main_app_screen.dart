@@ -37,14 +37,24 @@ class _MainAppScreenState extends State<MainAppScreen> {
   Future<void> _loadInitialNotifications() async {
     final patientId = UserStateManager().currentPatientId;
     final token = UserStateManager().patientToken;
-    if (token != null) {
+
+    print('🔍 Loading initial notifications...');
+    print('🔍 Patient ID: "$patientId"');
+    print('🔍 Token: ${token != null ? "Present" : "NULL"}');
+    print('🔍 Current Patient: ${UserStateManager().currentPatient}');
+    print('🔍 Is Patient Logged In: ${UserStateManager().isPatientLoggedIn}');
+
+    if (token != null && patientId != 'guest') {
       try {
         await _notificationService.fetchNotifications(patientId, token);
         print(
-            'Initial notifications loaded: ${_notificationService.unreadCount} unread');
+            '✅ Initial notifications loaded: ${_notificationService.unreadCount} unread');
       } catch (e) {
-        print('Error loading initial notifications: $e');
+        print('❌ Error loading initial notifications: $e');
       }
+    } else {
+      print(
+          '❌ Cannot load notifications: token is null or patient ID is guest');
     }
   }
 
@@ -132,63 +142,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildUserStatusBanner(BuildContext context) {
     final userState = UserStateManager();
 
-    if (userState.isGuestUser) {
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFFFF6B35), Color(0xFFE74C3C)],
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
-          ),
-        ),
-        child: SafeArea(
-          bottom: false,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.person_outline, color: Colors.white, size: 18),
-              const SizedBox(width: 8),
-              const Text(
-                'GUEST MODE',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 1.2,
-                ),
-              ),
-              const Spacer(),
-              TextButton(
-                onPressed: () {
-                  Navigator.pushNamedAndRemoveUntil(
-                    context,
-                    '/',
-                    (route) => false,
-                  );
-                },
-                style: TextButton.styleFrom(
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 4,
-                  ),
-                ),
-                child: const Text(
-                  'Sign In',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    decoration: TextDecoration.underline,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    } else if (userState.isClientLoggedIn) {
+    if (userState.isClientLoggedIn) {
       return Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
@@ -424,17 +378,35 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void _showNotifications(BuildContext context) async {
     final patientId = UserStateManager().currentPatientId;
     final token = UserStateManager().patientToken;
+
+    print('🔍 _showNotifications called');
+    print('🔍 Patient ID: "$patientId"');
+    print('🔍 Token: ${token != null ? "Present" : "NULL"}');
+    print('🔍 Is Patient Logged In: ${UserStateManager().isPatientLoggedIn}');
+
     if (token == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('You are not logged in.')),
       );
       return;
     }
+
+    if (patientId.isEmpty || patientId == 'guest') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text(
+                'Patient information not available. Please log in again.')),
+      );
+      return;
+    }
+
     try {
-      print('Patient ID: $patientId, Token: $token');
+      print('🔍 Fetching notifications for patient: $patientId');
       await NotificationService().fetchNotifications(patientId, token);
-      print('Fetched notifications: ${NotificationService().notifications}');
+      print(
+          '✅ Fetched notifications: ${NotificationService().notifications.length} total');
     } catch (e) {
+      print('❌ Error fetching notifications: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to load notifications: $e')),
       );
@@ -481,30 +453,56 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       onPressed: () async {
                         final patientId = UserStateManager().currentPatientId;
                         final token = UserStateManager().patientToken;
-                        if (token != null) {
-                          try {
-                            await NotificationService()
-                                .fetchNotifications(patientId, token);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                    'Notifications refreshed! ${NotificationService().unreadCount} unread'),
-                                backgroundColor: Colors.green,
-                                duration: const Duration(seconds: 2),
-                              ),
-                            );
-                            // Force rebuild of the modal
-                            setState(() {});
-                          } catch (e) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content:
-                                    Text('Failed to refresh notifications: $e'),
-                                backgroundColor: Colors.red,
-                                duration: const Duration(seconds: 2),
-                              ),
-                            );
-                          }
+
+                        print('🔍 Refresh notifications called');
+                        print('🔍 Patient ID: "$patientId"');
+                        print(
+                            '🔍 Token: ${token != null ? "Present" : "NULL"}');
+
+                        if (token == null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('You are not logged in.'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                          return;
+                        }
+
+                        if (patientId.isEmpty || patientId == 'guest') {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                  'Patient information not available. Please log in again.'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                          return;
+                        }
+
+                        try {
+                          await NotificationService()
+                              .fetchNotifications(patientId, token);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                  'Notifications refreshed! ${NotificationService().unreadCount} unread'),
+                              backgroundColor: Colors.green,
+                              duration: const Duration(seconds: 2),
+                            ),
+                          );
+                          // Force rebuild of the modal
+                          setState(() {});
+                        } catch (e) {
+                          print('❌ Error refreshing notifications: $e');
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content:
+                                  Text('Failed to refresh notifications: $e'),
+                              backgroundColor: Colors.red,
+                              duration: const Duration(seconds: 2),
+                            ),
+                          );
                         }
                       },
                       icon: const Icon(Icons.refresh, color: Color(0xFF0029B2)),
@@ -1050,20 +1048,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildTreatmentHistoryCard(BuildContext context) {
-    final userState = UserStateManager();
-    final isGuest = userState.isGuestUser;
-
     return InkWell(
-      onTap: isGuest
-          ? null
-          : () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const TreatmentHistoryScreen(),
-                ),
-              );
-            },
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const TreatmentHistoryScreen(),
+          ),
+        );
+      },
       borderRadius: BorderRadius.circular(15),
       child: Container(
         padding: const EdgeInsets.all(20),
@@ -1085,13 +1078,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
               width: 60,
               height: 60,
               decoration: BoxDecoration(
-                color: (isGuest ? Colors.grey : const Color(0xFF000074))
-                    .withOpacity(0.1),
+                color: const Color(0xFF000074).withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
-              child: Icon(
+              child: const Icon(
                 Icons.history,
-                color: isGuest ? Colors.grey : const Color(0xFF000074),
+                color: Color(0xFF000074),
                 size: 30,
               ),
             ),
@@ -1100,7 +1092,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
+                  const Text(
                     'Treatment History',
                     textAlign: TextAlign.center,
                     maxLines: 2,
@@ -1108,20 +1100,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
-                      color: isGuest ? Colors.grey : Colors.black87,
+                      color: Colors.black87,
                       height: 1.2,
                     ),
                   ),
-                  if (isGuest) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      'Login required',
-                      textAlign: TextAlign.center,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-                    ),
-                  ],
                 ],
               ),
             ),
@@ -1340,35 +1322,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
   Widget _buildUserStatusBanner(BuildContext context) {
     final userState = UserStateManager();
 
-    if (userState.isGuestUser) {
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 16),
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFFFF6B35), Color(0xFFE74C3C)],
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
-          ),
-        ),
-        child: const Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.person_outline, color: Colors.white, size: 14),
-            SizedBox(width: 6),
-            Text(
-              'GUEST MODE',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 1.0,
-              ),
-            ),
-          ],
-        ),
-      );
-    } else if (userState.isClientLoggedIn) {
+    if (userState.isClientLoggedIn) {
       return Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 3, horizontal: 16),

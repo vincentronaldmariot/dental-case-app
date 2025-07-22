@@ -7,6 +7,10 @@ import 'models/treatment_record.dart';
 import 'models/emergency_record.dart';
 import 'services/history_service.dart';
 import 'patient_detail_screen.dart';
+import 'treatment_history_screen.dart';
+import 'admin_survey_detail_screen.dart';
+import 'dental_survey_simple.dart';
+import 'services/api_service.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({Key? key}) : super(key: key);
@@ -70,12 +74,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
 
   Future<void> _loadPatients() async {
     try {
-      const adminToken =
-          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImJlNTBjOTAxLTdlZWQtNDIyOC05NzExLTk5OWIwOGEwZTcyZCIsInVzZXJuYW1lIjoiYWRtaW4iLCJ0eXBlIjoiYWRtaW4iLCJpYXQiOjE3NTI2MTAwMDIsImV4cCI6MTc1MzIxNDgwMn0.qqcSLZmigRJVFWGAhnonMMbV3PAlFx3ZxrY8tIky_jc';
       final response = await http.get(
         Uri.parse('http://localhost:3000/api/admin/patients'),
         headers: {
-          'Authorization': 'Bearer $adminToken',
+          'Authorization':
+              'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImJlNTBjOTAxLTdlZWQtNDIyOC05NzExLTk5OWIwOGEwZTcyZCIsInVzZXJuYW1lIjoiYWRtaW4iLCJ0eXBlIjoiYWRtaW4iLCJpYXQiOjE3NTMwODM4NzQsImV4cCI6MTc1MzY4ODY3NH0.jTqWoKAaX3SG2njDlgWbdFMyTjJab5kdgr5466cJcq4',
         },
       );
 
@@ -108,12 +111,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
 
   Future<void> _loadAppointments() async {
     try {
-      const adminToken =
-          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImJlNTBjOTAxLTdlZWQtNDIyOC05NzExLTk5OWIwOGEwZTcyZCIsInVzZXJuYW1lIjoiYWRtaW4iLCJ0eXBlIjoiYWRtaW4iLCJpYXQiOjE3NTI2MTAwMDIsImV4cCI6MTc1MzIxNDgwMn0.qqcSLZmigRJVFWGAhnonMMbV3PAlFx3ZxrY8tIky_jc';
       final response = await http.get(
         Uri.parse('http://localhost:3000/api/admin/appointments'),
         headers: {
-          'Authorization': 'Bearer $adminToken',
+          'Authorization':
+              'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImJlNTBjOTAxLTdlZWQtNDIyOC05NzExLTk5OWIwOGEwZTcyZCIsInVzZXJuYW1lIjoiYWRtaW4iLCJ0eXBlIjoiYWRtaW4iLCJpYXQiOjE3NTMwODM4NzQsImV4cCI6MTc1MzY4ODY3NH0.jTqWoKAaX3SG2njDlgWbdFMyTjJab5kdgr5466cJcq4',
         },
       );
 
@@ -143,12 +145,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
 
   Future<void> _fetchPendingAppointmentsWithSurvey() async {
     try {
-      const adminToken =
-          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImJlNTBjOTAxLTdlZWQtNDIyOC05NzExLTk5OWIwOGEwZTcyZCIsInVzZXJuYW1lIjoiYWRtaW4iLCJ0eXBlIjoiYWRtaW4iLCJpYXQiOjE3NTI2MTAwMDIsImV4cCI6MTc1MzIxNDgwMn0.qqcSLZmigRJVFWGAhnonMMbV3PAlFx3ZxrY8tIky_jc';
       final response = await http.get(
         Uri.parse('http://localhost:3000/api/admin/pending-appointments'),
         headers: {
-          'Authorization': 'Bearer $adminToken',
+          'Authorization':
+              'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImJlNTBjOTAxLTdlZWQtNDIyOC05NzExLTk5OWIwOGEwZTcyZCIsInVzZXJuYW1lIjoiYWRtaW4iLCJ0eXBlIjoiYWRtaW4iLCJpYXQiOjE3NTMwODM4NzQsImV4cCI6MTc1MzY4ODY3NH0.jTqWoKAaX3SG2njDlgWbdFMyTjJab5kdgr5466cJcq4',
         },
       );
 
@@ -189,12 +190,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
 
   Future<void> _loadApprovedAppointments() async {
     try {
-      const adminToken =
-          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImJlNTBjOTAxLTdlZWQtNDIyOC05NzExLTk5OWIwOGEwZTcyZCIsInVzZXJuYW1lIjoiYWRtaW4iLCJ0eXBlIjoiYWRtaW4iLCJpYXQiOjE3NTI2MTAwMDIsImV4cCI6MTc1MzIxNDgwMn0.qqcSLZmigRJVFWGAhnonMMbV3PAlFx3ZxrY8tIky_jc';
       final response = await http.get(
         Uri.parse('http://localhost:3000/api/admin/appointments/approved'),
         headers: {
-          'Authorization': 'Bearer $adminToken',
+          'Authorization':
+              'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImJlNTBjOTAxLTdlZWQtNDIyOC05NzExLTk5OWIwOGEwZTcyZCIsInVzZXJuYW1lIjoiYWRtaW4iLCJ0eXBlIjoiYWRtaW4iLCJpYXQiOjE3NTMwODM4NzQsImV4cCI6MTc1MzY4ODY3NH0.jTqWoKAaX3SG2njDlgWbdFMyTjJab5kdgr5466cJcq4',
         },
       );
 
@@ -343,6 +343,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                               'Name', patientName, Icons.person_outline),
                           _buildInfoRow('Email', patientEmail, Icons.email),
                           _buildInfoRow('Phone', patientPhone, Icons.phone),
+                          _buildInfoRow(
+                              'Classification',
+                              appointment['patient_classification'] ?? 'N/A',
+                              Icons.category),
+                          _buildInfoRow(
+                              'Unit Assignment',
+                              appointment['patient_unit_assignment'] ?? 'N/A',
+                              Icons.location_on),
+                          _buildInfoRow(
+                              'Serial Number',
+                              appointment['patient_serial_number'] ?? 'N/A',
+                              Icons.badge),
                         ],
                       ),
                     ),
@@ -952,13 +964,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         },
       );
       if (confirmed == true) {
-        const adminToken =
-            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImJlNTBjOTAxLTdlZWQtNDIyOC05NzExLTk5OWIwOGEwZTcyZCIsInVzZXJuYW1lIjoiYWRtaW4iLCJ0eXBlIjoiYWRtaW4iLCJpYXQiOjE3NTI2MTAwMDIsImV4cCI6MTc1MzIxNDgwMn0.qqcSLZmigRJVFWGAhnonMMbV3PAlFx3ZxrY8tIky_jc';
         final response = await http.post(
           Uri.parse(
               'http://localhost:3000/api/admin/appointments/${appointment['appointment_id']}/approve'),
           headers: {
-            'Authorization': 'Bearer $adminToken',
+            'Authorization':
+                'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImJlNTBjOTAxLTdlZWQtNDIyOC05NzExLTk5OWIwOGEwZTcyZCIsInVzZXJuYW1lIjoiYWRtaW4iLCJ0eXBlIjoiYWRtaW4iLCJpYXQiOjE3NTMwODM4NzQsImV4cCI6MTc1MzY4ODY3NH0.jTqWoKAaX3SG2njDlgWbdFMyTjJab5kdgr5466cJcq4',
             'Content-Type': 'application/json',
           },
           body: jsonEncode({
@@ -1062,14 +1073,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       );
 
       if (confirmed == true) {
-        const adminToken =
-            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImJlNTBjOTAxLTdlZWQtNDIyOC05NzExLTk5OWIwOGEwZTcyZCIsInVzZXJuYW1lIjoiYWRtaW4iLCJ0eXBlIjoiYWRtaW4iLCJpYXQiOjE3NTI2MTAwMDIsImV4cCI6MTc1MzIxNDgwMn0.qqcSLZmigRJVFWGAhnonMMbV3PAlFx3ZxrY8tIky_jc';
-
         final response = await http.put(
           Uri.parse(
               'http://localhost:3000/api/admin/appointments/${appointment['appointmentId']}/status'),
           headers: {
-            'Authorization': 'Bearer $adminToken',
+            'Authorization':
+                'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImJlNTBjOTAxLTdlZWQtNDIyOC05NzExLTk5OWIwOGEwZTcyZCIsInVzZXJuYW1lIjoiYWRtaW4iLCJ0eXBlIjoiYWRtaW4iLCJpYXQiOjE3NTMwODM4NzQsImV4cCI6MTc1MzY4ODY3NH0.jTqWoKAaX3SG2njDlgWbdFMyTjJab5kdgr5466cJcq4',
             'Content-Type': 'application/json',
           },
           body: jsonEncode({
@@ -1153,13 +1162,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         },
       );
       if (confirmed == true) {
-        const adminToken =
-            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImJlNTBjOTAxLTdlZWQtNDIyOC05NzExLTk5OWIwOGEwZTcyZCIsInVzZXJuYW1lIjoiYWRtaW4iLCJ0eXBlIjoiYWRtaW4iLCJpYXQiOjE3NTI2MTAwMDIsImV4cCI6MTc1MzIxNDgwMn0.qqcSLZmigRJVFWGAhnonMMbV3PAlFx3ZxrY8tIky_jc';
         final response = await http.post(
           Uri.parse(
               'http://localhost:3000/api/admin/appointments/${appointment['appointment_id']}/reject'),
           headers: {
-            'Authorization': 'Bearer $adminToken',
+            'Authorization':
+                'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImJlNTBjOTAxLTdlZWQtNDIyOC05NzExLTk5OWIwOGEwZTcyZCIsInVzZXJuYW1lIjoiYWRtaW4iLCJ0eXBlIjoiYWRtaW4iLCJpYXQiOjE3NTMwODM4NzQsImV4cCI6MTc1MzY4ODY3NH0.jTqWoKAaX3SG2njDlgWbdFMyTjJab5kdgr5466cJcq4',
             'Content-Type': 'application/json',
           },
           body: jsonEncode({
@@ -1200,19 +1208,19 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       print('📅 New date: $date');
       print('⏰ New time: $timeSlot');
 
-      const adminToken =
-          'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImJlNTBjOTAxLTdlZWQtNDIyOC05NzExLTk5OWIwOGEwZTcyZCIsInVzZXJuYW1lIjoiYWRtaW4iLCJ0eXBlIjoiYWRtaW4iLCJpYXQiOjE3NTI2MTAwMDIsImV4cCI6MTc1MzIxNDgwMn0.qqcSLZmigRJVFWGAhnonMMbV3PAlFx3ZxrY8tIky_jc';
-
       final response = await http.put(
         Uri.parse(
             'http://localhost:3000/api/admin/appointments/$appointmentId/update'),
         headers: {
-          'Authorization': 'Bearer $adminToken',
+          'Authorization':
+              'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImJlNTBjOTAxLTdlZWQtNDIyOC05NzExLTk5OWIwOGEwZTcyZCIsInVzZXJuYW1lIjoiYWRtaW4iLCJ0eXBlIjoiYWRtaW4iLCJpYXQiOjE3NTMwODM4NzQsImV4cCI6MTc1MzY4ODY3NH0.jTqWoKAaX3SG2njDlgWbdFMyTjJab5kdgr5466cJcq4',
           'Content-Type': 'application/json',
         },
         body: jsonEncode({
           'service': service,
-          'date': date?.toIso8601String(),
+          'date': date != null
+              ? '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}'
+              : null,
           'time_slot': timeSlot,
         }),
       );
@@ -1592,75 +1600,37 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Personal Information Section
-                _buildSectionHeader('Personal Information'),
-                _buildInfoRow('Full Name', patient['fullName'] ?? 'N/A'),
-                _buildInfoRow('Email', patient['email'] ?? 'N/A'),
-                _buildInfoRow('Phone', patient['phone'] ?? 'N/A'),
-                _buildInfoRow('Date of Birth', formattedDateOfBirth),
-                _buildInfoRow('Address', patient['address'] ?? 'N/A'),
-
-                const SizedBox(height: 12),
-
-                // Military Information Section
-                _buildSectionHeader('Military Information'),
+                _buildInfoRow('Name',
+                    patient['fullName'] ?? patient['firstName'] ?? 'N/A'),
                 _buildInfoRow(
-                    'Serial Number', patient['serialNumber'] ?? 'N/A'),
+                    'Serial Number',
+                    (patient['serialNumber'] ?? '').toString().isNotEmpty
+                        ? patient['serialNumber']
+                        : ''),
                 _buildInfoRow(
-                    'Unit Assignment', patient['unitAssignment'] ?? 'N/A'),
+                    'Unit Assignment',
+                    (patient['unitAssignment'] ?? '').toString().isNotEmpty
+                        ? patient['unitAssignment']
+                        : ''),
                 _buildInfoRow(
-                    'Classification', patient['classification'] ?? 'N/A'),
-                if (patient['otherClassification'] != null &&
-                    patient['otherClassification'].isNotEmpty)
+                    'Classification', patient['classification'] ?? ''),
+                if ((patient['classification']?.toLowerCase() == 'other' ||
+                        patient['classification']?.toLowerCase() == 'others') &&
+                    (patient['otherClassification'] != null &&
+                        patient['otherClassification'].toString().isNotEmpty))
                   _buildInfoRow(
                       'Other Classification', patient['otherClassification']),
-
-                const SizedBox(height: 12),
-
-                // Emergency Contact Section
-                _buildSectionHeader('Emergency Contact'),
-                _buildInfoRow(
-                    'Emergency Contact', patient['emergencyContact'] ?? 'N/A'),
-                _buildInfoRow(
-                    'Emergency Phone', patient['emergencyPhone'] ?? 'N/A'),
-
-                const SizedBox(height: 12),
-
-                // Medical Information Section
-                _buildSectionHeader('Medical Information'),
-                if (patient['medicalHistory'] != null &&
-                    patient['medicalHistory'].isNotEmpty)
-                  _buildInfoRow('Medical History', patient['medicalHistory']),
-                if (patient['allergies'] != null &&
-                    patient['allergies'].isNotEmpty)
-                  _buildInfoRow('Allergies', patient['allergies']),
-
-                const SizedBox(height: 12),
-
-                // Registration Information
-                _buildSectionHeader('Registration Information'),
-                _buildInfoRow(
-                    'Registration Date', _formatDate(patient['createdAt'])),
-                _buildInfoRow('Patient ID', patient['id'] ?? 'N/A'),
-
+                _buildInfoRow('Contact Number', patient['phone'] ?? ''),
+                _buildInfoRow('Email', patient['email'] ?? ''),
                 const SizedBox(height: 16),
-
-                // Action Buttons
                 Row(
                   children: [
                     Expanded(
                       child: ElevatedButton.icon(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  PatientDetailScreen(patient: patient),
-                            ),
-                          );
-                        },
-                        icon: const Icon(Icons.visibility, size: 16),
-                        label: const Text('View Details'),
+                        onPressed: () =>
+                            _showPatientSurveyDetails(context, patient['id']),
+                        icon: const Icon(Icons.assignment, size: 16),
+                        label: const Text('Details'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.blue,
                           foregroundColor: Colors.white,
@@ -1671,10 +1641,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                     Expanded(
                       child: ElevatedButton.icon(
                         onPressed: () {
-                          _showPatientEditDialog(patient);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => TreatmentHistoryScreen(),
+                            ),
+                          );
                         },
-                        icon: const Icon(Icons.edit, size: 16),
-                        label: const Text('Edit'),
+                        icon: const Icon(Icons.history, size: 16),
+                        label: const Text('History'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.orange,
                           foregroundColor: Colors.white,
@@ -1714,17 +1689,154 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
-          const Text(
-            'Pending Appointments',
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
+          // Header with count and summary
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.orange.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.orange.shade200),
+            ),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.pending, color: Colors.orange, size: 28),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Pending Appointments',
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.orange.shade800,
+                            ),
+                          ),
+                          Text(
+                            '${_pendingAppointments.length} appointment${_pendingAppointments.length == 1 ? '' : 's'} waiting for approval',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.orange.shade600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                if (_pendingAppointments.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.orange.shade200),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _buildSummaryItem(
+                            'Today',
+                            _pendingAppointments
+                                .where((app) {
+                                  try {
+                                    final date = DateTime.parse(
+                                        app['booking_date'] ?? '');
+                                    final today = DateTime.now();
+                                    return date.year == today.year &&
+                                        date.month == today.month &&
+                                        date.day == today.day;
+                                  } catch (e) {
+                                    return false;
+                                  }
+                                })
+                                .length
+                                .toString(),
+                            Icons.today,
+                            Colors.blue,
+                          ),
+                        ),
+                        Expanded(
+                          child: _buildSummaryItem(
+                            'This Week',
+                            _pendingAppointments
+                                .where((app) {
+                                  try {
+                                    final date = DateTime.parse(
+                                        app['booking_date'] ?? '');
+                                    final now = DateTime.now();
+                                    final weekStart = now.subtract(
+                                        Duration(days: now.weekday - 1));
+                                    final weekEnd =
+                                        weekStart.add(const Duration(days: 6));
+                                    return date.isAfter(weekStart.subtract(
+                                            const Duration(days: 1))) &&
+                                        date.isBefore(weekEnd
+                                            .add(const Duration(days: 1)));
+                                  } catch (e) {
+                                    return false;
+                                  }
+                                })
+                                .length
+                                .toString(),
+                            Icons.calendar_view_week,
+                            Colors.green,
+                          ),
+                        ),
+                        Expanded(
+                          child: _buildSummaryItem(
+                            'With Survey',
+                            _pendingAppointments
+                                .where((app) => app['has_survey_data'] == true)
+                                .length
+                                .toString(),
+                            Icons.assessment,
+                            Colors.purple,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
           const SizedBox(height: 16),
-          ..._pendingAppointments
-              .map((appointment) => _buildAppointmentCard(appointment))
-              .toList(),
+          if (_pendingAppointments.isEmpty)
+            Container(
+              padding: const EdgeInsets.all(32),
+              child: Column(
+                children: [
+                  Icon(Icons.check_circle_outline,
+                      size: 64, color: Colors.grey.shade400),
+                  const SizedBox(height: 16),
+                  Text(
+                    'No Pending Appointments',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey.shade600,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'All appointments have been processed',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Colors.grey.shade500,
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else
+            ..._pendingAppointments
+                .map((appointment) => _buildAppointmentCard(appointment))
+                .toList(),
         ],
       ),
     );
@@ -1803,6 +1915,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                   _buildInfoRow('Service', appointment['service'] ?? 'Unknown'),
                   _buildInfoRow('Date', formattedDate),
                   _buildInfoRow('Time', appointment['time_slot'] ?? 'Unknown'),
+                  _buildInfoRow('Classification',
+                      appointment['patient_classification'] ?? 'N/A'),
+                  _buildInfoRow('Unit Assignment',
+                      appointment['patient_unit_assignment'] ?? 'N/A'),
+                  _buildInfoRow('Serial Number',
+                      appointment['patient_serial_number'] ?? 'N/A'),
                   if (appointment['patient_email'] != null)
                     _buildInfoRow('Email', appointment['patient_email']),
                   if (appointment['patient_phone'] != null)
@@ -2111,6 +2229,36 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         title: const Text('Admin Dashboard'),
         backgroundColor: const Color(0xFF0029B2),
         foregroundColor: Colors.white,
+        leading: IconButton(
+          icon: const Icon(Icons.logout),
+          tooltip: 'Logout',
+          onPressed: () async {
+            final shouldLogout = await showDialog<bool>(
+              context: context,
+              builder: (context) => AlertDialog(
+                title: const Text('Logout'),
+                content: const Text('Are you sure you want to logout?'),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(false),
+                    child: const Text('Cancel'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () => Navigator.of(context).pop(true),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                    ),
+                    child: const Text('Logout'),
+                  ),
+                ],
+              ),
+            );
+            if (shouldLogout == true) {
+              Navigator.of(context).popUntil((route) => route.isFirst);
+            }
+          },
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -2181,6 +2329,32 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     } catch (e) {
       return date.toString();
     }
+  }
+
+  // Helper method to build summary items
+  Widget _buildSummaryItem(
+      String label, String value, IconData icon, Color color) {
+    return Column(
+      children: [
+        Icon(icon, size: 24, color: color),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.grey.shade600,
+          ),
+        ),
+      ],
+    );
   }
 
   // Show patient edit dialog
@@ -2341,5 +2515,41 @@ $allPatientsData
         );
       },
     );
+  }
+
+  void _showPatientSurveyDetails(BuildContext context, String patientId) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
+    try {
+      final survey = await ApiService.getPatientSurveyAsAdmin(patientId);
+      Navigator.of(context).pop(); // Remove loading dialog
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => DentalSurveyScreen(
+            initialSurveyData: survey != null ? survey['surveyData'] : null,
+            readOnly: true,
+          ),
+        ),
+      );
+    } catch (e) {
+      Navigator.of(context).pop(); // Remove loading dialog
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Error'),
+          content: Text('Failed to fetch self-assessment survey: $e'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    }
   }
 }

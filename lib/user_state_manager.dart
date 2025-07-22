@@ -10,24 +10,28 @@ class UserStateManager extends ChangeNotifier {
   bool _isFirstTimeUser = true;
   bool _isAdminLoggedIn = false;
   bool _isClientLoggedIn = false;
-  bool _isGuestUser = false;
   bool _isPatientLoggedIn = false;
   Patient? _currentPatient;
   String? _patientToken;
+  String? _adminToken;
 
   bool get isSurveyCompleted => _isSurveyCompleted;
   bool get isFirstTimeUser => _isFirstTimeUser;
   bool get isAdminLoggedIn => _isAdminLoggedIn;
   bool get isClientLoggedIn => _isClientLoggedIn;
-  bool get isGuestUser => _isGuestUser;
   bool get isPatientLoggedIn => _isPatientLoggedIn;
   Patient? get currentPatient => _currentPatient;
   String? get patientToken => _patientToken;
+  String? get adminToken => _adminToken;
 
   // Get current patient ID (for use in database operations)
-  String get currentPatientId =>
-      _currentPatient?.id ??
-      'guest'; // Default to 'guest' for guest/default user
+  String get currentPatientId {
+    final id = _currentPatient?.id ?? 'guest';
+    print('🔍 UserStateManager.currentPatientId called: "$id"');
+    print('🔍 _currentPatient: $_currentPatient');
+    print('🔍 _currentPatient?.id: ${_currentPatient?.id}');
+    return id;
+  }
 
   void completeSurvey() {
     _isSurveyCompleted = true;
@@ -53,7 +57,6 @@ class UserStateManager extends ChangeNotifier {
     _isFirstTimeUser = true;
     _isAdminLoggedIn = false;
     _isClientLoggedIn = false;
-    _isGuestUser = false;
     _isPatientLoggedIn = false;
     _currentPatient = null;
     notifyListeners();
@@ -62,27 +65,24 @@ class UserStateManager extends ChangeNotifier {
   void loginAsAdmin() {
     _isAdminLoggedIn = true;
     _isClientLoggedIn = false;
-    _isGuestUser = false;
     notifyListeners();
   }
 
   void loginAsClient() {
     _isClientLoggedIn = true;
-    _isGuestUser = false;
     _isAdminLoggedIn = false;
     _isFirstTimeUser = false;
     notifyListeners();
   }
 
-  void continueAsGuest() {
-    _isGuestUser = true;
-    _isClientLoggedIn = false;
+  void logoutAdmin() {
     _isAdminLoggedIn = false;
+    _adminToken = null;
     notifyListeners();
   }
 
-  void logoutAdmin() {
-    _isAdminLoggedIn = false;
+  void setAdminToken(String token) {
+    _adminToken = token;
     notifyListeners();
   }
 
@@ -90,7 +90,6 @@ class UserStateManager extends ChangeNotifier {
     _isSurveyCompleted = false;
     _isFirstTimeUser = true;
     _isClientLoggedIn = false;
-    _isGuestUser = false;
     notifyListeners();
   }
 
@@ -100,12 +99,15 @@ class UserStateManager extends ChangeNotifier {
 
   // Patient authentication methods
   void setCurrentPatient(Patient patient) {
+    print('🔍 setCurrentPatient called with patient: ${patient.id}');
+    print('🔍 Patient details: ${patient.firstName} ${patient.lastName}');
     _currentPatient = patient;
     _isPatientLoggedIn = true;
-    _isGuestUser = false;
     _isClientLoggedIn = false;
     _isAdminLoggedIn = false;
     notifyListeners();
+    print(
+        '🔍 Patient set successfully. Current patient ID: ${_currentPatient?.id}');
   }
 
   void setPatientToken(String token) {

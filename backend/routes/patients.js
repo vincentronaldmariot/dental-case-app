@@ -319,4 +319,111 @@ router.get('/:id/notifications/unread-count', verifyToken, async (req, res) => {
   }
 });
 
+// GET /api/patients/:id/history - Get comprehensive patient history
+router.get('/:id/history', verifyToken, async (req, res) => {
+  try {
+    const patientId = req.params.id;
+    
+    // Verify the token belongs to this patient
+    if (req.user.id !== patientId) {
+      return res.status(403).json({
+        error: 'Access denied. You can only view your own history.'
+      });
+    }
+
+    // Get patient's survey data
+    const surveyResult = await query(`
+      SELECT id, survey_data, completed_at, updated_at
+      FROM dental_surveys 
+      WHERE patient_id = $1
+      ORDER BY updated_at DESC
+      LIMIT 1
+    `, [patientId]);
+
+    // Get patient's appointments
+    const appointmentsResult = await query(`
+      SELECT id, service, date, time_slot, doctor_name, status, notes, created_at
+      FROM appointments 
+      WHERE patient_id = $1
+      ORDER BY date DESC
+      LIMIT 20
+    `, [patientId]);
+
+    // Get patient's treatment records (if they exist in database)
+    const treatmentResult = await query(`
+      SELECT id, treatment_type, description, doctor_name, treatment_date, 
+             procedures, notes, prescription, created_at
+      FROM treatment_records 
+      WHERE patient_id = $1
+      ORDER BY treatment_date DESC
+      LIMIT 20
+    `, [patientId]);
+
+    // Get patient's emergency records
+    const emergencyResult = await query(`
+      SELECT id, type, priority, status, description, reported_at, 
+             pain_level, symptoms, location, handled_by, resolved_at, resolution
+      FROM emergency_records 
+      WHERE patient_id = $1
+      ORDER BY reported_at DESC
+      LIMIT 20
+    `, [patientId]);
+
+    const history = {
+      patientId,
+      survey: surveyResult.rows.length > 0 ? {
+        id: surveyResult.rows[0].id,
+        surveyData: surveyResult.rows[0].survey_data,
+        completedAt: surveyResult.rows[0].completed_at,
+        updatedAt: surveyResult.rows[0].updated_at
+      } : null,
+      appointments: appointmentsResult.rows.map(apt => ({
+        id: apt.id,
+        service: apt.service,
+        date: apt.date,
+        timeSlot: apt.time_slot,
+        doctorName: apt.doctor_name,
+        status: apt.status,
+        notes: apt.notes,
+        createdAt: apt.created_at
+      })),
+      treatments: treatmentResult.rows.map(tr => ({
+        id: tr.id,
+        treatmentType: tr.treatment_type,
+        description: tr.description,
+        doctorName: tr.doctor_name,
+        treatmentDate: tr.treatment_date,
+        procedures: tr.procedures,
+        notes: tr.notes,
+        prescription: tr.prescription,
+        createdAt: tr.created_at
+      })),
+      emergencies: emergencyResult.rows.map(er => ({
+        id: er.id,
+        type: er.type,
+        priority: er.priority,
+        status: er.status,
+        description: er.description,
+        reportedAt: er.reported_at,
+        painLevel: er.pain_level,
+        symptoms: er.symptoms,
+        location: er.location,
+        handledBy: er.handled_by,
+        resolvedAt: er.resolved_at,
+        resolution: er.resolution
+      }))
+    };
+
+    res.json({
+      history
+    });
+
+  } catch (error) {
+    console.error('Get patient history error:', error);
+    res.status(500).json({
+      error: 'Failed to retrieve patient history. Please try again.'
+    });
+  }
+});
+
 module.exports = router; 

@@ -1,124 +1,82 @@
 const http = require('http');
 
-async function testNotificationEndpoints() {
+async function testNotificationEndpoint() {
   try {
-    // First, get a patient token
-    console.log('Getting patient token...');
-    const loginData = JSON.stringify({
-      email: 'test@example.com',
-      password: 'password123'
+    console.log('🔍 Testing notification endpoint...');
+    
+    const patientId = '45f784a4-ecd4-49d1-a8d0-909b25d2b03e';
+    const token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjQ1Zjc4NGE0LWVjZDQtNDlkMS1hOGQwLTkwOWIyNWQyYjAzZSIsImVtYWlsIjoidmluY2VudEBnbWFpbC5jb20iLCJ0eXBlIjoicGF0aWVudCIsImlhdCI6MTc1MzA0Mzc2MSwiZXhwIjoxNzUzNjQ4NTYxfQ.gZ0dbtkj13RHB7d-2KsTPP0BTAbMTamtIuorv-VxWsI';
+    
+    // Test 1: Check if server is running
+    console.log('\n📋 Test 1: Check if server is running');
+    const healthCheck = await makeRequest('GET', '/health');
+    console.log('Health check response:', healthCheck);
+    
+    // Test 2: Test notifications endpoint
+    console.log('\n📋 Test 2: Test notifications endpoint');
+    const notificationsResponse = await makeRequest('GET', `/api/patients/${patientId}/notifications`, {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
     });
-
-    const loginOptions = {
-      hostname: 'localhost',
-      port: 3000,
-      path: '/api/auth/patient/login',
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(loginData)
-      }
-    };
-
-    const tokenResponse = await new Promise((resolve, reject) => {
-      const req = http.request(loginOptions, (res) => {
-        let data = '';
-        res.on('data', (chunk) => data += chunk);
-        res.on('end', () => {
-          try {
-            const response = JSON.parse(data);
-            resolve({ status: res.statusCode, data: response });
-          } catch (e) {
-            reject(e);
-          }
-        });
-      });
-      req.on('error', reject);
-      req.write(loginData);
-      req.end();
+    console.log('Notifications response:', notificationsResponse);
+    
+    // Test 3: Test unread count endpoint
+    console.log('\n📋 Test 3: Test unread count endpoint');
+    const unreadCountResponse = await makeRequest('GET', `/api/patients/${patientId}/notifications/unread-count`, {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
     });
-
-    if (tokenResponse.status !== 200) {
-      console.log('❌ Failed to get patient token:', tokenResponse.data);
-      return;
-    }
-
-    const token = tokenResponse.data.token;
-    const patientId = tokenResponse.data.patient.id;
-    console.log('✅ Patient token received');
-    console.log(`Patient ID: ${patientId}`);
-
-    // Test notifications endpoint
-    console.log('\nTesting notifications endpoint...');
-    const notificationsOptions = {
-      hostname: 'localhost',
-      port: 3000,
-      path: `/api/patients/${patientId}/notifications`,
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    };
-
-    const notificationsResponse = await new Promise((resolve, reject) => {
-      const req = http.request(notificationsOptions, (res) => {
-        let data = '';
-        res.on('data', (chunk) => data += chunk);
-        res.on('end', () => {
-          try {
-            const response = JSON.parse(data);
-            resolve({ status: res.statusCode, data: response });
-          } catch (e) {
-            reject(e);
-          }
-        });
-      });
-      req.on('error', reject);
-      req.end();
-    });
-
-    console.log('Notifications response:');
-    console.log('Status:', notificationsResponse.status);
-    console.log('Data:', JSON.stringify(notificationsResponse.data, null, 2));
-
-    // Test unread count endpoint
-    console.log('\nTesting unread count endpoint...');
-    const unreadOptions = {
-      hostname: 'localhost',
-      port: 3000,
-      path: `/api/patients/${patientId}/notifications/unread-count`,
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    };
-
-    const unreadResponse = await new Promise((resolve, reject) => {
-      const req = http.request(unreadOptions, (res) => {
-        let data = '';
-        res.on('data', (chunk) => data += chunk);
-        res.on('end', () => {
-          try {
-            const response = JSON.parse(data);
-            resolve({ status: res.statusCode, data: response });
-          } catch (e) {
-            reject(e);
-          }
-        });
-      });
-      req.on('error', reject);
-      req.end();
-    });
-
-    console.log('Unread count response:');
-    console.log('Status:', unreadResponse.status);
-    console.log('Data:', JSON.stringify(unreadResponse.data, null, 2));
-
+    console.log('Unread count response:', unreadCountResponse);
+    
   } catch (error) {
-    console.error('❌ Error:', error);
+    console.error('❌ Error testing notification endpoint:', error);
   }
 }
 
-testNotificationEndpoints(); 
+function makeRequest(method, path, headers = {}) {
+  return new Promise((resolve, reject) => {
+    const options = {
+      hostname: 'localhost',
+      port: 3000,
+      path: path,
+      method: method,
+      headers: {
+        'Content-Type': 'application/json',
+        ...headers
+      }
+    };
+
+    const req = http.request(options, (res) => {
+      let data = '';
+      
+      res.on('data', (chunk) => {
+        data += chunk;
+      });
+      
+      res.on('end', () => {
+        try {
+          const jsonData = JSON.parse(data);
+          resolve({
+            statusCode: res.statusCode,
+            headers: res.headers,
+            data: jsonData
+          });
+        } catch (e) {
+          resolve({
+            statusCode: res.statusCode,
+            headers: res.headers,
+            data: data
+          });
+        }
+      });
+    });
+
+    req.on('error', (error) => {
+      reject(error);
+    });
+
+    req.end();
+  });
+}
+
+testNotificationEndpoint(); 

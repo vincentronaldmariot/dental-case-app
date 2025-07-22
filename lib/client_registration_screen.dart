@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import './client_login_screen.dart';
+import 'utils/phone_validator.dart';
 
 class ClientRegistrationScreen extends StatefulWidget {
   const ClientRegistrationScreen({super.key});
@@ -45,11 +47,11 @@ class _ClientRegistrationScreenState extends State<ClientRegistrationScreen>
 
     _slideAnimation =
         Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero).animate(
-          CurvedAnimation(
-            parent: _animationController,
-            curve: const Interval(0.2, 1.0, curve: Curves.easeOutCubic),
-          ),
-        );
+      CurvedAnimation(
+        parent: _animationController,
+        curve: const Interval(0.2, 1.0, curve: Curves.easeOutCubic),
+      ),
+    );
 
     _animationController.forward();
   }
@@ -299,15 +301,12 @@ class _ClientRegistrationScreenState extends State<ClientRegistrationScreen>
                                   labelText: 'Phone Number',
                                   icon: Icons.phone_outlined,
                                   keyboardType: TextInputType.phone,
-                                  validator: (value) {
-                                    if (value == null || value.isEmpty) {
-                                      return 'Please enter your phone number';
-                                    }
-                                    if (value.length < 10) {
-                                      return 'Please enter a valid phone number';
-                                    }
-                                    return null;
-                                  },
+                                  validator: PhoneValidator.validatePhoneNumber,
+                                  inputFormatters:
+                                      PhoneValidator.getPhoneInputFormatters(),
+                                  hintText: '09XX XXX XXXX',
+                                  helperText:
+                                      'Must start with 09 and be 11 digits',
                                 ),
 
                                 const SizedBox(height: 20),
@@ -446,11 +445,11 @@ class _ClientRegistrationScreenState extends State<ClientRegistrationScreen>
                                             ? const SizedBox(
                                                 width: 24,
                                                 height: 24,
-                                                child: CircularProgressIndicator(
+                                                child:
+                                                    CircularProgressIndicator(
                                                   valueColor:
                                                       AlwaysStoppedAnimation<
-                                                        Color
-                                                      >(Colors.white),
+                                                          Color>(Colors.white),
                                                   strokeWidth: 2,
                                                 ),
                                               )
@@ -528,6 +527,9 @@ class _ClientRegistrationScreenState extends State<ClientRegistrationScreen>
     bool isPassword = false,
     bool? isPasswordVisible,
     VoidCallback? onTogglePassword,
+    List<TextInputFormatter>? inputFormatters,
+    String? hintText,
+    String? helperText,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -545,6 +547,7 @@ class _ClientRegistrationScreenState extends State<ClientRegistrationScreen>
         controller: controller,
         keyboardType: keyboardType,
         obscureText: isPassword && !(isPasswordVisible ?? false),
+        inputFormatters: inputFormatters,
         decoration: InputDecoration(
           labelText: labelText,
           prefixIcon: Icon(icon, color: const Color(0xFF005800)),
@@ -566,6 +569,8 @@ class _ClientRegistrationScreenState extends State<ClientRegistrationScreen>
           filled: true,
           fillColor: Colors.white,
           labelStyle: const TextStyle(color: Colors.grey),
+          hintText: hintText,
+          helperText: helperText,
         ),
         validator: validator,
       ),

@@ -78,32 +78,34 @@ const verifyPatient = async (req, res, next) => {
 const verifyAdmin = async (req, res, next) => {
   try {
     await verifyToken(req, res, () => {});
-    
-    if (req.user.type !== 'admin') {
+
+    if (!req.user || req.user.type !== 'admin') {
       return res.status(403).json({
         error: 'Access denied. Admin access required.'
       });
     }
-    
+
     // Get admin data from database
     const result = await query(
       'SELECT id, username, full_name, role FROM admin_users WHERE id = $1 AND is_active = true',
       [req.user.id]
     );
-    
+
     if (result.rows.length === 0) {
       return res.status(404).json({
         error: 'Admin not found or inactive'
       });
     }
-    
+
     req.admin = result.rows[0];
     next();
   } catch (error) {
-    console.error('Admin verification error:', error);
-    res.status(500).json({
-      error: 'Internal server error'
-    });
+    if (!res.headersSent) {
+      console.error('Admin verification error:', error);
+      res.status(500).json({
+        error: 'Internal server error'
+      });
+    }
   }
 };
 

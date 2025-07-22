@@ -414,7 +414,7 @@ class AppointmentService {
         await ApiService.saveAppointment(appointment.patientId, {
           'id': appointment.id,
           'service': appointment.service,
-          'date': appointment.date.toIso8601String(),
+          'date': _formatDate(appointment.date), // Send YYYY-MM-DD format
           'timeSlot': appointment.timeSlot,
           'doctorName': appointment.doctorName,
           'status': appointment.status.name,

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'services/api_service.dart';
 import 'models/patient.dart';
 import 'user_state_manager.dart';
+import 'utils/phone_validator.dart';
 import './main_app_screen.dart';
 import './admin_dashboard_screen.dart';
 import './kiosk_mode_screen.dart';
@@ -135,6 +137,11 @@ class _UnifiedLoginScreenState extends State<UnifiedLoginScreen>
             if (response != null) {
               // Create patient object from response
               final patientData = response['patient'] ?? {};
+
+              print('🔍 Login response: $response');
+              print('🔍 Patient data: $patientData');
+              print('🔍 Patient ID from response: ${patientData['id']}');
+
               final patient = Patient(
                 id: patientData['id'] ?? '',
                 firstName: patientData['firstName'] ?? '',
@@ -154,9 +161,13 @@ class _UnifiedLoginScreenState extends State<UnifiedLoginScreen>
                 otherClassification: '',
               );
 
+              print('🔍 Created patient object with ID: ${patient.id}');
+
               // Set patient in UserStateManager
               UserStateManager().setCurrentPatient(patient);
               UserStateManager().setPatientToken(response['token'] ?? '');
+
+              print('🔍 Patient set in UserStateManager');
 
               // Navigate to main app
               Navigator.pushReplacement(
@@ -510,7 +521,7 @@ class _UnifiedLoginScreenState extends State<UnifiedLoginScreen>
                                 _buildUnitAssignmentField(),
                                 const SizedBox(height: 16),
                                 _buildClassificationField(),
-                                if (_selectedClassification == 'Other') ...[
+                                if (_selectedClassification == 'Others') ...[
                                   const SizedBox(height: 16),
                                   _buildOtherClassificationField(),
                                 ],
@@ -570,29 +581,6 @@ class _UnifiedLoginScreenState extends State<UnifiedLoginScreen>
                                         ),
                                       ),
                               ),
-                            ),
-                          ),
-                        ),
-
-                        SizedBox(height: screenHeight * 0.02),
-
-                        // Guest Mode Button
-                        TextButton(
-                          onPressed: () {
-                            UserStateManager().continueAsGuest();
-                            Navigator.pushReplacement(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const MainAppScreen(),
-                              ),
-                            );
-                          },
-                          child: const Text(
-                            'Continue as Guest',
-                            style: TextStyle(
-                              color: Colors.grey,
-                              fontSize: 14,
-                              decoration: TextDecoration.underline,
                             ),
                           ),
                         ),
@@ -838,6 +826,7 @@ class _UnifiedLoginScreenState extends State<UnifiedLoginScreen>
       child: TextFormField(
         controller: _phoneController,
         keyboardType: TextInputType.phone,
+        inputFormatters: PhoneValidator.getPhoneInputFormatters(),
         decoration: InputDecoration(
           labelText: 'Phone Number',
           prefixIcon: const Icon(Icons.phone, color: Color(0xFF0029B2)),
@@ -847,13 +836,10 @@ class _UnifiedLoginScreenState extends State<UnifiedLoginScreen>
           ),
           filled: true,
           fillColor: Colors.white,
+          hintText: '09XX XXX XXXX',
+          helperText: 'Must start with 09 and be 11 digits',
         ),
-        validator: (value) {
-          if (value == null || value.isEmpty) {
-            return 'Please enter your phone number';
-          }
-          return null;
-        },
+        validator: PhoneValidator.validatePhoneNumber,
       ),
     );
   }
@@ -1037,7 +1023,7 @@ class _UnifiedLoginScreenState extends State<UnifiedLoginScreen>
           fillColor: Colors.white,
         ),
         validator: (value) {
-          if (_selectedClassification == 'Other' &&
+          if (_selectedClassification == 'Others' &&
               (value == null || value.isEmpty)) {
             return 'Please specify your classification';
           }

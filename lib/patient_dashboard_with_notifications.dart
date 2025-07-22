@@ -31,6 +31,9 @@ class _PatientDashboardWithNotificationsState
 
   Future<void> _loadUnreadNotifications() async {
     try {
+      print('🔍 Loading unread notifications for patient: ${widget.patientId}');
+      print('🔍 Using token: ${widget.patientToken.substring(0, 20)}...');
+
       final response = await http.get(
         Uri.parse(
             'http://localhost:3000/api/patients/${widget.patientId}/notifications/unread-count'),
@@ -40,15 +43,25 @@ class _PatientDashboardWithNotificationsState
         },
       );
 
+      print('🔍 Unread notifications response status: ${response.statusCode}');
+      print('🔍 Unread notifications response body: ${response.body}');
+
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         setState(() {
           _unreadNotifications = data['unreadCount'] ?? 0;
           _isLoadingNotifications = false;
         });
+        print('✅ Unread notifications count: $_unreadNotifications');
+      } else {
+        print(
+            '❌ Error loading unread notifications: ${response.statusCode} - ${response.body}');
+        setState(() {
+          _isLoadingNotifications = false;
+        });
       }
     } catch (e) {
-      print('Error loading unread notifications: $e');
+      print('❌ Exception loading unread notifications: $e');
       setState(() {
         _isLoadingNotifications = false;
       });

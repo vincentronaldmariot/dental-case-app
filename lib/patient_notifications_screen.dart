@@ -32,6 +32,9 @@ class _PatientNotificationsScreenState
 
   Future<void> _loadNotifications() async {
     try {
+      print('🔍 Loading notifications for patient: ${widget.patientId}');
+      print('🔍 Using token: ${widget.patientToken.substring(0, 20)}...');
+
       final response = await http.get(
         Uri.parse(
             'http://localhost:3000/api/patients/${widget.patientId}/notifications'),
@@ -41,25 +44,30 @@ class _PatientNotificationsScreenState
         },
       );
 
+      print('🔍 Notifications response status: ${response.statusCode}');
+      print('🔍 Notifications response body: ${response.body}');
+
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         setState(() {
           _notifications = data['notifications'] ?? [];
           _isLoading = false;
         });
-        print('Loaded ${_notifications.length} notifications');
+        print('✅ Loaded ${_notifications.length} notifications');
         int unreadInList = 0;
         for (var notification in _notifications) {
           if (!(notification['isRead'] ?? false)) {
             unreadInList++;
           }
         }
-        print('Unread notifications in list: $unreadInList');
+        print('✅ Unread notifications in list: $unreadInList');
       } else {
-        throw Exception('Failed to load notifications');
+        print('❌ Error response: ${response.statusCode} - ${response.body}');
+        throw Exception(
+            'Failed to load notifications: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
-      print('Error loading notifications: $e');
+      print('❌ Exception loading notifications: $e');
       setState(() {
         _isLoading = false;
       });

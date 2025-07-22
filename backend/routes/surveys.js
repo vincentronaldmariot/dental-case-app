@@ -2,19 +2,14 @@ const express = require('express');
 const { body, validationResult } = require('express-validator');
 const { query } = require('../config/database');
 const { verifyPatient } = require('../middleware/auth');
+const { verifyAdmin } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Validation for survey data
+// Validation for survey data - more flexible to accommodate different survey formats
 const surveyValidation = [
   body('surveyData').isObject().withMessage('Survey data must be an object'),
-  body('surveyData.patient_info').isObject().withMessage('Patient info is required'),
-  body('surveyData.tooth_conditions').isObject().withMessage('Tooth conditions are required'),
-  body('surveyData.tartar_level').notEmpty().withMessage('Tartar level is required'),
-  body('surveyData.tooth_sensitive').isBoolean().withMessage('Tooth sensitivity must be boolean'),
-  body('surveyData.damaged_fillings').isObject().withMessage('Damaged fillings data is required'),
-  body('surveyData.need_dentures').isBoolean().withMessage('Need dentures must be boolean'),
-  body('surveyData.has_missing_teeth').isBoolean().withMessage('Has missing teeth must be boolean')
+  body('surveyData.patient_info').optional().isObject().withMessage('Patient info must be an object if provided'),
 ];
 
 // POST /api/surveys - Submit or update dental survey
@@ -23,6 +18,7 @@ router.post('/', verifyPatient, surveyValidation, async (req, res) => {
     // Check validation errors
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.log('Survey validation errors:', errors.array());
       return res.status(400).json({
         error: 'Validation failed',
         details: errors.array()
@@ -31,6 +27,9 @@ router.post('/', verifyPatient, surveyValidation, async (req, res) => {
 
     const { surveyData } = req.body;
     const patientId = req.patient.id;
+    
+    console.log('Survey submission for patient:', patientId);
+    console.log('Survey data structure:', Object.keys(surveyData));
 
     // Add submission timestamp
     const completeSurvey = {
@@ -76,8 +75,10 @@ router.post('/', verifyPatient, surveyValidation, async (req, res) => {
 
   } catch (error) {
     console.error('Survey submission error:', error);
+    console.error('Error details:', error.message);
     res.status(500).json({
-      error: 'Failed to submit survey. Please try again.'
+      error: 'Failed to submit survey. Please try again.',
+      details: error.message
     });
   }
 });
@@ -179,6 +180,33 @@ router.delete('/', verifyPatient, async (req, res) => {
     res.status(500).json({
       error: 'Failed to delete survey. Please try again.'
     });
+  }
+});
+
+// GET /api/admin/surveys/:patientId - Admin fetches any patient's survey
+router.get('/admin/surveys/:patientId', verifyAdmin, async (req, res) => {
+  try {
+    const { patientId } = req.params;
+    const result = await query(
+      `SELECT id, survey_data, completed_at, updated_at FROM dental_surveys WHERE patient_id = $1 ORDER BY updated_at DESC LIMIT 1`,
+      [patientId]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'No survey found for this patient' });
+    }
+    const survey = result.rows[0];
+    res.json({
+      survey: {
+        id: survey.id,
+        patientId,
+        surveyData: typeof survey.survey_data === 'string' ? JSON.parse(survey.survey_data) : survey.survey_data,
+        completedAt: survey.completed_at,
+        updatedAt: survey.updated_at
+      }
+    });
+  } catch (error) {
+    console.error('Admin fetch survey error:', error);
+    res.status(500).json({ error: 'Failed to fetch survey for patient', details: error.message });
   }
 });
 

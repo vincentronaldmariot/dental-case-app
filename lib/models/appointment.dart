@@ -42,9 +42,7 @@ class Appointment {
       id: map['id']?.toString() ?? '',
       patientId: map['patient_id']?.toString() ?? '',
       service: map['service']?.toString() ?? '',
-      date: map['date'] != null
-          ? DateTime.tryParse(map['date'].toString()) ?? DateTime.now()
-          : DateTime.now(),
+      date: _parseDateSafely(map['date']),
       timeSlot: map['time_slot']?.toString() ?? '',
       doctorName: map['doctor_name']?.toString() ?? '',
       status: map['status'] != null
@@ -58,6 +56,39 @@ class Appointment {
           ? DateTime.tryParse(map['created_at'].toString()) ?? DateTime.now()
           : DateTime.now(),
     );
+  }
+
+  // Helper method to parse date safely without timezone issues
+  static DateTime _parseDateSafely(dynamic dateValue) {
+    if (dateValue == null) return DateTime.now();
+
+    final dateString = dateValue.toString();
+
+    // Handle ISO date strings with timezone (e.g., "2025-01-15T00:00:00.000Z")
+    if (dateString.contains('T')) {
+      final datePart = dateString.split('T')[0];
+      final parts = datePart.split('-');
+      if (parts.length == 3) {
+        final year = int.parse(parts[0]);
+        final month = int.parse(parts[1]);
+        final day = int.parse(parts[2]);
+        return DateTime(year, month, day);
+      }
+    }
+
+    // Handle regular date strings (e.g., "2025-01-15")
+    if (dateString.contains('-')) {
+      final parts = dateString.split('-');
+      if (parts.length == 3) {
+        final year = int.parse(parts[0]);
+        final month = int.parse(parts[1]);
+        final day = int.parse(parts[2]);
+        return DateTime(year, month, day);
+      }
+    }
+
+    // Fallback to DateTime.tryParse
+    return DateTime.tryParse(dateString) ?? DateTime.now();
   }
 
   // Copy with updated fields

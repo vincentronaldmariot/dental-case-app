@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import './next_screen.dart';
 import './unified_login_screen.dart';
 
 class WelcomeScreen extends StatefulWidget {
@@ -313,7 +312,8 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => const NextScreen(),
+                                  builder: (context) =>
+                                      const UnifiedLoginScreen(),
                                 ),
                               );
                             },

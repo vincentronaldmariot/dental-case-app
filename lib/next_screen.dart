@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import './unified_login_screen.dart';
-import './main_app_screen.dart';
-import './user_state_manager.dart';
 
 class NextScreen extends StatefulWidget {
   const NextScreen({super.key});
@@ -204,34 +202,6 @@ class _NextScreenState extends State<NextScreen>
                     },
                     child: const Text(
                       'Login',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFF7A577A),
-                      side: const BorderSide(color: Color(0xFF7A577A)),
-                      minimumSize: const Size(double.infinity, 55),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
-                    onPressed: () {
-                      // Mark user as guest
-                      UserStateManager().continueAsGuest();
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const MainAppScreen(),
-                        ),
-                      );
-                    },
-                    child: const Text(
-                      'Continue as Guest',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,

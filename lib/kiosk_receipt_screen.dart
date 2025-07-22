@@ -22,9 +22,13 @@ class KioskReceiptScreen extends StatelessWidget {
     final classification = patientInfo['classification'] ?? 'N/A';
     final contactNumber = patientInfo['contact_number'] ?? 'N/A';
 
+    // Extract daily counter number from receipt number (e.g., "SRV-001" -> "001")
+    final dailyCounter = receiptNumber.split('-').last;
+
     // Create QR code data
     final qrData = {
       'receipt_number': receiptNumber,
+      'daily_counter': dailyCounter,
       'name': name,
       'serial_number': serialNumber,
       'unit_assignment': unitAssignment,
@@ -112,6 +116,45 @@ class KioskReceiptScreen extends StatelessWidget {
                 padding: const EdgeInsets.all(20),
                 child: Column(
                   children: [
+                    // Daily Counter Display
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 16, horizontal: 20),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0029B2),
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(
+                            Icons.format_list_numbered,
+                            color: Colors.white,
+                            size: 24,
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            'TODAY\'S SURVEY #$dailyCounter',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1.0,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
                     // Receipt Card
                     Container(
                       width: double.infinity,
@@ -184,27 +227,38 @@ class KioskReceiptScreen extends StatelessWidget {
                                     size: 24,
                                   ),
                                   const SizedBox(width: 12),
-                                  Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      const Text(
-                                        'Receipt Number',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.grey,
-                                          fontWeight: FontWeight.w500,
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        const Text(
+                                          'Receipt Number',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.grey,
+                                            fontWeight: FontWeight.w500,
+                                          ),
                                         ),
-                                      ),
-                                      Text(
-                                        receiptNumber,
-                                        style: const TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.bold,
-                                          color: Color(0xFF0029B2),
+                                        Text(
+                                          receiptNumber,
+                                          style: const TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                            color: Color(0xFF0029B2),
+                                          ),
                                         ),
-                                      ),
-                                    ],
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          'Daily Counter: #$dailyCounter',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.grey[600],
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ],
                               ),

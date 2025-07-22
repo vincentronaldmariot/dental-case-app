@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'models/treatment_record.dart';
 import 'services/history_service.dart';
+import 'services/patient_history_service.dart';
 import 'user_state_manager.dart';
 
 class TreatmentHistoryScreen extends StatefulWidget {
@@ -13,9 +14,17 @@ class TreatmentHistoryScreen extends StatefulWidget {
 
 class _TreatmentHistoryScreenState extends State<TreatmentHistoryScreen> {
   final HistoryService _historyService = HistoryService();
+  final PatientHistoryService _patientHistoryService = PatientHistoryService();
+
   List<TreatmentRecord> _treatmentRecords = [];
   String _selectedFilter = 'All';
   bool _isLoading = true;
+
+  // New variables for comprehensive history
+  Map<String, dynamic>? _surveyData;
+  List<dynamic> _appointments = [];
+  List<dynamic> _emergencies = [];
+  String _selectedTab = 'Treatment History';
 
   final List<String> _filterOptions = [
     'All',
@@ -26,24 +35,58 @@ class _TreatmentHistoryScreenState extends State<TreatmentHistoryScreen> {
     'Emergency',
   ];
 
+  final List<String> _tabOptions = [
+    'Treatment History',
+    'Self Assessment',
+    'Appointments',
+    'Emergencies',
+  ];
+
   @override
   void initState() {
     super.initState();
-    _loadTreatmentRecords();
+    _loadPatientHistory();
   }
 
-  void _loadTreatmentRecords() {
+  Future<void> _loadPatientHistory() async {
     setState(() => _isLoading = true);
 
-    // Simulate loading delay
-    Future.delayed(const Duration(milliseconds: 500), () {
+    try {
+      final patientId = UserStateManager().currentPatientId;
+      final token = UserStateManager().patientToken;
+
+      if (token != null && patientId != 'guest') {
+        // Load comprehensive history from API
+        final history =
+            await _patientHistoryService.getPatientHistory(patientId, token);
+
+        setState(() {
+          _surveyData = history['survey']?['surveyData'];
+          _appointments = history['appointments'] ?? [];
+          _emergencies = history['emergencies'] ?? [];
+          _treatmentRecords = _patientHistoryService
+              .parseTreatments(history['treatments'] ?? []);
+          _isLoading = false;
+        });
+      } else {
+        // Fallback to local data
+        setState(() {
+          _treatmentRecords = _historyService.getTreatmentRecords(
+            patientId: UserStateManager().currentPatientId,
+          );
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      print('Error loading patient history: $e');
+      // Fallback to local data
       setState(() {
         _treatmentRecords = _historyService.getTreatmentRecords(
           patientId: UserStateManager().currentPatientId,
         );
         _isLoading = false;
       });
-    });
+    }
   }
 
   void _filterTreatmentRecords(String filter) {
@@ -62,38 +105,16 @@ class _TreatmentHistoryScreenState extends State<TreatmentHistoryScreen> {
     });
   }
 
+  void _selectTab(String tab) {
+    setState(() {
+      _selectedTab = tab;
+    });
+  }
+
   Widget _buildUserStatusBanner(BuildContext context) {
     final userState = UserStateManager();
 
-    if (userState.isGuestUser) {
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 16),
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Color(0xFFFF6B35), Color(0xFFE74C3C)],
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.person_outline, color: Colors.white, size: 14),
-            const SizedBox(width: 6),
-            const Text(
-              'GUEST MODE',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 1.0,
-              ),
-            ),
-          ],
-        ),
-      );
-    } else if (userState.isClientLoggedIn) {
+    if (userState.isClientLoggedIn) {
       return Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 3, horizontal: 16),
@@ -104,12 +125,12 @@ class _TreatmentHistoryScreenState extends State<TreatmentHistoryScreen> {
             end: Alignment.centerRight,
           ),
         ),
-        child: Row(
+        child: const Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.verified_user, color: Colors.white, size: 12),
-            const SizedBox(width: 6),
-            const Text(
+            Icon(Icons.verified_user, color: Colors.white, size: 12),
+            SizedBox(width: 6),
+            Text(
               'AUTHENTICATED USER',
               style: TextStyle(
                 color: Colors.white,
@@ -149,7 +170,7 @@ class _TreatmentHistoryScreenState extends State<TreatmentHistoryScreen> {
                 iconTheme: const IconThemeData(color: Colors.white),
                 actions: [
                   IconButton(
-                    onPressed: _loadTreatmentRecords,
+                    onPressed: _loadPatientHistory,
                     icon: const Icon(Icons.refresh, color: Colors.white),
                   ),
                 ],
@@ -160,7 +181,7 @@ class _TreatmentHistoryScreenState extends State<TreatmentHistoryScreen> {
       ),
       body: Column(
         children: [
-          // Filter Section
+          // Tab Section
           Container(
             padding: const EdgeInsets.all(16),
             decoration: const BoxDecoration(
@@ -174,11 +195,11 @@ class _TreatmentHistoryScreenState extends State<TreatmentHistoryScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Filter by Treatment Type',
+                  'Patient History',
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -186,15 +207,15 @@ class _TreatmentHistoryScreenState extends State<TreatmentHistoryScreen> {
                   height: 40,
                   child: ListView.builder(
                     scrollDirection: Axis.horizontal,
-                    itemCount: _filterOptions.length,
+                    itemCount: _tabOptions.length,
                     itemBuilder: (context, index) {
-                      final filter = _filterOptions[index];
-                      final isSelected = _selectedFilter == filter;
+                      final tab = _tabOptions[index];
+                      final isSelected = _selectedTab == tab;
                       return Padding(
                         padding: const EdgeInsets.only(right: 8),
                         child: FilterChip(
                           label: Text(
-                            filter,
+                            tab,
                             style: TextStyle(
                               color: isSelected
                                   ? Colors.white
@@ -205,8 +226,7 @@ class _TreatmentHistoryScreenState extends State<TreatmentHistoryScreen> {
                             ),
                           ),
                           selected: isSelected,
-                          onSelected: (selected) =>
-                              _filterTreatmentRecords(filter),
+                          onSelected: (selected) => _selectTab(tab),
                           backgroundColor: Colors.white,
                           selectedColor: const Color(0xFF005800),
                           checkmarkColor: Colors.white,
@@ -219,7 +239,7 @@ class _TreatmentHistoryScreenState extends State<TreatmentHistoryScreen> {
             ),
           ),
 
-          // Treatment Records List
+          // Content Section
           Expanded(
             child: _isLoading
                 ? const Center(
@@ -229,20 +249,486 @@ class _TreatmentHistoryScreenState extends State<TreatmentHistoryScreen> {
                       ),
                     ),
                   )
-                : _treatmentRecords.isEmpty
-                ? _buildEmptyState()
-                : ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _treatmentRecords.length,
-                    itemBuilder: (context, index) {
-                      final record = _treatmentRecords[index];
-                      return _buildTreatmentRecordCard(record);
-                    },
-                  ),
+                : _buildSelectedTabContent(),
           ),
         ],
       ),
     );
+  }
+
+  Widget _buildSelectedTabContent() {
+    switch (_selectedTab) {
+      case 'Treatment History':
+        return _buildTreatmentHistoryTab();
+      case 'Self Assessment':
+        return _buildSelfAssessmentTab();
+      case 'Appointments':
+        return _buildAppointmentsTab();
+      case 'Emergencies':
+        return _buildEmergenciesTab();
+      default:
+        return _buildTreatmentHistoryTab();
+    }
+  }
+
+  Widget _buildTreatmentHistoryTab() {
+    if (_treatmentRecords.isEmpty) {
+      return _buildEmptyState();
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: _treatmentRecords.length,
+      itemBuilder: (context, index) {
+        final record = _treatmentRecords[index];
+        return _buildTreatmentRecordCard(record);
+      },
+    );
+  }
+
+  Widget _buildSelfAssessmentTab() {
+    if (_surveyData == null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.quiz_outlined,
+              size: 64,
+              color: Colors.grey[400],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No Self Assessment Found',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey[600],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Complete a dental survey to see your self-assessment here',
+              style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    }
+
+    final parsedSurveyData =
+        _patientHistoryService.parseSurveyData(_surveyData!);
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Card(
+            elevation: 3,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.quiz,
+                        color: const Color(0xFF0029B2),
+                        size: 24,
+                      ),
+                      const SizedBox(width: 12),
+                      const Text(
+                        'Dental Self Assessment',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF0029B2),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  ...parsedSurveyData.entries.map((entry) {
+                    final question = entry.key;
+                    final answer = entry.value;
+
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            question,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.black87,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: _getAnswerColor(answer),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              answer.toString(),
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w500,
+                                color: _getAnswerTextColor(answer),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAppointmentsTab() {
+    if (_appointments.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.calendar_today_outlined,
+              size: 64,
+              color: Colors.grey[400],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No Appointments Found',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey[600],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Your appointment history will appear here',
+              style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: _appointments.length,
+      itemBuilder: (context, index) {
+        final appointment = _appointments[index];
+        return _buildAppointmentCard(appointment);
+      },
+    );
+  }
+
+  Widget _buildEmergenciesTab() {
+    if (_emergencies.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.local_hospital_outlined,
+              size: 64,
+              color: Colors.grey[400],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No Emergency Records Found',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: Colors.grey[600],
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Your emergency records will appear here',
+              style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: _emergencies.length,
+      itemBuilder: (context, index) {
+        final emergency = _emergencies[index];
+        return _buildEmergencyCard(emergency);
+      },
+    );
+  }
+
+  Color _getAnswerColor(String answer) {
+    switch (answer.toLowerCase()) {
+      case 'yes':
+        return Colors.red.shade50;
+      case 'no':
+        return Colors.green.shade50;
+      case 'not specified':
+        return Colors.grey.shade50;
+      default:
+        return Colors.blue.shade50;
+    }
+  }
+
+  Color _getAnswerTextColor(String answer) {
+    switch (answer.toLowerCase()) {
+      case 'yes':
+        return Colors.red.shade700;
+      case 'no':
+        return Colors.green.shade700;
+      case 'not specified':
+        return Colors.grey.shade600;
+      default:
+        return Colors.blue.shade700;
+    }
+  }
+
+  Widget _buildAppointmentCard(Map<String, dynamic> appointment) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 50,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0029B2).withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.calendar_today,
+                    color: Color(0xFF0029B2),
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        appointment['service'] ?? 'Appointment',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      Text(
+                        appointment['doctorName'] ?? 'Doctor',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _getStatusColor(appointment['status']),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    appointment['status'] ?? 'Unknown',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Icon(Icons.calendar_today, size: 14, color: Colors.grey[600]),
+                const SizedBox(width: 4),
+                Text(
+                  DateFormat('MMM dd, yyyy').format(
+                    DateTime.parse(appointment['date']),
+                  ),
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                ),
+                const SizedBox(width: 16),
+                Icon(Icons.access_time, size: 14, color: Colors.grey[600]),
+                const SizedBox(width: 4),
+                Text(
+                  appointment['timeSlot'] ?? 'No time specified',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                ),
+              ],
+            ),
+            if (appointment['notes'] != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Notes: ${appointment['notes']}',
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmergencyCard(Map<String, dynamic> emergency) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 50,
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color: Colors.red.withOpacity(0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.local_hospital,
+                    color: Colors.red,
+                    size: 24,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        emergency['type'] ?? 'Emergency',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      Text(
+                        emergency['description'] ?? 'No description',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _getPriorityColor(emergency['priority']),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    emergency['priority'] ?? 'Unknown',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Icon(Icons.calendar_today, size: 14, color: Colors.grey[600]),
+                const SizedBox(width: 4),
+                Text(
+                  DateFormat('MMM dd, yyyy').format(
+                    DateTime.parse(emergency['reportedAt']),
+                  ),
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                ),
+                const SizedBox(width: 16),
+                Icon(Icons.person, size: 14, color: Colors.grey[600]),
+                const SizedBox(width: 4),
+                Text(
+                  emergency['handledBy'] ?? 'Not specified',
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Color _getStatusColor(String? status) {
+    switch (status?.toLowerCase()) {
+      case 'completed':
+        return Colors.green;
+      case 'scheduled':
+        return Colors.blue;
+      case 'cancelled':
+        return Colors.red;
+      case 'pending':
+        return Colors.orange;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  Color _getPriorityColor(String? priority) {
+    switch (priority?.toLowerCase()) {
+      case 'immediate':
+        return Colors.red;
+      case 'urgent':
+        return Colors.orange;
+      case 'standard':
+        return Colors.blue;
+      default:
+        return Colors.grey;
+    }
   }
 
   Widget _buildEmptyState() {

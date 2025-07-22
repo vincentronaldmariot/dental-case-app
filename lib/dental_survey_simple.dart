@@ -1,9 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'user_state_manager.dart';
 import 'services/api_service.dart';
+import 'utils/phone_validator.dart';
 
 class DentalSurveyScreen extends StatefulWidget {
-  const DentalSurveyScreen({super.key});
+  final Map<String, dynamic>? initialSurveyData;
+  final bool readOnly;
+  const DentalSurveyScreen(
+      {Key? key, this.initialSurveyData, this.readOnly = false})
+      : super(key: key);
 
   @override
   State<DentalSurveyScreen> createState() => _DentalSurveyScreenState();
@@ -28,7 +34,7 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
   Map<String, dynamic>? _existingSurveyData;
 
   // Survey answers
-  Map<String, bool?> _toothConditions = {
+  final Map<String, bool?> _toothConditions = {
     'decayed_tooth': null,
     'worn_down_tooth': null,
     'impacted_tooth': null,
@@ -37,7 +43,7 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
   String? _tartarLevel;
   bool? _toothSensitive;
 
-  Map<String, bool?> _damagedFillings = {
+  final Map<String, bool?> _damagedFillings = {
     'broken_tooth': null,
     'broken_pasta': null,
   };
@@ -46,7 +52,7 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
   bool? _missingTeeth;
   bool? _hasMissingTeeth;
 
-  Map<String, bool?> _missingToothConditions = {
+  final Map<String, bool?> _missingToothConditions = {
     'extracted_teeth': null,
     'missing_teeth': null,
   };
@@ -54,7 +60,14 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
   @override
   void initState() {
     super.initState();
-    _checkForExistingSurveyData();
+    if (widget.initialSurveyData != null) {
+      _hasExistingSurveyData = true;
+      _existingSurveyData = widget.initialSurveyData;
+      _isLoadingExistingData = false;
+      _populateFormWithExistingData(widget.initialSurveyData!);
+    } else {
+      _checkForExistingSurveyData();
+    }
   }
 
   Future<void> _checkForExistingSurveyData() async {
@@ -126,6 +139,123 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.readOnly) {
+      final survey = widget.initialSurveyData;
+      final patientInfo = (survey != null && survey['patient_info'] != null)
+          ? survey['patient_info'] as Map<String, dynamic>
+          : <String, dynamic>{};
+      final toothConditions = survey?['tooth_conditions'] ?? {};
+      final tartarLevel = survey?['tartar_level'];
+      final toothSensitive = survey?['tooth_sensitive'];
+      final damagedFillings = survey?['damaged_fillings'] ?? {};
+      final needDentures = survey?['need_dentures'];
+      final hasMissingTeeth = survey?['has_missing_teeth'];
+      final missingToothConditions = survey?['missing_tooth_conditions'] ?? {};
+
+      String tartarLabel(String? key) {
+        switch (key) {
+          case 'tartar_none':
+            return 'None';
+          case 'tartar_mild':
+            return 'Mild';
+          case 'tartar_moderate':
+            return 'Moderate';
+          case 'tartar_heavy':
+            return 'Heavy';
+          default:
+            return '—';
+        }
+      }
+
+      return Scaffold(
+        backgroundColor: const Color(0xFFF8F9FA),
+        appBar: AppBar(
+          title: const Text('Self-Assessment Survey'),
+          backgroundColor: const Color(0xFF0029B2),
+          foregroundColor: Colors.white,
+        ),
+        body: ListView(
+          padding: const EdgeInsets.all(24),
+          children: [
+            Container(
+              margin: const EdgeInsets.only(bottom: 16),
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Color(0xFF0029B2), width: 1.5),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: const [
+                  Icon(Icons.visibility, color: Color(0xFF0029B2)),
+                  SizedBox(width: 8),
+                  Text(
+                    'View Only - Patient Answers',
+                    style: TextStyle(
+                      color: Color(0xFF0029B2),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Patient Information
+            _buildSectionTitle('Patient Information'),
+            _buildQARow('Name', patientInfo['name']),
+            _buildQARow('Contact Number', patientInfo['contact_number']),
+            _buildQARow('Email', patientInfo['email']),
+            _buildQARow('Serial Number', patientInfo['serial_number']),
+            _buildQARow('Unit Assignment', patientInfo['unit_assignment']),
+            _buildQARow('Classification', patientInfo['classification']),
+            _buildQARow(
+                'Other Classification', patientInfo['other_classification']),
+            _buildQARow('Last Dental Visit', patientInfo['last_visit']),
+            _buildQARow('Emergency Contact', patientInfo['emergency_contact']),
+            _buildQARow('Emergency Phone', patientInfo['emergency_phone']),
+            const SizedBox(height: 24),
+            // Tooth Conditions
+            _buildSectionTitle('Tooth Conditions'),
+            _buildQARow(
+                'Decayed Tooth', _yesNo(toothConditions['decayed_tooth'])),
+            _buildQARow(
+                'Worn Down Tooth', _yesNo(toothConditions['worn_down_tooth'])),
+            _buildQARow('Impacted Wisdom Tooth',
+                _yesNo(toothConditions['impacted_tooth'])),
+            const SizedBox(height: 24),
+            // Tartar/Calculus
+            _buildSectionTitle('Tartar/Calculus'),
+            _buildQARow('Tartar Level', tartarLabel(tartarLevel)),
+            const SizedBox(height: 24),
+            // Tooth Sensitivity
+            _buildSectionTitle('Tooth Sensitivity'),
+            _buildQARow('Sensitive to hot/cold/sweet?', _yesNo(toothSensitive)),
+            const SizedBox(height: 24),
+            // Damaged Fillings
+            _buildSectionTitle('Damaged Fillings'),
+            _buildQARow('Broken Tooth Filling',
+                _yesNo(damagedFillings['broken_tooth'])),
+            _buildQARow('Broken Pasta Filling',
+                _yesNo(damagedFillings['broken_pasta'])),
+            const SizedBox(height: 24),
+            // Dentures
+            _buildSectionTitle('Dentures'),
+            _buildQARow('Need Dentures?', _yesNo(needDentures)),
+            const SizedBox(height: 24),
+            // Missing Teeth
+            _buildSectionTitle('Missing Teeth'),
+            _buildQARow('Has Missing Teeth?', _yesNo(hasMissingTeeth)),
+            if (hasMissingTeeth == true) ...[
+              _buildQARow('Extracted Teeth',
+                  _yesNo(missingToothConditions['extracted_teeth'])),
+              _buildQARow('Missing Teeth',
+                  _yesNo(missingToothConditions['missing_teeth'])),
+            ],
+          ],
+        ),
+      );
+    }
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       body: SafeArea(
@@ -182,6 +312,33 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
                       ),
                     ],
                   ),
+                  if (widget.readOnly)
+                    Container(
+                      margin: const EdgeInsets.only(top: 16),
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 8, horizontal: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                        border:
+                            Border.all(color: Color(0xFF0029B2), width: 1.5),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: const [
+                          Icon(Icons.visibility, color: Color(0xFF0029B2)),
+                          SizedBox(width: 8),
+                          Text(
+                            'View Only - Patient Answers',
+                            style: TextStyle(
+                              color: Color(0xFF0029B2),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -228,7 +385,7 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
                       _buildInputField(
                         controller: _serialNumberController,
                         labelText: 'SERIAL NUMBER:',
-                        enabled: _selectedClassification != 'Others',
+                        enabled: !widget.readOnly,
                         validator: (value) =>
                             _selectedClassification != 'Others' &&
                                     (value?.isEmpty ?? true)
@@ -240,7 +397,7 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
                       _buildInputField(
                         controller: _unitAssignmentController,
                         labelText: 'UNIT ASSIGNMENT:',
-                        enabled: _selectedClassification != 'Others',
+                        enabled: !widget.readOnly,
                         validator: (value) =>
                             _selectedClassification != 'Others' &&
                                     (value?.isEmpty ?? true)
@@ -253,9 +410,11 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
                         controller: _contactNumberController,
                         labelText: 'CONTACT NUMBER:',
                         keyboardType: TextInputType.phone,
-                        validator: (value) => value?.isEmpty ?? true
-                            ? 'Contact number is required'
-                            : null,
+                        validator: PhoneValidator.validatePhoneNumber,
+                        inputFormatters:
+                            PhoneValidator.getPhoneInputFormatters(),
+                        hintText: '09XX XXX XXXX',
+                        helperText: 'Must start with 09 and be 11 digits',
                       ),
                       const SizedBox(height: 12),
 
@@ -288,9 +447,11 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
                         controller: _emergencyPhoneController,
                         labelText: 'EMERGENCY PHONE:',
                         keyboardType: TextInputType.phone,
-                        validator: (value) => value?.isEmpty ?? true
-                            ? 'Emergency phone is required'
-                            : null,
+                        validator: PhoneValidator.validatePhoneNumber,
+                        inputFormatters:
+                            PhoneValidator.getPhoneInputFormatters(),
+                        hintText: '09XX XXX XXXX',
+                        helperText: 'Must start with 09 and be 11 digits',
                       ),
 
                       const SizedBox(height: 25),
@@ -426,22 +587,27 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
     int maxLines = 1,
     TextInputType? keyboardType,
     bool enabled = true,
+    List<TextInputFormatter>? inputFormatters,
+    String? hintText,
+    String? helperText,
   }) {
+    final actuallyEnabled = enabled && !widget.readOnly;
     return Container(
       decoration: BoxDecoration(
-        color: enabled ? Colors.grey.shade200 : Colors.grey.shade100,
+        color: actuallyEnabled ? Colors.grey.shade200 : Colors.grey.shade100,
         borderRadius: BorderRadius.circular(8),
       ),
       child: TextFormField(
         controller: controller,
-        validator: enabled ? validator : null,
+        validator: actuallyEnabled ? validator : null,
         maxLines: maxLines,
         keyboardType: keyboardType,
-        enabled: enabled,
+        enabled: actuallyEnabled,
+        inputFormatters: inputFormatters,
         decoration: InputDecoration(
           labelText: labelText,
           labelStyle: TextStyle(
-            color: enabled ? Colors.grey : Colors.grey.shade400,
+            color: actuallyEnabled ? Colors.grey : Colors.grey.shade400,
             fontWeight: FontWeight.w500,
           ),
           border: OutlineInputBorder(
@@ -449,22 +615,26 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
             borderSide: BorderSide.none,
           ),
           filled: true,
-          fillColor: enabled ? Colors.grey.shade200 : Colors.grey.shade100,
+          fillColor:
+              actuallyEnabled ? Colors.grey.shade200 : Colors.grey.shade100,
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 16,
             vertical: 12,
           ),
-          suffixIcon: !enabled
-              ? Icon(Icons.lock, color: Colors.grey.shade400, size: 20)
+          hintText: hintText,
+          helperText: helperText,
+          suffixIcon: !actuallyEnabled
+              ? Icon(Icons.visibility, color: Colors.grey.shade400, size: 20)
               : null,
         ),
+        readOnly: !actuallyEnabled,
       ),
     );
   }
 
   Widget _buildClassificationDropdown() {
     final classifications = ['Military', 'AD/HR', 'Department', 'Others'];
-
+    final actuallyEnabled = !widget.readOnly;
     return Container(
       decoration: BoxDecoration(
         color: Colors.grey.shade200,
@@ -491,27 +661,30 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
             child: Text(classification),
           );
         }).toList(),
-        onChanged: (value) {
-          setState(() {
-            _selectedClassification = value ?? '';
-
-            // If "Others" is selected, clear and disable military-specific fields
-            if (_selectedClassification == 'Others') {
-              _serialNumberController.clear();
-              _unitAssignmentController.clear();
-            } else {
-              // If not "Others", clear the other specification field
-              _otherClassificationController.clear();
-            }
-          });
-        },
+        onChanged: actuallyEnabled
+            ? (value) {
+                setState(() {
+                  _selectedClassification = value ?? '';
+                  if (_selectedClassification == 'Others') {
+                    _serialNumberController.clear();
+                    _unitAssignmentController.clear();
+                  } else {
+                    _otherClassificationController.clear();
+                  }
+                });
+              }
+            : null,
         validator: (value) =>
             value == null ? 'Please select classification' : null,
+        disabledHint: _selectedClassification.isNotEmpty
+            ? Text(_selectedClassification)
+            : const Text(''),
       ),
     );
   }
 
   Widget _buildOtherSpecificationField() {
+    final actuallyEnabled = !widget.readOnly;
     return Container(
       decoration: BoxDecoration(
         color: Colors.blue.shade50,
@@ -521,7 +694,6 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header with icon
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
@@ -546,12 +718,12 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
               ],
             ),
           ),
-
-          // Text field
           Padding(
             padding: const EdgeInsets.all(12),
             child: TextFormField(
               controller: _otherClassificationController,
+              enabled: actuallyEnabled,
+              readOnly: !actuallyEnabled,
               decoration: InputDecoration(
                 hintText: 'e.g., Family member, Visitor, Student, etc.',
                 border: OutlineInputBorder(
@@ -576,11 +748,14 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
                   Icons.person_outline,
                   color: Colors.blue.shade600,
                 ),
+                suffixIcon: !actuallyEnabled
+                    ? Icon(Icons.visibility,
+                        color: Colors.grey.shade400, size: 20)
+                    : null,
               ),
-              validator: (value) => (value?.trim().isEmpty ?? true)
-                  ? 'Please specify your classification'
-                  : null,
-              textCapitalization: TextCapitalization.words,
+              style: TextStyle(
+                color: actuallyEnabled ? Colors.black : Colors.grey.shade700,
+              ),
             ),
           ),
         ],
@@ -1007,6 +1182,7 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
   }
 
   Widget _buildSubmitButton() {
+    if (widget.readOnly) return const SizedBox.shrink();
     return Container(
       width: double.infinity,
       height: 50,
@@ -1339,5 +1515,39 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
     } catch (e) {
       return 'Previously completed';
     }
+  }
+
+  // Helper for Q&A row
+  Widget _buildQARow(String label, dynamic value) {
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                value != null && value.toString().isNotEmpty
+                    ? value.toString()
+                    : '—',
+                style: const TextStyle(fontSize: 15),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _yesNo(dynamic value) {
+    if (value == true) return 'Yes';
+    if (value == false) return 'No';
+    return '—';
   }
 }

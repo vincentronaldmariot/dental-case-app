@@ -341,7 +341,7 @@ router.get('/appointments/approved', verifyAdmin, async (req, res) => {
       FROM appointments a
       LEFT JOIN patients p ON a.patient_id = p.id
       LEFT JOIN dental_surveys ds ON p.id = ds.patient_id
-      WHERE a.status IN ('scheduled', 'completed')
+      WHERE a.status = 'approved'
       ORDER BY a.appointment_date DESC, a.time_slot ASC
       LIMIT $1 OFFSET $2
     `;
@@ -349,7 +349,7 @@ router.get('/appointments/approved', verifyAdmin, async (req, res) => {
     const result = await query(queryText, [parseInt(limit), parseInt(offset)]);
 
     // Get total approved count
-    const countResult = await query('SELECT COUNT(*) FROM appointments WHERE status IN ($1, $2)', ['scheduled', 'completed']);
+    const countResult = await query("SELECT COUNT(*) FROM appointments WHERE status = 'approved'");
     const totalCount = parseInt(countResult.rows[0].count);
 
     res.json({
@@ -731,7 +731,7 @@ router.post('/appointments/:id/reject', verifyAdmin, [
         p.first_name, p.last_name, p.email, p.phone
       FROM appointments a
       JOIN patients p ON a.patient_id = p.id
-      WHERE a.id = $1 AND a.status = 'pending'
+      WHERE a.id = $1 AND a.status IN ('pending', 'approved')
     `, [appointmentId]);
 
     if (appointmentResult.rows.length === 0) {
@@ -748,7 +748,7 @@ router.post('/appointments/:id/reject', verifyAdmin, [
       SET status = 'rejected', 
           notes = COALESCE($1, 'Appointment rejected by admin'),
           updated_at = CURRENT_TIMESTAMP
-      WHERE id = $2
+      WHERE id = $2 AND status IN ('pending', 'approved')
     `, [reason, appointmentId]);
 
     // Create notification record for the patient
@@ -852,14 +852,25 @@ router.post('/appointments/:id/approve', verifyAdmin, [
 
     const appointment = appointmentResult.rows[0];
 
-    // Update appointment status to scheduled
+    // Update appointment status to approved
     await query(`
       UPDATE appointments 
-      SET status = 'scheduled', 
+      SET status = 'approved', 
           notes = COALESCE($1, notes),
           updated_at = CURRENT_TIMESTAMP
       WHERE id = $2
     `, [notes, appointmentId]);
+
+    // Fetch the updated appointment
+    const updatedAppointmentResult = await query(`
+      SELECT 
+        a.id, a.status, a.service, a.appointment_date, a.time_slot, a.doctor_name,
+        p.first_name, p.last_name, p.email, p.phone
+      FROM appointments a
+      JOIN patients p ON a.patient_id = p.id
+      WHERE a.id = $1
+    `, [appointmentId]);
+    const updatedAppointment = updatedAppointmentResult.rows[0];
 
     // Create notification record for the patient
     console.log('🔔 Starting approval notification creation...');
@@ -912,10 +923,10 @@ router.post('/appointments/:id/approve', verifyAdmin, [
     res.json({
       message: 'Appointment approved successfully',
       appointment: {
-        id: appointment.id,
-        status: 'scheduled',
-        patientName: `${appointment.first_name} ${appointment.last_name}`,
-        patientEmail: appointment.email
+        id: updatedAppointment.id,
+        status: updatedAppointment.status,
+        patientName: `${updatedAppointment.first_name} ${updatedAppointment.last_name}`,
+        patientEmail: updatedAppointment.email
       }
     });
 

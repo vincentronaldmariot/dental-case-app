@@ -7,6 +7,8 @@ import 'utils/phone_validator.dart';
 import './main_app_screen.dart';
 import './admin_dashboard_screen.dart';
 import './kiosk_mode_screen.dart';
+import 'dart:convert'; // Added for jsonEncode and jsonDecode
+import 'package:http/http.dart' as http; // Added for http.post
 
 class UnifiedLoginScreen extends StatefulWidget {
   const UnifiedLoginScreen({super.key});
@@ -97,36 +99,44 @@ class _UnifiedLoginScreenState extends State<UnifiedLoginScreen>
       setState(() => _isLoading = true);
 
       try {
+        // Special kiosk login
+        if (_emailController.text == 'kiosk' &&
+            _passwordController.text == 'kiosk123') {
+          final response = await http.post(
+            Uri.parse('http://localhost:3000/api/auth/kiosk/login'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'username': 'kiosk',
+              'password': 'kiosk123',
+            }),
+          );
+          setState(() => _isLoading = false);
+          if (response.statusCode == 200) {
+            final data = jsonDecode(response.body);
+            // Set kiosk user state and token as needed
+            UserStateManager().setAdminToken(data['token']);
+            UserStateManager().setPatientToken(data[
+                'token']); // Ensure token is available for survey submission
+            // Navigate to your kiosk dashboard or main app
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const KioskModeScreen()),
+            );
+            return;
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Invalid kiosk credentials'),
+                backgroundColor: Colors.red,
+              ),
+            );
+            return;
+          }
+        }
+
         if (_isLogin) {
-          // Check if it's admin login first
-          if (_emailController.text == _adminUsername &&
-              _passwordController.text == _adminPassword) {
-            // Admin login
-            UserStateManager().loginAsAdmin();
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const AdminDashboardScreen(),
-              ),
-            );
-            return;
-          }
-
-          // Check if it's kiosk mode login
-          if (_emailController.text == 'kiosk' &&
-              _passwordController.text == 'kiosk123') {
-            // Kiosk mode login
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (context) => const KioskModeScreen(),
-              ),
-            );
-            return;
-          }
-
-          // Try patient login
-          final response = await ApiService.authenticatePatient(
+          // Always authenticate via backend
+          final response = await ApiService.authenticateUser(
             _emailController.text,
             _passwordController.text,
           );
@@ -134,48 +144,65 @@ class _UnifiedLoginScreenState extends State<UnifiedLoginScreen>
           if (mounted) {
             setState(() => _isLoading = false);
 
-            if (response != null) {
-              // Create patient object from response
-              final patientData = response['patient'] ?? {};
+            if (response != null &&
+                response['token'] != null &&
+                response['user'] != null) {
+              final user = response['user'];
+              final token = response['token'];
+              final userType = user['type'] ?? user['role'] ?? '';
 
-              print('🔍 Login response: $response');
-              print('🔍 Patient data: $patientData');
-              print('🔍 Patient ID from response: ${patientData['id']}');
-
-              final patient = Patient(
-                id: patientData['id'] ?? '',
-                firstName: patientData['firstName'] ?? '',
-                lastName: patientData['lastName'] ?? '',
-                email: patientData['email'] ?? _emailController.text,
-                phone: patientData['phone'] ?? '',
-                passwordHash: '', // Not needed for login
-                dateOfBirth: DateTime.now(), // Default value
-                address: '',
-                emergencyContact: '',
-                emergencyPhone: '',
-                medicalHistory: '',
-                allergies: '',
-                serialNumber: patientData['serialNumber'] ?? '',
-                unitAssignment: patientData['unitAssignment'] ?? '',
-                classification: patientData['classification'] ?? '',
-                otherClassification: '',
-              );
-
-              print('🔍 Created patient object with ID: ${patient.id}');
-
-              // Set patient in UserStateManager
-              UserStateManager().setCurrentPatient(patient);
-              UserStateManager().setPatientToken(response['token'] ?? '');
-
-              print('🔍 Patient set in UserStateManager');
-
-              // Navigate to main app
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const MainAppScreen(),
-                ),
-              );
+              if (userType == 'admin') {
+                // Admin login
+                UserStateManager().setAdminToken(token);
+                UserStateManager().loginAsAdmin();
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const AdminDashboardScreen(),
+                  ),
+                );
+                return;
+              } else if (userType == 'patient') {
+                // Patient login
+                final patientData = user;
+                final patient = Patient(
+                  id: patientData['id'] ?? '',
+                  firstName: patientData['firstName'] ?? '',
+                  lastName: patientData['lastName'] ?? '',
+                  email: patientData['email'] ?? _emailController.text,
+                  phone: patientData['phone'] ?? '',
+                  passwordHash: '',
+                  dateOfBirth:
+                      DateTime.tryParse(patientData['dateOfBirth'] ?? '') ??
+                          DateTime.now(),
+                  address: patientData['address'] ?? '',
+                  emergencyContact: patientData['emergencyContact'] ?? '',
+                  emergencyPhone: patientData['emergencyPhone'] ?? '',
+                  medicalHistory: patientData['medicalHistory'] ?? '',
+                  allergies: patientData['allergies'] ?? '',
+                  serialNumber: patientData['serialNumber'] ?? '',
+                  unitAssignment: patientData['unitAssignment'] ?? '',
+                  classification: patientData['classification'] ?? '',
+                  otherClassification: patientData['otherClassification'] ?? '',
+                );
+                UserStateManager().setCurrentPatient(patient);
+                UserStateManager().setPatientToken(token);
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const MainAppScreen(),
+                  ),
+                );
+                return;
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Unrecognized user type.'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+                return;
+              }
             } else {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(

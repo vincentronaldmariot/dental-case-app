@@ -13,8 +13,77 @@ const surveyValidation = [
 ];
 
 // POST /api/surveys - Submit or update dental survey
-router.post('/', verifyPatient, surveyValidation, async (req, res) => {
+router.post('/', async (req, res, next) => {
   try {
+    const authHeader = req.headers['authorization'] || '';
+    const token = authHeader.split(' ')[1];
+    if (token === 'kiosk_token') {
+      // Allow survey submission for kiosk mode
+      req.user = { username: 'kiosk', type: 'kiosk' };
+      // Proceed with survey submission logic as kiosk
+      // Check validation errors
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        console.log('Survey validation errors:', errors.array());
+        return res.status(400).json({
+          error: 'Validation failed',
+          details: errors.array()
+        });
+      }
+
+      const { surveyData } = req.body;
+      // Use a special kiosk patient ID for survey submissions
+      const patientId = '00000000-0000-0000-0000-000000000000'; // Special kiosk UUID
+      
+      console.log('Kiosk survey submission for patient:', patientId);
+      console.log('Survey data structure:', Object.keys(surveyData));
+
+      // Add submission timestamp
+      const completeSurvey = {
+        ...surveyData,
+        submitted_at: new Date().toISOString(),
+        submitted_via: 'kiosk'
+      };
+
+      // Check if survey already exists for this kiosk patient
+      const existingResult = await query(
+        'SELECT id FROM dental_surveys WHERE patient_id = $1',
+        [patientId]
+      );
+
+      let result;
+      if (existingResult.rows.length > 0) {
+        // Update existing survey
+        result = await query(`
+          UPDATE dental_surveys 
+          SET survey_data = $1, updated_at = CURRENT_TIMESTAMP
+          WHERE patient_id = $2
+          RETURNING id, completed_at, updated_at
+        `, [JSON.stringify(completeSurvey), patientId]);
+      } else {
+        // Create new survey
+        result = await query(`
+          INSERT INTO dental_surveys (patient_id, survey_data)
+          VALUES ($1, $2)
+          RETURNING id, completed_at, updated_at
+        `, [patientId, JSON.stringify(completeSurvey)]);
+      }
+
+      const survey = result.rows[0];
+
+      res.json({
+        message: existingResult.rows.length > 0 ? 'Survey updated successfully' : 'Survey submitted successfully',
+        survey: {
+          id: survey.id,
+          patientId,
+          completedAt: survey.completed_at,
+          updatedAt: survey.updated_at
+        }
+      });
+      return; // Exit the middleware chain after successful kiosk submission
+    }
+
+    // Original authentication and validation logic for non-kiosk requests
     // Check validation errors
     const errors = validationResult(req);
     if (!errors.isEmpty()) {

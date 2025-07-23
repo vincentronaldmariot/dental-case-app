@@ -277,4 +277,16 @@ router.post('/admin/login', [
   }
 });
 
+// Kiosk login endpoint
+router.post('/kiosk/login', (req, res) => {
+  const { username, password } = req.body;
+  if (username === 'kiosk' && password === 'kiosk123') {
+    return res.json({
+      token: 'kiosk_token',
+      user: { username: 'kiosk', type: 'kiosk' }
+    });
+  }
+  return res.status(401).json({ error: 'Invalid kiosk credentials' });
+});
+
 module.exports = router; 

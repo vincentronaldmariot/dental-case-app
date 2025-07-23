@@ -272,6 +272,85 @@ class ApiService {
     }
   }
 
+  /// Unified authentication for admin and patient
+  static Future<Map<String, dynamic>?> authenticateUser(
+      String emailOrUsername, String password) async {
+    if (_offlineMode) {
+      // Offline mode - only allow demo patient
+      await Future.delayed(const Duration(milliseconds: 500));
+      if (emailOrUsername == 'demo@dental.com' && password == 'demo123') {
+        const patientId = 'offline_demo_user';
+        await _storeToken('offline_token_$patientId');
+        _localData[patientId] = {
+          'id': patientId,
+          'email': emailOrUsername,
+          'firstName': 'Demo',
+          'lastName': 'User',
+          'phone': '123-456-7890',
+          'type': 'patient',
+        };
+        return {
+          'token': 'offline_token_$patientId',
+          'user': _localData[patientId],
+        };
+      }
+      return null;
+    }
+
+    try {
+      print('Authenticating user: $emailOrUsername');
+      // Try admin login first
+      final adminResponse = await http.post(
+        Uri.parse('$baseUrl/auth/admin/login'),
+        headers: _headers,
+        body: json.encode({
+          'username': emailOrUsername,
+          'password': password,
+        }),
+      );
+      print('Admin login response status: ${adminResponse.statusCode}');
+      print('Admin login response body: ${adminResponse.body}');
+      if (adminResponse.statusCode == 200) {
+        final data = json.decode(adminResponse.body);
+        final token = data['token'];
+        final user = data['admin'] ?? data['user'] ?? {};
+        user['type'] = 'admin';
+        await _storeToken(token);
+        return {
+          'token': token,
+          'user': user,
+        };
+      }
+      // If not admin, try patient login
+      final patientResponse = await http.post(
+        Uri.parse('$baseUrl/auth/login'),
+        headers: _headers,
+        body: json.encode({
+          'email': emailOrUsername,
+          'password': password,
+        }),
+      );
+      print('Patient login response status: ${patientResponse.statusCode}');
+      print('Patient login response body: ${patientResponse.body}');
+      if (patientResponse.statusCode == 200) {
+        final data = json.decode(patientResponse.body);
+        final token = data['token'];
+        final user = data['patient'] ?? data['user'] ?? {};
+        user['type'] = 'patient';
+        await _storeToken(token);
+        return {
+          'token': token,
+          'user': user,
+        };
+      }
+      // If both fail, return null
+      return null;
+    } catch (e) {
+      print('Unified authentication error: ${e.toString()}');
+      return null;
+    }
+  }
+
   // PATIENT METHODS
 
   /// Get patient profile

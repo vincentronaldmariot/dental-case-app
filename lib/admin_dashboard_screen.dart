@@ -983,12 +983,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
                 content: Text(
-                    'Appointment approved successfully - Redirecting to Treatments'),
+                    'Appointment approved successfully - Redirecting to Approved'),
                 backgroundColor: Colors.green),
           );
           _fetchPendingAppointmentsWithSurvey();
           _loadApprovedAppointments();
-          await _loadData();
           final treatmentRecord = TreatmentRecord(
             id: 'tr_${DateTime.now().millisecondsSinceEpoch}',
             patientId: appointment['patient_id'] ?? '',
@@ -1007,7 +1006,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
           setState(() {
             _treatmentRecords = HistoryService().getTreatmentRecords();
           });
-          _tabController.animateTo(3);
+          _tabController.animateTo(2); // Switch to Approved tab
         } else {
           throw Exception(
               'Failed to approve appointment: ${response.statusCode}');
@@ -1975,205 +1974,99 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   }
 
   Widget _buildTreatmentsTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header with count
-          Row(
-            children: [
-              const Icon(Icons.medical_services, color: Color(0xFF0029B2)),
-              const SizedBox(width: 8),
-              Text(
-                'Approved Appointments (${_approvedAppointments.length})',
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF0029B2),
-                ),
-              ),
-            ],
+    if (_approvedAppointments.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32.0),
+          child: Text(
+            'No approved appointments',
+            style: TextStyle(
+              fontSize: 20,
+              color: Colors.grey.shade600,
+              fontWeight: FontWeight.bold,
+            ),
           ),
-          const SizedBox(height: 16),
-
-          // Approved appointments list
-          if (_approvedAppointments.isEmpty)
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.all(32.0),
-                child: Text(
-                  'No approved appointments found',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey,
-                  ),
-                ),
-              ),
-            )
-          else
-            ..._approvedAppointments
-                .map(
-                    (appointment) => _buildApprovedAppointmentCard(appointment))
-                .toList(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildApprovedAppointmentCard(dynamic appointment) {
-    // Format the date for better display
-    String formattedDate = 'Unknown';
-    if (appointment['appointmentDate'] != null) {
-      try {
-        DateTime date = DateTime.parse(appointment['appointmentDate']);
-        formattedDate =
-            '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-      } catch (e) {
-        formattedDate = appointment['appointmentDate'];
-      }
-    }
-
-    // Get status color
-    Color statusColor = Colors.orange;
-    if (appointment['status'] == 'completed') {
-      statusColor = Colors.green;
-    } else if (appointment['status'] == 'scheduled') {
-      statusColor = Colors.blue;
-    }
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      elevation: 2,
-      child: Padding(
+        ),
+      );
+    } else {
+      return ListView.builder(
         padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+        itemCount: _approvedAppointments.length,
+        itemBuilder: (context, index) {
+          final appointment = _approvedAppointments[index];
+          return Card(
+            margin: const EdgeInsets.only(bottom: 16),
+            elevation: 2,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.check_circle, color: Colors.teal),
+                    title:
+                        Text(appointment['patientName'] ?? 'Unknown Patient'),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Service: ${appointment['service'] ?? 'N/A'}'),
+                        Text(
+                            'Date: ${appointment['appointmentDate'] ?? 'N/A'}'),
+                        Text('Time: ${appointment['timeSlot'] ?? 'N/A'}'),
+                        Text('Status: ${appointment['status'] ?? 'N/A'}'),
+                      ],
+                    ),
+                    // Removed trailing: IconButton (eye/visibility button)
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      Text(
-                        appointment['patientName'] ?? 'Unknown Patient',
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
+                      ElevatedButton.icon(
+                        onPressed: () {},
+                        icon: const Icon(Icons.check, size: 16),
+                        label: const Text('Completed'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'ID: ${appointment['appointmentId'] ?? 'N/A'}',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey,
+                      const SizedBox(width: 8),
+                      ElevatedButton.icon(
+                        onPressed: () {},
+                        icon: const Icon(Icons.refresh, size: 16),
+                        label: const Text('Re-book'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton.icon(
+                        onPressed: () {},
+                        icon: const Icon(Icons.cancel, size: 16),
+                        label: const Text('Cancel Appointment'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
                         ),
                       ),
                     ],
                   ),
-                ),
-                Chip(
-                  label: Text(
-                    (appointment['status'] ?? 'Unknown').toUpperCase(),
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  backgroundColor: statusColor.withOpacity(0.1),
-                  labelStyle: TextStyle(color: statusColor),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade50,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Column(
-                children: [
-                  _buildInfoRow('Service', appointment['service'] ?? 'Unknown'),
-                  _buildInfoRow('Date', formattedDate),
-                  _buildInfoRow('Time', appointment['timeSlot'] ?? 'Unknown'),
-                  _buildInfoRow(
-                      'Doctor', appointment['doctorName'] ?? 'Unknown'),
-                  if (appointment['patientEmail'] != null)
-                    _buildInfoRow('Email', appointment['patientEmail']),
-                  if (appointment['patientPhone'] != null)
-                    _buildInfoRow('Phone', appointment['patientPhone']),
-                  if (appointment['notes'] != null &&
-                      appointment['notes'].toString().isNotEmpty)
-                    _buildInfoRow('Notes', appointment['notes'].toString()),
                 ],
               ),
             ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      print(
-                          'Viewing approved appointment details: ${appointment['appointmentId']}');
-                      _showProceedDialog(appointment);
-                    },
-                    icon: const Icon(Icons.visibility, size: 16),
-                    label: const Text('View Details'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                if (appointment['status'] == 'scheduled')
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        print(
-                            'Marking appointment as completed: ${appointment['appointmentId']}');
-                        _markAppointmentCompleted(appointment);
-                      },
-                      icon: const Icon(Icons.check_circle, size: 16),
-                      label: const Text('Mark Complete'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.green,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTreatmentCard(TreatmentRecord record) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      child: ListTile(
-        leading: const Icon(Icons.medical_services, color: Colors.green),
-        title: Text(record.treatmentType),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Patient ID: ${record.patientId}'),
-            Text('Date: ${record.treatmentDate.toString().split(' ')[0]}'),
-            if (record.notes != null) Text('Notes: ${record.notes}'),
-          ],
-        ),
-        isThreeLine: true,
-      ),
-    );
+          );
+        },
+      );
+    }
   }
 
   Widget _buildEmergenciesTab() {

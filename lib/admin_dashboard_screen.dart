@@ -11,6 +11,7 @@ import 'treatment_history_screen.dart';
 import 'admin_survey_detail_screen.dart';
 import 'dental_survey_simple.dart';
 import 'services/api_service.dart';
+import 'user_state_manager.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({Key? key}) : super(key: key);
@@ -2036,7 +2037,184 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       ),
                       const SizedBox(width: 8),
                       ElevatedButton.icon(
-                        onPressed: () {},
+                        onPressed: () async {
+                          DateTime? newDate;
+                          TimeOfDay? newTime;
+                          String newService = appointment['service'] ?? '';
+                          final services = [
+                            'General Checkup',
+                            'Teeth Cleaning',
+                            'Orthodontics',
+                            'Cosmetic Dentistry',
+                            'Root Canal',
+                            'Tooth Extraction',
+                            'Dental Implants',
+                            'Teeth Whitening',
+                            'Cavity Filling',
+                            'Dental Crown',
+                            'Emergency Treatment'
+                          ];
+                          final confirmed = await showDialog<bool>(
+                            context: context,
+                            builder: (context) {
+                              return StatefulBuilder(
+                                builder: (context, setState) {
+                                  return AlertDialog(
+                                    title: const Text('Re-book Appointment'),
+                                    content: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        DropdownButtonFormField<String>(
+                                          value: newService.isNotEmpty
+                                              ? newService
+                                              : null,
+                                          decoration: const InputDecoration(
+                                            labelText: 'Service',
+                                            border: OutlineInputBorder(),
+                                          ),
+                                          items: services
+                                              .map((s) =>
+                                                  DropdownMenuItem<String>(
+                                                    value: s,
+                                                    child: Text(s),
+                                                  ))
+                                              .toList(),
+                                          onChanged: (val) {
+                                            setState(() {
+                                              newService = val ?? newService;
+                                            });
+                                          },
+                                        ),
+                                        const SizedBox(height: 12),
+                                        InkWell(
+                                          onTap: () async {
+                                            final picked = await showDatePicker(
+                                              context: context,
+                                              initialDate: DateTime.tryParse(
+                                                      appointment[
+                                                              'appointmentDate'] ??
+                                                          '') ??
+                                                  DateTime.now(),
+                                              firstDate: DateTime.now(),
+                                              lastDate: DateTime.now().add(
+                                                  const Duration(days: 365)),
+                                            );
+                                            if (picked != null) {
+                                              setState(() {
+                                                newDate = picked;
+                                              });
+                                            }
+                                          },
+                                          child: InputDecorator(
+                                            decoration: const InputDecoration(
+                                              labelText: 'Date',
+                                              border: OutlineInputBorder(),
+                                            ),
+                                            child: Text(newDate != null
+                                                ? '${newDate!.year}-${newDate!.month.toString().padLeft(2, '0')}-${newDate!.day.toString().padLeft(2, '0')}'
+                                                : (appointment[
+                                                        'appointmentDate'] ??
+                                                    'Select Date')),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 12),
+                                        InkWell(
+                                          onTap: () async {
+                                            final picked = await showTimePicker(
+                                              context: context,
+                                              initialTime: TimeOfDay.now(),
+                                            );
+                                            if (picked != null) {
+                                              setState(() {
+                                                newTime = picked;
+                                              });
+                                            }
+                                          },
+                                          child: InputDecorator(
+                                            decoration: const InputDecoration(
+                                              labelText: 'Time',
+                                              border: OutlineInputBorder(),
+                                            ),
+                                            child: Text(newTime != null
+                                                ? newTime!.format(context)
+                                                : (appointment['timeSlot'] ??
+                                                    'Select Time')),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.of(context).pop(false),
+                                        child: const Text('Cancel'),
+                                      ),
+                                      ElevatedButton(
+                                        onPressed: () =>
+                                            Navigator.of(context).pop(true),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.blue,
+                                          foregroundColor: Colors.white,
+                                        ),
+                                        child: const Text('Confirm'),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              );
+                            },
+                          );
+                          if (confirmed == true) {
+                            // Prepare new values
+                            final dateStr = newDate != null
+                                ? '${newDate!.year.toString().padLeft(4, '0')}-${newDate!.month.toString().padLeft(2, '0')}-${newDate!.day.toString().padLeft(2, '0')}'
+                                : appointment['appointmentDate'];
+                            final timeStr = newTime != null
+                                ? newTime!.format(context)
+                                : appointment['timeSlot'];
+                            // Send update request to backend
+                            final response = await http.put(
+                              Uri.parse(
+                                  'http://localhost:3000/api/admin/appointments/${appointment['appointmentId'] ?? appointment['id']}/rebook'),
+                              headers: {
+                                'Authorization':
+                                    'Bearer ${UserStateManager().adminToken ?? ''}',
+                                'Content-Type': 'application/json',
+                              },
+                              body: jsonEncode({
+                                'service': newService,
+                                'date': dateStr,
+                                'time_slot': timeStr,
+                              }),
+                            );
+                            if (response.statusCode == 200) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                      'Appointment rebooked and patient notified.'),
+                                  backgroundColor: Colors.blue,
+                                ),
+                              );
+                              // Optionally update the UI or reload appointments
+                              setState(() {
+                                _approvedAppointments[index]['service'] =
+                                    newService;
+                                _approvedAppointments[index]
+                                    ['appointmentDate'] = dateStr;
+                                _approvedAppointments[index]['timeSlot'] =
+                                    timeStr;
+                              });
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                      'Failed to rebook appointment: \\${response.body}'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          }
+                        },
                         icon: const Icon(Icons.refresh, size: 16),
                         label: const Text('Re-book'),
                         style: ElevatedButton.styleFrom(
@@ -2048,7 +2226,85 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       ),
                       const SizedBox(width: 8),
                       ElevatedButton.icon(
-                        onPressed: () {},
+                        onPressed: () async {
+                          String cancelNote = '';
+                          final confirmed = await showDialog<bool>(
+                            context: context,
+                            builder: (context) {
+                              return AlertDialog(
+                                title: const Text('Cancel Appointment'),
+                                content: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Text(
+                                        'Are you sure you want to cancel this appointment?'),
+                                    const SizedBox(height: 16),
+                                    TextField(
+                                      decoration: const InputDecoration(
+                                        labelText: 'Leave a note (optional)',
+                                        border: OutlineInputBorder(),
+                                      ),
+                                      maxLines: 3,
+                                      onChanged: (value) {
+                                        cancelNote = value;
+                                      },
+                                    ),
+                                  ],
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () =>
+                                        Navigator.of(context).pop(false),
+                                    child: const Text('Cancel'),
+                                  ),
+                                  ElevatedButton(
+                                    onPressed: () =>
+                                        Navigator.of(context).pop(true),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.red,
+                                      foregroundColor: Colors.white,
+                                    ),
+                                    child: const Text('Confirm'),
+                                  ),
+                                ],
+                              );
+                            },
+                          );
+                          if (confirmed == true) {
+                            // Send cancel request to backend
+                            final response = await http.post(
+                              Uri.parse(
+                                  'http://localhost:3000/api/admin/appointments/${appointment['appointmentId'] ?? appointment['id']}/cancel'),
+                              headers: {
+                                'Authorization':
+                                    'Bearer ${UserStateManager().adminToken ?? ''}',
+                                'Content-Type': 'application/json',
+                              },
+                              body: jsonEncode({'note': cancelNote}),
+                            );
+                            if (response.statusCode == 200) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                      'Appointment cancelled and patient notified.'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                              // Remove from approved list
+                              setState(() {
+                                _approvedAppointments.removeAt(index);
+                              });
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                      'Failed to cancel appointment: ${response.body}'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          }
+                        },
                         icon: const Icon(Icons.cancel, size: 16),
                         label: const Text('Cancel Appointment'),
                         style: ElevatedButton.styleFrom(

@@ -1625,4 +1625,87 @@ router.get('/patients/:id/survey', verifyAdmin, async (req, res) => {
   }
 });
 
+// POST /api/admin/appointments/:id/cancel - Cancel an approved appointment and notify patient
+router.post('/appointments/:id/cancel', verifyAdmin, [
+  body('note').optional().isString().withMessage('Note must be a string')
+], async (req, res) => {
+  try {
+    const appointmentId = req.params.id;
+    const { note } = req.body;
+
+    // Update appointment status to cancelled
+    const updateResult = await query(`
+      UPDATE appointments
+      SET status = 'cancelled', notes = COALESCE($1, notes), updated_at = CURRENT_TIMESTAMP
+      WHERE id = $2 AND status = 'approved'
+      RETURNING patient_id
+    `, [note, appointmentId]);
+
+    if (updateResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Appointment not found or not approved' });
+    }
+    const patientId = updateResult.rows[0].patient_id;
+
+    // Create notification for the patient
+    await query(`
+      INSERT INTO notifications (patient_id, title, message, type, created_at)
+      VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
+    `, [
+      patientId,
+      'Appointment Cancelled',
+      `Your appointment has been cancelled.${note ? ' Note: ' + note : ''}`,
+      'appointment_cancelled'
+    ]);
+
+    res.json({ message: 'Appointment cancelled and patient notified.' });
+  } catch (error) {
+    console.error('Admin cancel appointment error:', error);
+    res.status(500).json({ error: 'Failed to cancel appointment. Please try again.' });
+  }
+});
+
+// PUT /api/admin/appointments/:id/rebook - Rebook an approved appointment and notify patient
+router.put('/appointments/:id/rebook', verifyAdmin, [
+  body('service').optional().isString(),
+  body('date').optional().isString(),
+  body('time_slot').optional().isString(),
+], async (req, res) => {
+  try {
+    const appointmentId = req.params.id;
+    const { service, date, time_slot } = req.body;
+
+    // Update appointment details
+    const updateResult = await query(`
+      UPDATE appointments
+      SET service = COALESCE($1, service),
+          appointment_date = COALESCE($2, appointment_date),
+          time_slot = COALESCE($3, time_slot),
+          updated_at = CURRENT_TIMESTAMP
+      WHERE id = $4 AND status = 'approved'
+      RETURNING patient_id
+    `, [service, date, time_slot, appointmentId]);
+
+    if (updateResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Appointment not found or not approved' });
+    }
+    const patientId = updateResult.rows[0].patient_id;
+
+    // Create notification for the patient
+    await query(`
+      INSERT INTO notifications (patient_id, title, message, type, created_at)
+      VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
+    `, [
+      patientId,
+      'Appointment Rescheduled',
+      'Your appointment has been rescheduled. Please check your new schedule.',
+      'appointment_rescheduled'
+    ]);
+
+    res.json({ message: 'Appointment rebooked and patient notified.' });
+  } catch (error) {
+    console.error('Admin rebook appointment error:', error);
+    res.status(500).json({ error: 'Failed to rebook appointment. Please try again.' });
+  }
+});
+
 module.exports = router; 

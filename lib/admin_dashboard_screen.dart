@@ -1438,176 +1438,46 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   }
 
   Widget _buildPatientsTab() {
-    // Filter patients based on search query
-    List<dynamic> filteredPatients = _patients.where((patient) {
-      if (_searchQuery.isEmpty) return true;
-
-      final fullName = patient['fullName'] ??
-          '${patient['firstName'] ?? ''} ${patient['lastName'] ?? ''}'.trim();
-      final email = patient['email'] ?? '';
-      final phone = patient['phone'] ?? '';
-      final serialNumber = patient['serialNumber'] ?? '';
-      final unitAssignment = patient['unitAssignment'] ?? '';
-
-      final query = _searchQuery.toLowerCase();
-      return fullName.toLowerCase().contains(query) ||
-          email.toLowerCase().contains(query) ||
-          phone.toLowerCase().contains(query) ||
-          serialNumber.toLowerCase().contains(query) ||
-          unitAssignment.toLowerCase().contains(query);
-    }).toList();
-
-    return Column(
-      children: [
-        // Search Bar
-        Container(
-          padding: const EdgeInsets.all(16),
-          child: TextField(
-            decoration: InputDecoration(
-              hintText:
-                  'Search patients by name, email, phone, serial number, or unit...',
-              prefixIcon: const Icon(Icons.search),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
-              filled: true,
-              fillColor: Colors.grey.shade50,
+    // Only show a simple list of patient names and emails, no actions or extra features
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: _patients.length,
+      itemBuilder: (context, index) {
+        final patient = _patients[index];
+        return Card(
+          margin: const EdgeInsets.only(bottom: 12),
+          child: ExpansionTile(
+            title: Text(
+              patient['fullName'] ??
+                  '${patient['firstName'] ?? ''} ${patient['lastName'] ?? ''}'
+                      .trim(),
+              style: const TextStyle(fontWeight: FontWeight.bold),
             ),
-            onChanged: (value) {
-              setState(() {
-                _searchQuery = value;
-              });
-            },
-          ),
-        ),
-
-        // Patient Count and Actions
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            subtitle: Text(patient['email'] ?? 'No email'),
             children: [
-              Text(
-                'Total Patients: ${_patients.length}',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              Row(
-                children: [
-                  if (_searchQuery.isNotEmpty)
-                    Text(
-                      'Filtered: ${filteredPatients.length}',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey,
-                      ),
-                    ),
-                  const SizedBox(width: 16),
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      _exportAllPatientsData();
-                    },
-                    icon: const Icon(Icons.download, size: 16),
-                    label: const Text('Export All'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-
-        const SizedBox(height: 8),
-
-        // Patients List
-        Expanded(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Column(
-              children: filteredPatients
-                  .map((patient) => _buildPatientCard(patient))
-                  .toList(),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPatientCard(dynamic patient) {
-    // Format date of birth for display
-    String formattedDateOfBirth = 'N/A';
-    if (patient['dateOfBirth'] != null) {
-      try {
-        DateTime dob = DateTime.parse(patient['dateOfBirth']);
-        formattedDateOfBirth = '${dob.day}/${dob.month}/${dob.year}';
-      } catch (e) {
-        formattedDateOfBirth = patient['dateOfBirth'].toString();
-      }
-    }
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      elevation: 2,
-      child: ExpansionTile(
-        leading: CircleAvatar(
-          backgroundColor: Colors.blue,
-          child: Text(
-            (patient['fullName'] ?? patient['firstName'] ?? 'Unknown')[0]
-                .toUpperCase(),
-            style: const TextStyle(color: Colors.white),
-          ),
-        ),
-        title: Text(
-          patient['fullName'] ??
-              '${patient['firstName'] ?? ''} ${patient['lastName'] ?? ''}'
-                  .trim(),
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(patient['email'] ?? 'No email'),
-            if (patient['phone'] != null) Text(patient['phone']),
-          ],
-        ),
-        children: [
-          Container(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildInfoRow('Name',
-                    patient['fullName'] ?? patient['firstName'] ?? 'N/A'),
-                _buildInfoRow(
-                    'Serial Number',
-                    (patient['serialNumber'] ?? '').toString().isNotEmpty
-                        ? patient['serialNumber']
-                        : ''),
-                _buildInfoRow(
-                    'Unit Assignment',
-                    (patient['unitAssignment'] ?? '').toString().isNotEmpty
-                        ? patient['unitAssignment']
-                        : ''),
-                _buildInfoRow(
-                    'Classification', patient['classification'] ?? ''),
-                if ((patient['classification']?.toLowerCase() == 'other' ||
-                        patient['classification']?.toLowerCase() == 'others') &&
-                    (patient['otherClassification'] != null &&
-                        patient['otherClassification'].toString().isNotEmpty))
-                  _buildInfoRow(
-                      'Other Classification', patient['otherClassification']),
-                _buildInfoRow('Contact Number', patient['phone'] ?? ''),
-                _buildInfoRow('Email', patient['email'] ?? ''),
-                const SizedBox(height: 16),
-                Row(
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
+                    _buildInfoRow(
+                        'Classification', patient['classification'] ?? 'none'),
+                    _buildInfoRow(
+                        'Serial Number',
+                        (patient['serialNumber'] ?? '').toString().isNotEmpty
+                            ? patient['serialNumber']
+                            : 'none'),
+                    _buildInfoRow(
+                        'Unit Assignment',
+                        (patient['unitAssignment'] ?? '').toString().isNotEmpty
+                            ? patient['unitAssignment']
+                            : 'none'),
+                    _buildInfoRow('Number', patient['phone'] ?? 'none'),
+                    _buildInfoRow('Email', patient['email'] ?? 'none'),
+                    const SizedBox(height: 8),
+                    Align(
+                      alignment: Alignment.centerRight,
                       child: ElevatedButton.icon(
                         onPressed: () {
                           final cleanId = (RegExp(r'[0-9a-fA-F\-]{36}')
@@ -1618,18 +1488,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                                       .trim())
                               .toLowerCase();
                           final email = patient['email']?.toString() ?? '';
-                          print(
-                              'Navigating to history for cleaned patientId: ' +
-                                  cleanId +
-                                  ' (length: ' +
-                                  cleanId.length.toString() +
-                                  '), email: ' +
-                                  email);
                           Navigator.push(
                             context,
                             MaterialPageRoute(
                               builder: (context) => TreatmentHistoryScreen(
-                                  patientId: cleanId, patientEmail: email),
+                                patientId: cleanId,
+                                patientEmail: email,
+                              ),
                             ),
                           );
                         },
@@ -1643,29 +1508,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          _exportPatientData(patient);
-                        },
-                        icon: const Icon(Icons.download, size: 16),
-                        label: const Text('Export Data'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
-                          foregroundColor: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 

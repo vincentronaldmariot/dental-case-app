@@ -3,7 +3,6 @@ import 'package:intl/intl.dart';
 import './welcome_screen.dart';
 import './dental_survey_screen.dart';
 import './appointment_booking_screen.dart';
-import './treatment_history_screen.dart';
 import './emergency_center_screen.dart';
 import './patient_dashboard_screen.dart';
 
@@ -962,21 +961,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             );
                           },
                         ),
-                        _buildQuickActionCard(
-                          context,
-                          'Appointment History',
-                          Icons.calendar_month,
-                          const Color(0xFF0029B2),
-                          () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    const AppointmentHistoryScreen(),
-                              ),
-                            );
-                          },
-                        ),
                       ],
                     ),
                   ],
@@ -1047,72 +1031,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   color: Colors.black87,
                   height: 1.2,
                 ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTreatmentHistoryCard(BuildContext context) {
-    return InkWell(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const TreatmentHistoryScreen(),
-          ),
-        );
-      },
-      borderRadius: BorderRadius.circular(15),
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(15),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.grey.withOpacity(0.1),
-              blurRadius: 10,
-              offset: const Offset(0, 5),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 60,
-              height: 60,
-              decoration: BoxDecoration(
-                color: const Color(0xFF000074).withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.history,
-                color: Color(0xFF000074),
-                size: 30,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Flexible(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text(
-                    'Treatment History',
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black87,
-                      height: 1.2,
-                    ),
-                  ),
-                ],
               ),
             ),
           ],

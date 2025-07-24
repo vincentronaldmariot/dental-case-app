@@ -7,14 +7,13 @@ import 'models/treatment_record.dart';
 import 'models/emergency_record.dart';
 import 'services/history_service.dart';
 import 'patient_detail_screen.dart';
-import 'treatment_history_screen.dart';
 import 'admin_survey_detail_screen.dart';
 import 'dental_survey_simple.dart';
 import 'services/api_service.dart';
 import 'user_state_manager.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
-  const AdminDashboardScreen({Key? key}) : super(key: key);
+  const AdminDashboardScreen({super.key});
 
   @override
   _AdminDashboardScreenState createState() => _AdminDashboardScreenState();
@@ -31,9 +30,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   List<TreatmentRecord> _treatmentRecords = [];
   List<EmergencyRecord> _emergencyRecords = [];
   String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
   bool _isLoading = true;
-  String _selectedNewDate = '';
-  String _selectedNewTimeSlot = '';
+  final String _selectedNewDate = '';
+  final String _selectedNewTimeSlot = '';
   String _approvalNotes = '';
   String _rejectionReason = '';
 
@@ -258,8 +258,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         ? appointment.doctorName
         : (appointment['doctor_name'] ?? '');
     final effectiveSurvey = survey ??
-        ((appointment is Map && (appointment as Map).containsKey('survey_data'))
-            ? (appointment as Map)['survey_data']
+        ((appointment is Map && (appointment).containsKey('survey_data'))
+            ? (appointment)['survey_data']
             : null);
 
     // Format date for display
@@ -327,12 +327,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
+                          const Row(
                             children: [
-                              const Icon(Icons.person,
-                                  color: Color(0xFF0029B2)),
-                              const SizedBox(width: 8),
-                              const Text('Patient Information',
+                              Icon(Icons.person, color: Color(0xFF0029B2)),
+                              SizedBox(width: 8),
+                              Text('Patient Information',
                                   style: TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 16,
@@ -373,12 +372,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Row(
+                          const Row(
                             children: [
-                              const Icon(Icons.calendar_today,
+                              Icon(Icons.calendar_today,
                                   color: Color(0xFF0029B2)),
-                              const SizedBox(width: 8),
-                              const Text('Appointment Information',
+                              SizedBox(width: 8),
+                              Text('Appointment Information',
                                   style: TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 16,
@@ -578,11 +577,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Row(
+                            const Row(
                               children: [
-                                const Icon(Icons.quiz, color: Colors.green),
-                                const SizedBox(width: 8),
-                                const Text('Patient Self-Assessment Survey',
+                                Icon(Icons.quiz, color: Colors.green),
+                                SizedBox(width: 8),
+                                Text('Patient Self-Assessment Survey',
                                     style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                         fontSize: 16,
@@ -606,12 +605,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Row(
+                                    const Row(
                                       children: [
-                                        const Icon(Icons.person,
+                                        Icon(Icons.person,
                                             color: Color(0xFF0029B2)),
-                                        const SizedBox(width: 8),
-                                        const Text('1. Patient Information',
+                                        SizedBox(width: 8),
+                                        Text('1. Patient Information',
                                             style: TextStyle(
                                                 fontWeight: FontWeight.bold,
                                                 fontSize: 16,
@@ -720,12 +719,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Row(
+                                    const Row(
                                       children: [
-                                        const Icon(Icons.medical_services,
+                                        Icon(Icons.medical_services,
                                             color: Color(0xFF0029B2)),
-                                        const SizedBox(width: 8),
-                                        const Text('2. Tooth Conditions',
+                                        SizedBox(width: 8),
+                                        Text('2. Tooth Conditions',
                                             style: TextStyle(
                                                 fontWeight: FontWeight.bold,
                                                 fontSize: 16,
@@ -780,12 +779,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Row(
+                                    const Row(
                                       children: [
-                                        const Icon(Icons.build,
+                                        Icon(Icons.build,
                                             color: Color(0xFF0029B2)),
-                                        const SizedBox(width: 8),
-                                        const Text('3. Damaged Fillings',
+                                        SizedBox(width: 8),
+                                        Text('3. Damaged Fillings',
                                             style: TextStyle(
                                                 fontWeight: FontWeight.bold,
                                                 fontSize: 16,
@@ -837,12 +836,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Row(
+                                  const Row(
                                     children: [
-                                      const Icon(Icons.info,
+                                      Icon(Icons.info,
                                           color: Color(0xFF0029B2)),
-                                      const SizedBox(width: 8),
-                                      const Text('4. Other Dental Information',
+                                      SizedBox(width: 8),
+                                      Text('4. Other Dental Information',
                                           style: TextStyle(
                                               fontWeight: FontWeight.bold,
                                               fontSize: 16,
@@ -1438,81 +1437,137 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   }
 
   Widget _buildPatientsTab() {
-    // Only show a simple list of patient names and emails, no actions or extra features
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: _patients.length,
-      itemBuilder: (context, index) {
-        final patient = _patients[index];
-        return Card(
-          margin: const EdgeInsets.only(bottom: 12),
-          child: ExpansionTile(
-            title: Text(
-              patient['fullName'] ??
-                  '${patient['firstName'] ?? ''} ${patient['lastName'] ?? ''}'
-                      .trim(),
-              style: const TextStyle(fontWeight: FontWeight.bold),
+    final filteredPatients = _patients.where((patient) {
+      final name = (patient['fullName'] ??
+              '${patient['firstName'] ?? ''} ${patient['lastName'] ?? ''}')
+          .toLowerCase();
+      final email = (patient['email'] ?? '').toLowerCase();
+      final query = _searchQuery.toLowerCase();
+      return name.contains(query) || email.contains(query);
+    }).toList();
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16),
+          child: TextField(
+            controller: _searchController,
+            decoration: InputDecoration(
+              hintText: 'Search patients by name or email...',
+              prefixIcon: const Icon(Icons.search),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              filled: true,
+              fillColor: Colors.grey.shade50,
             ),
-            subtitle: Text(patient['email'] ?? 'No email'),
-            children: [
-              Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+            onChanged: (value) {
+              setState(() {
+                _searchQuery = value;
+              });
+            },
+          ),
+        ),
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: filteredPatients.length,
+            itemBuilder: (context, index) {
+              final patient = filteredPatients[index];
+              return Card(
+                margin: const EdgeInsets.only(bottom: 12),
+                child: ExpansionTile(
+                  title: Text(
+                    patient['fullName'] ??
+                        '${patient['firstName'] ?? ''} ${patient['lastName'] ?? ''}'
+                            .trim(),
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: Text(patient['email'] ?? 'No email'),
                   children: [
-                    _buildInfoRow(
-                        'Classification', patient['classification'] ?? 'none'),
-                    _buildInfoRow(
-                        'Serial Number',
-                        (patient['serialNumber'] ?? '').toString().isNotEmpty
-                            ? patient['serialNumber']
-                            : 'none'),
-                    _buildInfoRow(
-                        'Unit Assignment',
-                        (patient['unitAssignment'] ?? '').toString().isNotEmpty
-                            ? patient['unitAssignment']
-                            : 'none'),
-                    _buildInfoRow('Number', patient['phone'] ?? 'none'),
-                    _buildInfoRow('Email', patient['email'] ?? 'none'),
-                    const SizedBox(height: 8),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          final cleanId = (RegExp(r'[0-9a-fA-F\-]{36}')
-                                      .stringMatch(patient['id'].toString()) ??
-                                  patient['id']
+                    Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildInfoRow('Classification',
+                              patient['classification'] ?? 'none'),
+                          _buildInfoRow(
+                              'Serial Number',
+                              (patient['serialNumber'] ?? '')
                                       .toString()
-                                      .replaceAll('\\', '')
-                                      .trim())
-                              .toLowerCase();
-                          final email = patient['email']?.toString() ?? '';
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => TreatmentHistoryScreen(
-                                patientId: cleanId,
-                                patientEmail: email,
-                              ),
+                                      .isNotEmpty
+                                  ? patient['serialNumber']
+                                  : 'none'),
+                          _buildInfoRow(
+                              'Unit Assignment',
+                              (patient['unitAssignment'] ?? '')
+                                      .toString()
+                                      .isNotEmpty
+                                  ? patient['unitAssignment']
+                                  : 'none'),
+                          _buildInfoRow('Number', patient['phone'] ?? 'none'),
+                          _buildInfoRow('Email', patient['email'] ?? 'none'),
+                          const SizedBox(height: 8),
+                          ElevatedButton.icon(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      PatientDetailScreen(patient: patient),
+                                ),
+                              );
+                            },
+                            icon: const Icon(Icons.history, size: 16),
+                            label: const Text('History'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.purple,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 8),
+                              textStyle: const TextStyle(fontSize: 14),
                             ),
-                          );
-                        },
-                        icon: const Icon(Icons.history, size: 16),
-                        label: const Text('History'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.orange,
-                          foregroundColor: Colors.white,
-                        ),
+                          ),
+                          const SizedBox(height: 8),
+                          ElevatedButton.icon(
+                            onPressed: () {
+                              _showSurveyDetailsDialog(context, patient['id']);
+                            },
+                            icon: const Icon(Icons.assignment, size: 16),
+                            label: const Text('Survey Details'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.teal,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 8),
+                              textStyle: const TextStyle(fontSize: 14),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          ElevatedButton.icon(
+                            onPressed: () {}, // Clickable, no function
+                            icon: const Icon(Icons.event, size: 16),
+                            label: const Text('Appointment History'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blueGrey,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 8),
+                              textStyle: const TextStyle(fontSize: 14),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
-              ),
-            ],
+              );
+            },
           ),
-        );
-      },
+        ),
+      ],
     );
   }
 
@@ -1667,8 +1722,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
             )
           else
             ..._pendingAppointments
-                .map((appointment) => _buildAppointmentCard(appointment))
-                .toList(),
+                .map((appointment) => _buildAppointmentCard(appointment)),
         ],
       ),
     );
@@ -2496,5 +2550,243 @@ $allPatientsData
         );
       },
     );
+  }
+
+  Widget _buildPatientCard(dynamic patient) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              // Patient info
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    patient['fullName'] ??
+                        '${patient['firstName'] ?? ''} ${patient['lastName'] ?? ''}'
+                            .trim(),
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                  Text(patient['email'] ?? 'No email'),
+                ],
+              ),
+              const SizedBox(width: 16),
+              ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          PatientDetailScreen(patient: patient),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.history, size: 16),
+                label: const Text('History'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.purple,
+                  foregroundColor: Colors.white,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  textStyle: const TextStyle(fontSize: 14),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<Map<String, dynamic>?> fetchPatientSurvey(String patientId) async {
+    try {
+      final response = await http.get(
+        Uri.parse('http://localhost:3000/api/admin/patients/$patientId/survey'),
+        headers: {
+          'Authorization':
+              'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImJlNTBjOTAxLTdlZWQtNDIyOC05NzExLTk5OWIwOGEwZTcyZCIsInVzZXJuYW1lIjoiYWRtaW4iLCJ0eXBlIjoiYWRtaW4iLCJpYXQiOjE3NTMwODM4NzQsImV4cCI6MTc1MzY4ODY3NH0.jTqWoKAaX3SG2njDlgWbdFMyTjJab5kdgr5466cJcq4',
+        },
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data is Map<String, dynamic> ? data : null;
+      }
+    } catch (e) {
+      print('Error fetching survey: $e');
+    }
+    return null;
+  }
+
+  void _showSurveyDetailsDialog(BuildContext context, String patientId) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return const Center(child: CircularProgressIndicator());
+      },
+    );
+    final surveyData = await fetchPatientSurvey(patientId);
+    Navigator.of(context).pop(); // Remove loading dialog
+    showDialog(
+      context: context,
+      builder: (context) {
+        if (surveyData == null || surveyData.isEmpty) {
+          return AlertDialog(
+            title: const Text('Survey Details'),
+            content: const Text('No survey data found for this patient.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Close'),
+              ),
+            ],
+          );
+        }
+        return AlertDialog(
+          title: const Text('Survey Details'),
+          content: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.08),
+                  blurRadius: 8,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 14, horizontal: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.teal.shade700,
+                        borderRadius: const BorderRadius.only(
+                          topLeft: Radius.circular(12),
+                          topRight: Radius.circular(12),
+                        ),
+                      ),
+                      child: const Text(
+                        'Patient Assessment Survey',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    ...surveyData.entries.toList().asMap().entries.map((entry) {
+                      final idx = entry.key;
+                      final key = entry.value.key;
+                      final value = entry.value.value;
+                      final bgColor =
+                          idx % 2 == 0 ? Colors.grey.shade50 : Colors.white;
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 10),
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 10, horizontal: 10),
+                        decoration: BoxDecoration(
+                          color: bgColor,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.teal.shade100),
+                        ),
+                        child: _buildSurveyEntry(_capitalize(key), value),
+                      );
+                    }),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Close'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildSurveyEntry(String key, dynamic value, {int indent = 0}) {
+    final isMap = value is Map;
+    final isBool = value is bool;
+    final isNull = value == null;
+    final displayValue =
+        isBool ? (value ? 'Yes' : 'No') : (isNull ? 'N/A' : value.toString());
+
+    if (isMap) {
+      return Padding(
+        padding: EdgeInsets.only(left: 16.0 * indent, bottom: 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              indent == 0 ? key : _capitalize(key),
+              style: TextStyle(
+                fontWeight: indent == 0 ? FontWeight.w600 : FontWeight.w500,
+                fontSize: indent == 0 ? 16 : 15,
+                color: Colors.black87,
+              ),
+            ),
+            const SizedBox(height: 6),
+            ...(value as Map).entries.map(
+                (e) => _buildSurveyEntry(e.key, e.value, indent: indent + 1)),
+          ],
+        ),
+      );
+    } else {
+      return Padding(
+        padding: EdgeInsets.only(left: 16.0 * indent, bottom: 8),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (indent > 0)
+              const Icon(Icons.radio_button_checked,
+                  color: Colors.teal, size: 16),
+            if (indent > 0) const SizedBox(width: 6),
+            Expanded(
+              child: RichText(
+                text: TextSpan(
+                  style: const TextStyle(fontSize: 15, color: Colors.black87),
+                  children: [
+                    if (indent > 0)
+                      TextSpan(
+                        text: _capitalize(key) + ': ',
+                        style: const TextStyle(fontWeight: FontWeight.w500),
+                      ),
+                    TextSpan(
+                      text: displayValue,
+                      style: const TextStyle(fontWeight: FontWeight.normal),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
+  String _capitalize(String s) {
+    if (s.isEmpty) return s;
+    return s[0].toUpperCase() + s.substring(1).replaceAll('_', ' ');
   }
 }

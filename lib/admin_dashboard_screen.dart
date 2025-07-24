@@ -1721,156 +1721,115 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
               ),
             )
           else
-            ..._pendingAppointments
-                .map((appointment) => _buildAppointmentCard(appointment)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAppointmentCard(dynamic appointment) {
-    // Format the date for better display
-    String formattedDate = 'Unknown';
-    if (appointment['booking_date'] != null) {
-      try {
-        DateTime date = DateTime.parse(appointment['booking_date']);
-        formattedDate =
-            '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
-      } catch (e) {
-        formattedDate = appointment['booking_date'];
-      }
-    } else if (appointment['date'] != null) {
-      formattedDate = appointment['date'];
-    }
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Column(
+            ..._pendingAppointments.map(
+              (appointment) => Card(
+                margin: const EdgeInsets.only(bottom: 16),
+                elevation: 2,
+                child: ExpansionTile(
+                  title: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         appointment['patient_name'] ?? 'Unknown Patient',
                         style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
+                            fontWeight: FontWeight.bold, fontSize: 16),
                       ),
-                      const SizedBox(height: 4),
+                      Text(
+                        'Classification: ${appointment['patient_classification'] ?? 'N/A'}',
+                        style: const TextStyle(fontSize: 14),
+                      ),
                       Text(
                         'ID: ${appointment['appointment_id'] ?? 'N/A'}',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey,
-                        ),
+                        style:
+                            const TextStyle(fontSize: 12, color: Colors.grey),
                       ),
                     ],
                   ),
-                ),
-                Chip(
-                  label: Text(
-                    (appointment['status'] ?? 'Pending').toUpperCase(),
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildInfoRow(
+                              'Date',
+                              appointment['booking_date'] ??
+                                  appointment['date'] ??
+                                  'Unknown'),
+                          _buildInfoRow(
+                              'Time', appointment['time_slot'] ?? 'Unknown'),
+                          _buildInfoRow('Classification',
+                              appointment['patient_classification'] ?? 'N/A'),
+                          _buildInfoRow('Unit Assignment',
+                              appointment['patient_unit_assignment'] ?? 'N/A'),
+                          _buildInfoRow('Serial Number',
+                              appointment['patient_serial_number'] ?? 'N/A'),
+                          if (appointment['patient_email'] != null)
+                            _buildInfoRow(
+                                'Email', appointment['patient_email']),
+                          if (appointment['patient_phone'] != null)
+                            _buildInfoRow(
+                                'Phone', appointment['patient_phone']),
+                          const SizedBox(height: 16),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: ElevatedButton.icon(
+                                  onPressed: () {
+                                    _showProceedDialog(appointment);
+                                  },
+                                  icon: const Icon(Icons.visibility, size: 16),
+                                  label: const Text('View Details'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.blue,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 12),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: ElevatedButton.icon(
+                                  onPressed: () {
+                                    _approveAppointment(appointment);
+                                  },
+                                  icon: const Icon(Icons.check, size: 16),
+                                  label: const Text('Approve'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.green,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 12),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: ElevatedButton.icon(
+                                  onPressed: () {
+                                    _rejectAppointment(appointment);
+                                  },
+                                  icon: const Icon(Icons.close, size: 16),
+                                  label: const Text('Reject'),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.red,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 12),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  backgroundColor: Colors.orange.shade100,
-                  labelStyle: TextStyle(color: Colors.orange.shade800),
+                  ],
                 ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade50,
-                borderRadius: BorderRadius.circular(8),
               ),
-              child: Column(
-                children: [
-                  _buildInfoRow('Service', appointment['service'] ?? 'Unknown'),
-                  _buildInfoRow('Date', formattedDate),
-                  _buildInfoRow('Time', appointment['time_slot'] ?? 'Unknown'),
-                  _buildInfoRow('Classification',
-                      appointment['patient_classification'] ?? 'N/A'),
-                  _buildInfoRow('Unit Assignment',
-                      appointment['patient_unit_assignment'] ?? 'N/A'),
-                  _buildInfoRow('Serial Number',
-                      appointment['patient_serial_number'] ?? 'N/A'),
-                  if (appointment['patient_email'] != null)
-                    _buildInfoRow('Email', appointment['patient_email']),
-                  if (appointment['patient_phone'] != null)
-                    _buildInfoRow('Phone', appointment['patient_phone']),
-                ],
-              ),
             ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      print(
-                          'Viewing details for appointment: ${appointment['appointment_id']}');
-                      _showProceedDialog(appointment);
-                    },
-                    icon: const Icon(Icons.visibility, size: 16),
-                    label: const Text('View Details'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      print(
-                          'Approving appointment: ${appointment['appointment_id']}');
-                      _approveAppointment(appointment);
-                    },
-                    icon: const Icon(Icons.check, size: 16),
-                    label: const Text('Approve'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      print(
-                          'Rejecting appointment: ${appointment['appointment_id']}');
-                      _rejectAppointment(appointment);
-                    },
-                    icon: const Icon(Icons.close, size: 16),
-                    label: const Text('Reject'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
+        ],
       ),
     );
   }
@@ -1899,31 +1858,27 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
           return Card(
             margin: const EdgeInsets.only(bottom: 16),
             elevation: 2,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: const Icon(Icons.check_circle, color: Colors.teal),
-                    title:
-                        Text(appointment['patientName'] ?? 'Unknown Patient'),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Service: ${appointment['service'] ?? 'N/A'}'),
-                        Text(
-                            'Date: ${appointment['appointmentDate'] ?? 'N/A'}'),
-                        Text('Time: ${appointment['timeSlot'] ?? 'N/A'}'),
-                        Text('Status: ${appointment['status'] ?? 'N/A'}'),
-                      ],
-                    ),
-                    // Removed trailing: IconButton (eye/visibility button)
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
+            child: ExpansionTile(
+              title: ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.check_circle, color: Colors.teal),
+                title: Text(appointment['patientName'] ?? 'Unknown Patient'),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Service: ${appointment['service'] ?? 'N/A'}'),
+                    Text('Date: ${appointment['appointmentDate'] ?? 'N/A'}'),
+                    Text('Time: ${appointment['timeSlot'] ?? 'N/A'}'),
+                    Text('Status: ${appointment['status'] ?? 'N/A'}'),
+                  ],
+                ),
+              ),
+              children: [
+                Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       ElevatedButton.icon(
                         onPressed: () {},
@@ -1932,293 +1887,35 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.green,
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 8),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(height: 8),
                       ElevatedButton.icon(
-                        onPressed: () async {
-                          DateTime? newDate;
-                          TimeOfDay? newTime;
-                          String newService = appointment['service'] ?? '';
-                          final services = [
-                            'General Checkup',
-                            'Teeth Cleaning',
-                            'Orthodontics',
-                            'Cosmetic Dentistry',
-                            'Root Canal',
-                            'Tooth Extraction',
-                            'Dental Implants',
-                            'Teeth Whitening',
-                            'Cavity Filling',
-                            'Dental Crown',
-                            'Emergency Treatment'
-                          ];
-                          final confirmed = await showDialog<bool>(
-                            context: context,
-                            builder: (context) {
-                              return StatefulBuilder(
-                                builder: (context, setState) {
-                                  return AlertDialog(
-                                    title: const Text('Re-book Appointment'),
-                                    content: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        DropdownButtonFormField<String>(
-                                          value: newService.isNotEmpty
-                                              ? newService
-                                              : null,
-                                          decoration: const InputDecoration(
-                                            labelText: 'Service',
-                                            border: OutlineInputBorder(),
-                                          ),
-                                          items: services
-                                              .map((s) =>
-                                                  DropdownMenuItem<String>(
-                                                    value: s,
-                                                    child: Text(s),
-                                                  ))
-                                              .toList(),
-                                          onChanged: (val) {
-                                            setState(() {
-                                              newService = val ?? newService;
-                                            });
-                                          },
-                                        ),
-                                        const SizedBox(height: 12),
-                                        InkWell(
-                                          onTap: () async {
-                                            final picked = await showDatePicker(
-                                              context: context,
-                                              initialDate: DateTime.tryParse(
-                                                      appointment[
-                                                              'appointmentDate'] ??
-                                                          '') ??
-                                                  DateTime.now(),
-                                              firstDate: DateTime.now(),
-                                              lastDate: DateTime.now().add(
-                                                  const Duration(days: 365)),
-                                            );
-                                            if (picked != null) {
-                                              setState(() {
-                                                newDate = picked;
-                                              });
-                                            }
-                                          },
-                                          child: InputDecorator(
-                                            decoration: const InputDecoration(
-                                              labelText: 'Date',
-                                              border: OutlineInputBorder(),
-                                            ),
-                                            child: Text(newDate != null
-                                                ? '${newDate!.year}-${newDate!.month.toString().padLeft(2, '0')}-${newDate!.day.toString().padLeft(2, '0')}'
-                                                : (appointment[
-                                                        'appointmentDate'] ??
-                                                    'Select Date')),
-                                          ),
-                                        ),
-                                        const SizedBox(height: 12),
-                                        InkWell(
-                                          onTap: () async {
-                                            final picked = await showTimePicker(
-                                              context: context,
-                                              initialTime: TimeOfDay.now(),
-                                            );
-                                            if (picked != null) {
-                                              setState(() {
-                                                newTime = picked;
-                                              });
-                                            }
-                                          },
-                                          child: InputDecorator(
-                                            decoration: const InputDecoration(
-                                              labelText: 'Time',
-                                              border: OutlineInputBorder(),
-                                            ),
-                                            child: Text(newTime != null
-                                                ? newTime!.format(context)
-                                                : (appointment['timeSlot'] ??
-                                                    'Select Time')),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () =>
-                                            Navigator.of(context).pop(false),
-                                        child: const Text('Cancel'),
-                                      ),
-                                      ElevatedButton(
-                                        onPressed: () =>
-                                            Navigator.of(context).pop(true),
-                                        style: ElevatedButton.styleFrom(
-                                          backgroundColor: Colors.blue,
-                                          foregroundColor: Colors.white,
-                                        ),
-                                        child: const Text('Confirm'),
-                                      ),
-                                    ],
-                                  );
-                                },
-                              );
-                            },
-                          );
-                          if (confirmed == true) {
-                            // Prepare new values
-                            final dateStr = newDate != null
-                                ? '${newDate!.year.toString().padLeft(4, '0')}-${newDate!.month.toString().padLeft(2, '0')}-${newDate!.day.toString().padLeft(2, '0')}'
-                                : appointment['appointmentDate'];
-                            final timeStr = newTime != null
-                                ? newTime!.format(context)
-                                : appointment['timeSlot'];
-                            // Send update request to backend
-                            final response = await http.put(
-                              Uri.parse(
-                                  'http://localhost:3000/api/admin/appointments/${appointment['appointmentId'] ?? appointment['id']}/rebook'),
-                              headers: {
-                                'Authorization':
-                                    'Bearer ${UserStateManager().adminToken ?? ''}',
-                                'Content-Type': 'application/json',
-                              },
-                              body: jsonEncode({
-                                'service': newService,
-                                'date': dateStr,
-                                'time_slot': timeStr,
-                              }),
-                            );
-                            if (response.statusCode == 200) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                      'Appointment rebooked and patient notified.'),
-                                  backgroundColor: Colors.blue,
-                                ),
-                              );
-                              // Optionally update the UI or reload appointments
-                              setState(() {
-                                _approvedAppointments[index]['service'] =
-                                    newService;
-                                _approvedAppointments[index]
-                                    ['appointmentDate'] = dateStr;
-                                _approvedAppointments[index]['timeSlot'] =
-                                    timeStr;
-                              });
-                            } else {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                      'Failed to rebook appointment: \\${response.body}'),
-                                  backgroundColor: Colors.red,
-                                ),
-                              );
-                            }
-                          }
-                        },
+                        onPressed: () {},
                         icon: const Icon(Icons.refresh, size: 16),
                         label: const Text('Re-book'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.blue,
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 8),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(height: 8),
                       ElevatedButton.icon(
-                        onPressed: () async {
-                          String cancelNote = '';
-                          final confirmed = await showDialog<bool>(
-                            context: context,
-                            builder: (context) {
-                              return AlertDialog(
-                                title: const Text('Cancel Appointment'),
-                                content: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const Text(
-                                        'Are you sure you want to cancel this appointment?'),
-                                    const SizedBox(height: 16),
-                                    TextField(
-                                      decoration: const InputDecoration(
-                                        labelText: 'Leave a note (optional)',
-                                        border: OutlineInputBorder(),
-                                      ),
-                                      maxLines: 3,
-                                      onChanged: (value) {
-                                        cancelNote = value;
-                                      },
-                                    ),
-                                  ],
-                                ),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () =>
-                                        Navigator.of(context).pop(false),
-                                    child: const Text('Cancel'),
-                                  ),
-                                  ElevatedButton(
-                                    onPressed: () =>
-                                        Navigator.of(context).pop(true),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.red,
-                                      foregroundColor: Colors.white,
-                                    ),
-                                    child: const Text('Confirm'),
-                                  ),
-                                ],
-                              );
-                            },
-                          );
-                          if (confirmed == true) {
-                            // Send cancel request to backend
-                            final response = await http.post(
-                              Uri.parse(
-                                  'http://localhost:3000/api/admin/appointments/${appointment['appointmentId'] ?? appointment['id']}/cancel'),
-                              headers: {
-                                'Authorization':
-                                    'Bearer ${UserStateManager().adminToken ?? ''}',
-                                'Content-Type': 'application/json',
-                              },
-                              body: jsonEncode({'note': cancelNote}),
-                            );
-                            if (response.statusCode == 200) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                      'Appointment cancelled and patient notified.'),
-                                  backgroundColor: Colors.red,
-                                ),
-                              );
-                              // Remove from approved list
-                              setState(() {
-                                _approvedAppointments.removeAt(index);
-                              });
-                            } else {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                      'Failed to cancel appointment: ${response.body}'),
-                                  backgroundColor: Colors.red,
-                                ),
-                              );
-                            }
-                          }
-                        },
+                        onPressed: () {},
                         icon: const Icon(Icons.cancel, size: 16),
                         label: const Text('Cancel Appointment'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.red,
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 8),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
                         ),
                       ),
                     ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           );
         },

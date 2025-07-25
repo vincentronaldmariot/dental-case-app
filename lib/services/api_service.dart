@@ -701,6 +701,36 @@ class ApiService {
     }
   }
 
+  /// Admin: Get appointments for a patient
+  static Future<List<Map<String, dynamic>>> getAppointmentsAsAdmin(
+      String patientId) async {
+    final response = await http.get(
+      Uri.parse(
+          'http://localhost:3000/api/admin/patients/$patientId/appointments'),
+      headers: _headers,
+    );
+    if (response.statusCode == 200) {
+      final data = json.decode(response.body);
+      return List<Map<String, dynamic>>.from(data['appointments'] ?? []);
+    } else {
+      throw Exception(
+          'Failed to fetch appointments as admin: ${response.body}');
+    }
+  }
+
+  /// Update appointment notes as admin
+  static Future<void> updateAppointmentNotesAsAdmin(
+      String appointmentId, String notes) async {
+    final response = await http.put(
+      Uri.parse('$baseUrl/admin/appointments/$appointmentId/update'),
+      headers: _headers,
+      body: json.encode({'notes': notes}),
+    );
+    if (response.statusCode != 200) {
+      throw Exception('Failed to update appointment notes: \n${response.body}');
+    }
+  }
+
   // UTILITY METHODS
 
   /// Check if user is authenticated

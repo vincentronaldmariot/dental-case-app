@@ -11,6 +11,7 @@ import 'admin_survey_detail_screen.dart';
 import 'dental_survey_simple.dart';
 import 'services/api_service.dart';
 import 'user_state_manager.dart';
+import 'appointment_history_screen.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   const AdminDashboardScreen({super.key});
@@ -1521,7 +1522,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                               );
                             },
                             icon: const Icon(Icons.history, size: 16),
-                            label: const Text('History'),
+                            label: const Text('Details'),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.purple,
                               foregroundColor: Colors.white,
@@ -1547,7 +1548,65 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                           ),
                           const SizedBox(height: 8),
                           ElevatedButton.icon(
-                            onPressed: () {}, // Clickable, no function
+                            onPressed: () async {
+                              final patientId =
+                                  patient['id'] ?? patient['patientId'];
+                              print(
+                                  'Appointment History button pressed for patientId: $patientId');
+                              if (patientId == null) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                      content: Text('No patient ID found!')),
+                                );
+                                return;
+                              }
+                              showDialog(
+                                context: context,
+                                barrierDismissible: false,
+                                builder: (context) => const Center(
+                                    child: CircularProgressIndicator()),
+                              );
+                              try {
+                                final appointments =
+                                    await ApiService.getAppointmentsAsAdmin(
+                                        patientId);
+                                Navigator.of(context)
+                                    .pop(); // Remove loading dialog
+                                final patientWithAppointments =
+                                    Map<String, dynamic>.from(patient);
+                                patientWithAppointments['appointments'] =
+                                    appointments;
+                                print(
+                                    'Navigating to AppointmentHistoryScreen with ${appointments.length} appointments');
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        AppointmentHistoryScreen(
+                                            patient: patientWithAppointments),
+                                  ),
+                                );
+                              } catch (e) {
+                                Navigator.of(context)
+                                    .pop(); // Remove loading dialog
+                                print('Error fetching appointments: $e');
+                                showDialog(
+                                  context: context,
+                                  builder: (context) => AlertDialog(
+                                    title: const Text('Error'),
+                                    content: Text(
+                                        'Failed to load appointment history:\n$e'),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.of(context).pop(),
+                                        child: const Text('OK'),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }
+                            },
                             icon: const Icon(Icons.event, size: 16),
                             label: const Text('Appointment History'),
                             style: ElevatedButton.styleFrom(
@@ -1881,7 +1940,107 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       ElevatedButton.icon(
-                        onPressed: () {},
+                        onPressed: () async {
+                          final confirmed = await showDialog<bool>(
+                            context: context,
+                            builder: (context) => AlertDialog(
+                              title: const Text('Mark as Completed'),
+                              content: const Text(
+                                  'Are you sure you want to mark this appointment as completed?'),
+                              actions: [
+                                TextButton(
+                                  onPressed: () =>
+                                      Navigator.of(context).pop(false),
+                                  child: const Text('Cancel'),
+                                ),
+                                ElevatedButton(
+                                  onPressed: () =>
+                                      Navigator.of(context).pop(true),
+                                  child: const Text('Confirm'),
+                                ),
+                              ],
+                            ),
+                          );
+                          if (confirmed == true) {
+                            // Mark as completed in backend
+                            await _markAppointmentCompleted(appointment);
+                            // Remove from approved list
+                            setState(() {
+                              _approvedAppointments.removeAt(index);
+                            });
+                            // Add to patient's appointment history in _patients
+                            final patientId = appointment['patientId'] ??
+                                appointment['patient_id'];
+                            if (patientId != null) {
+                              final patientIndex = _patients.indexWhere((p) =>
+                                  (p['id'] ?? p['patientId']) == (patientId));
+                              if (patientIndex != -1) {
+                                final patient = _patients[patientIndex];
+                                final appointmentsList =
+                                    (patient['appointments'] as List?) ?? [];
+                                // Avoid duplicate by checking id
+                                if (!appointmentsList.any((a) =>
+                                    a['id'] == appointment['appointmentId'] ||
+                                    a['appointmentId'] ==
+                                        appointment['appointmentId'])) {
+                                  final completedAppointment =
+                                      Map<String, dynamic>.from(appointment);
+                                  completedAppointment['status'] = 'completed';
+                                  appointmentsList.add(completedAppointment);
+                                  patient['appointments'] = appointmentsList;
+                                  setState(() {
+                                    _patients[patientIndex] = patient;
+                                  });
+                                }
+                              }
+                            }
+                            // Fetch patientId and navigate to appointment history
+                            if (patientId != null) {
+                              showDialog(
+                                context: context,
+                                barrierDismissible: false,
+                                builder: (context) => const Center(
+                                    child: CircularProgressIndicator()),
+                              );
+                              try {
+                                final appointments =
+                                    await ApiService.getAppointmentsAsAdmin(
+                                        patientId);
+                                Navigator.of(context)
+                                    .pop(); // Remove loading dialog
+                                final patientWithAppointments = {
+                                  'appointments': appointments,
+                                  'fullName': appointment['patientName'] ?? ''
+                                };
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        AppointmentHistoryScreen(
+                                            patient: patientWithAppointments),
+                                  ),
+                                );
+                              } catch (e) {
+                                Navigator.of(context).pop();
+                                showDialog(
+                                  context: context,
+                                  builder: (context) => AlertDialog(
+                                    title: const Text('Error'),
+                                    content: Text(
+                                        'Failed to load appointment history:\n$e'),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () =>
+                                            Navigator.of(context).pop(),
+                                        child: const Text('OK'),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              }
+                            }
+                          }
+                        },
                         icon: const Icon(Icons.check, size: 16),
                         label: const Text('Completed'),
                         style: ElevatedButton.styleFrom(
@@ -2285,7 +2444,7 @@ $allPatientsData
                   );
                 },
                 icon: const Icon(Icons.history, size: 16),
-                label: const Text('History'),
+                label: const Text('Details'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.purple,
                   foregroundColor: Colors.white,

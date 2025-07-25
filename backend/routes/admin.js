@@ -497,7 +497,8 @@ router.get('/appointments/:id', verifyAdmin, async (req, res) => {
 router.put('/appointments/:id/update', verifyAdmin, [
   body('date').optional().isDate().withMessage('Date must be a valid date in YYYY-MM-DD format'),
   body('time_slot').optional().isString().withMessage('Time slot must be a string'),
-  body('service').optional().isString().withMessage('Service must be a string')
+  body('service').optional().isString().withMessage('Service must be a string'),
+  body('notes').optional().isString().withMessage('Notes must be a string'),
 ], async (req, res) => {
   console.log('Update appointment request body:', req.body);
   try {
@@ -511,7 +512,7 @@ router.put('/appointments/:id/update', verifyAdmin, [
     }
 
     const appointmentId = req.params.id;
-    const { date, time_slot, service } = req.body;
+    const { date, time_slot, service, notes } = req.body;
 
     console.log('🔍 Admin update appointment request:');
     console.log('🔍 Appointment ID:', appointmentId);
@@ -539,6 +540,14 @@ router.put('/appointments/:id/update', verifyAdmin, [
       queryParams.push(service);
     }
 
+    if (notes !== undefined) {
+      updateFields.push(`notes = $${paramIndex++}`);
+      queryParams.push(notes);
+    }
+
+    // Debug: Log updateFields and queryParams before checking if there are fields to update
+    console.log('DEBUG updateFields:', updateFields);
+    console.log('DEBUG queryParams:', queryParams);
     if (updateFields.length === 0) {
       return res.status(400).json({
         error: 'No fields to update provided'
@@ -586,6 +595,7 @@ router.put('/appointments/:id/update', verifyAdmin, [
         appointmentDate: formattedDate,
         timeSlot: appointment.time_slot,
         service: appointment.service,
+        notes: appointment.notes,
         updatedAt: appointment.updated_at
       }
     });
@@ -1705,6 +1715,26 @@ router.put('/appointments/:id/rebook', verifyAdmin, [
   } catch (error) {
     console.error('Admin rebook appointment error:', error);
     res.status(500).json({ error: 'Failed to rebook appointment. Please try again.' });
+  }
+});
+
+// GET /api/admin/patients/:id/appointments - Get all appointments for a specific patient (admin)
+router.get('/patients/:id/appointments', verifyAdmin, async (req, res) => {
+  try {
+    const patientId = req.params.id;
+    const appointmentsResult = await query(
+      `SELECT 
+        id, service, appointment_date, time_slot, doctor_name, 
+        status, notes, created_at, updated_at
+       FROM appointments 
+       WHERE patient_id = $1 
+       ORDER BY created_at DESC`,
+      [patientId]
+    );
+    res.json({ appointments: appointmentsResult.rows });
+  } catch (error) {
+    console.error('Admin fetch patient appointments error:', error);
+    res.status(500).json({ error: 'Failed to fetch patient appointments.' });
   }
 });
 

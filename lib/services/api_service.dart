@@ -646,8 +646,10 @@ class ApiService {
   /// Get appointments for patient
   static Future<List<Map<String, dynamic>>> getAppointments(
       String patientId) async {
+    print('🌐 ApiService.getAppointments called - Offline mode: $_offlineMode');
     if (_offlineMode) {
       // Offline mode - return mock appointments
+      print('📱 Returning mock appointment for offline mode');
       return [
         {
           'id': 'offline_apt_1',
@@ -677,6 +679,13 @@ class ApiService {
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         final appointments = data['appointments'] as List;
+
+        print('📊 Backend returned ${appointments.length} appointments');
+        for (int i = 0; i < appointments.length; i++) {
+          final apt = appointments[i];
+          print(
+              '   Appointment $i: ID=${apt['id']}, PatientID=${apt['patientId']}, Status=${apt['status']}, Service=${apt['service']}');
+        }
 
         return appointments
             .map((apt) => {

@@ -132,6 +132,14 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // No test appointments - only real data from backend
+    final patientId = UserStateManager().currentPatientId;
+    print('DashboardScreen initState: patientId=$patientId');
+  }
+
   Widget _buildUserStatusBanner(BuildContext context) {
     final userState = UserStateManager();
 
@@ -274,18 +282,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildRecentActivitySection() {
     final historyService = HistoryService();
-    final lastAppointment = historyService.getLastAppointment(
-      patientId: UserStateManager().currentPatientId,
-    );
-    final nextAppointment = historyService.getNextAppointment(
-      patientId: UserStateManager().currentPatientId,
-    );
-
+    final patientId = UserStateManager().currentPatientId;
+    final completedAppointments = historyService
+        .getAppointmentsByStatus(AppointmentStatus.completed,
+            patientId: patientId)
+        .toList()
+      ..sort((a, b) => b.date.compareTo(a.date));
+    final lastThree = completedAppointments.take(3).toList();
+    print('Building history card for patientId=$patientId');
+    print('Completed appointments: $completedAppointments');
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Recent Activity',
+          'Appointment History',
           style: TextStyle(
             fontSize: 22,
             fontWeight: FontWeight.bold,
@@ -293,27 +303,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         ),
         const SizedBox(height: 15),
-        if (lastAppointment != null) ...[
-          _buildActivityCard(
-            'Last Appointment',
-            '${lastAppointment.service} - ${lastAppointment.doctorName}',
-            DateFormat('MMM dd, yyyy').format(lastAppointment.date),
-            Icons.check_circle,
-            Colors.green,
+        if (lastThree.isEmpty)
+          _buildEmptyActivityCard()
+        else
+          ...lastThree.map(
+            (appointment) => _buildActivityCard(
+              appointment.service,
+              appointment.doctorName != null &&
+                      appointment.doctorName.isNotEmpty
+                  ? 'with ${appointment.doctorName}'
+                  : '',
+              DateFormat('MMM dd, yyyy').format(appointment.date),
+              Icons.history,
+              Colors.green,
+            ),
           ),
-          const SizedBox(height: 10),
-        ],
-        if (nextAppointment != null) ...[
-          _buildActivityCard(
-            'Next Appointment',
-            '${nextAppointment.service} - ${nextAppointment.doctorName}',
-            DateFormat('MMM dd, yyyy').format(nextAppointment.date),
-            Icons.schedule,
-            const Color(0xFF0029B2),
-          ),
-        ] else if (lastAppointment == null) ...[
-          _buildEmptyActivityCard(),
-        ],
       ],
     );
   }
@@ -1244,6 +1248,42 @@ class AppointmentsScreen extends StatefulWidget {
 class _AppointmentsScreenState extends State<AppointmentsScreen> {
   final HistoryService _historyService = HistoryService();
   String _selectedTab = 'All';
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAppointmentsFromBackend();
+  }
+
+  Future<void> _loadAppointmentsFromBackend() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final patientId = UserStateManager().currentPatientId;
+      if (patientId != null && patientId != 'guest') {
+        print('Loading appointments from backend for patient: $patientId');
+        final backendAppointments = await ApiService.getAppointments(patientId);
+        _historyService.loadAppointmentsFromBackend(backendAppointments,
+            patientId: patientId);
+        print('Loaded ${backendAppointments.length} appointments from backend');
+      } else {
+        print('No valid patient ID, skipping backend load');
+      }
+    } catch (e) {
+      print('Error loading appointments from backend: $e');
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _refreshAppointments() async {
+    await _loadAppointmentsFromBackend();
+  }
 
   Widget _buildUserStatusBanner(BuildContext context) {
     final userState = UserStateManager();
@@ -1307,11 +1347,14 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                   IconButton(
                     onPressed: () async {
                       final success = await ApiService.checkConnectionAndSync();
+                      if (success) {
+                        await _refreshAppointments();
+                      }
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text(
                             success
-                                ? '✅ Backend connected and data synced!'
+                                ? '✅ Backend connected and appointments refreshed!'
                                 : '❌ Backend unavailable, running offline',
                           ),
                           backgroundColor:
@@ -1323,15 +1366,33 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                     icon: const Icon(Icons.sync, color: Colors.white, size: 24),
                     tooltip: 'Sync with backend',
                   ),
+                  // Debug button to clear all appointments
                   IconButton(
                     onPressed: () {
-                      Navigator.push(
+                      _historyService.clearAllAppointments();
+                      setState(() {});
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('🗑️ All appointments cleared for debugging'),
+                          backgroundColor: Colors.red,
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.clear_all, color: Colors.white, size: 24),
+                    tooltip: 'Clear all appointments (debug)',
+                  ),
+                  IconButton(
+                    onPressed: () async {
+                      await Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (context) =>
                               const AppointmentBookingScreen(),
                         ),
                       );
+                      // Refresh appointments after booking
+                      await _refreshAppointments();
                     },
                     icon: const Icon(Icons.add, color: Colors.white, size: 28),
                   ),
@@ -1356,7 +1417,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
             child: Row(
               children: [
                 _buildTab('All'),
-                _buildTab('Upcoming'),
+                _buildTab('Pending'),
                 _buildTab('Completed'),
                 _buildTab('Cancelled'),
               ],
@@ -1364,7 +1425,33 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
           ),
 
           // Appointments List
-          Expanded(child: _buildAppointmentsList()),
+          Expanded(
+            child: _isLoading
+                ? const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CircularProgressIndicator(
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(Color(0xFF0029B2)),
+                        ),
+                        SizedBox(height: 16),
+                        Text(
+                          'Loading appointments...',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : RefreshIndicator(
+                    onRefresh: _refreshAppointments,
+                    color: const Color(0xFF0029B2),
+                    child: _buildAppointmentsList(),
+                  ),
+          ),
         ],
       ),
     );
@@ -1401,10 +1488,15 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
     final patientId = UserStateManager().currentPatientId;
 
     switch (_selectedTab) {
-      case 'Upcoming':
-        appointments = _historyService.getUpcomingAppointments(
+      case 'Pending':
+        appointments = _historyService.getAppointmentsByStatus(
+          AppointmentStatus.pending,
           patientId: patientId,
         );
+        print(
+            'Found ${appointments.length} pending appointments for patient $patientId');
+        // Debug: show all appointments to understand the discrepancy
+        _historyService.debugShowAllAppointments();
         break;
       case 'Completed':
         appointments = _historyService.getAppointmentsByStatus(
@@ -1420,6 +1512,8 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
         break;
       default:
         appointments = _historyService.getAppointments(patientId: patientId);
+        print(
+            'Found ${appointments.length} total appointments for patient $patientId');
     }
 
     if (appointments.isEmpty) {

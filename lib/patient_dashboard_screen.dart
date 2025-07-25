@@ -49,6 +49,10 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
             _buildQuickStatsGrid(),
             const SizedBox(height: 20),
 
+            // Appointment History (moved here)
+            _buildAppointmentHistoryCard(),
+            const SizedBox(height: 20),
+
             // Upcoming Appointments
             _buildUpcomingAppointments(upcomingAppointments),
             const SizedBox(height: 20),
@@ -312,6 +316,102 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
           IconButton(
             onPressed: () => _rescheduleAppointment(appointment),
             icon: const Icon(Icons.edit, size: 18),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAppointmentHistoryCard() {
+    final completedAppointments = _historyService
+        .getAppointmentsByStatus(AppointmentStatus.completed)
+        .toList()
+      ..sort((a, b) => b.date.compareTo(a.date));
+    final lastThree = completedAppointments.take(3).toList();
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            blurRadius: 5,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Appointment History',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              TextButton(onPressed: () {}, child: const Text('View All')),
+            ],
+          ),
+          const SizedBox(height: 15),
+          if (lastThree.isEmpty)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(20),
+                child: Text(
+                  'No completed appointments',
+                  style: TextStyle(color: Colors.grey),
+                ),
+              ),
+            )
+          else
+            ...lastThree.map(
+              (appointment) => _buildHistoryAppointmentItem(appointment),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHistoryAppointmentItem(Appointment appointment) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.green.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.green.withOpacity(0.2)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.green.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.history,
+              color: Colors.green,
+              size: 16,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  appointment.service,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                Text(
+                  '${DateFormat('MMM dd').format(appointment.date)} • ${appointment.timeSlot}',
+                  style: const TextStyle(color: Colors.grey, fontSize: 12),
+                ),
+              ],
+            ),
           ),
         ],
       ),

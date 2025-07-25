@@ -30,6 +30,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   List<dynamic> _approvedAppointments = [];
   List<TreatmentRecord> _treatmentRecords = [];
   List<EmergencyRecord> _emergencyRecords = [];
+  Map<String, dynamic> _dashboardStats = {};
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
   bool _isLoading = true;
@@ -70,6 +71,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         _loadApprovedAppointments(),
         _loadTreatmentRecords(),
         _loadEmergencyRecords(),
+        _loadDashboardStats(),
       ]);
     } catch (e) {
       print('Error loading data: $e');
@@ -232,6 +234,30 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     setState(() {
       _emergencyRecords = [];
     });
+  }
+
+  Future<void> _loadDashboardStats() async {
+    try {
+      final response = await http.get(
+        Uri.parse('http://localhost:3000/api/admin/dashboard'),
+        headers: {
+          'Authorization':
+              'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImJlNTBjOTAxLTdlZWQtNDIyOC05NzExLTk5OWIwOGEwZTcyZCIsInVzZXJuYW1lIjoiYWRtaW4iLCJ0eXBlIjoiYWRtaW4iLCJpYXQiOjE3NTMwODM4NzQsImV4cCI6MTc1MzY4ODY3NH0.jTqWoKAaX3SG2njDlgWbdFMyTjJab5kdgr5466cJcq4',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        setState(() {
+          _dashboardStats = data['stats'] ?? {};
+        });
+        print('✅ Loaded dashboard stats');
+      } else {
+        print('❌ Failed to load dashboard stats: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('❌ Error loading dashboard stats: $e');
+    }
   }
 
   void _showProceedDialog(dynamic appointment, [dynamic survey]) async {
@@ -1314,7 +1340,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       Expanded(
                         child: _buildStatCard(
                           "Today's Appointments",
-                          _pendingAppointments.length.toString(),
+                          (_dashboardStats['todaysAppointments'] ?? 0)
+                              .toString(),
                           Icons.today,
                           Colors.purple,
                         ),

@@ -14,8 +14,14 @@ class HistoryService {
   // Get all appointments for a patient
   List<Appointment> getAppointments({String? patientId}) {
     if (patientId != null) {
-      return _appointments.where((apt) => apt.patientId == patientId).toList();
+      final patientAppointments =
+          _appointments.where((apt) => apt.patientId == patientId).toList();
+      print(
+          '🔍 getAppointments called for patient $patientId: ${patientAppointments.length} appointments');
+      return patientAppointments;
     }
+    print(
+        '🔍 getAppointments called for all patients: ${_appointments.length} appointments');
     return List.from(_appointments);
   }
 
@@ -25,7 +31,14 @@ class HistoryService {
     String? patientId,
   }) {
     var appointments = getAppointments(patientId: patientId);
-    return appointments.where((apt) => apt.status == status).toList();
+    final filteredAppointments =
+        appointments.where((apt) => apt.status == status).toList();
+    print('🔍 getAppointmentsByStatus called:');
+    print('   Status: $status');
+    print('   Patient ID: $patientId');
+    print('   Total appointments for patient: ${appointments.length}');
+    print('   Filtered appointments: ${filteredAppointments.length}');
+    return filteredAppointments;
   }
 
   // Get upcoming appointments
@@ -79,7 +92,18 @@ class HistoryService {
 
   // Add new appointment
   void addAppointment(Appointment appointment) {
-    _appointments.add(appointment);
+    // Check if appointment with same ID already exists
+    final existingIndex =
+        _appointments.indexWhere((apt) => apt.id == appointment.id);
+    if (existingIndex != -1) {
+      print(
+          '⚠️ Appointment with ID ${appointment.id} already exists, updating instead of adding');
+      _appointments[existingIndex] = appointment;
+    } else {
+      _appointments.add(appointment);
+      print(
+          '➕ Added new appointment: ${appointment.id} for patient ${appointment.patientId}');
+    }
   }
 
   // Add new treatment record
@@ -115,5 +139,123 @@ class HistoryService {
   Appointment? getNextAppointment({String? patientId}) {
     var upcoming = getUpcomingAppointments(patientId: patientId);
     return upcoming.isEmpty ? null : upcoming.first;
+  }
+
+  // Load appointments from backend data
+  void loadAppointmentsFromBackend(
+      List<Map<String, dynamic>> backendAppointments,
+      {String? patientId}) {
+    print('🔄 Loading appointments from backend...');
+    print('📊 Total backend appointments: ${backendAppointments.length}');
+    print('👤 Target patient ID: $patientId');
+    print(
+        '📈 Total appointments in HistoryService before loading: ${_appointments.length}');
+
+    // Clear existing appointments for this patient if specified
+    if (patientId != null) {
+      final beforeCount = _appointments.length;
+      final patientAppointmentsBefore =
+          _appointments.where((apt) => apt.patientId == patientId).toList();
+      print(
+          '👤 Patient appointments before clearing: ${patientAppointmentsBefore.length}');
+      for (final apt in patientAppointmentsBefore) {
+        print('   - ${apt.id}: ${apt.service} (${apt.status})');
+      }
+
+      _appointments.removeWhere((apt) => apt.patientId == patientId);
+      final afterCount = _appointments.length;
+      print(
+          '🗑️ Cleared ${beforeCount - afterCount} existing appointments for patient $patientId');
+    }
+
+    // Convert backend data to Appointment objects and add them
+    for (final aptData in backendAppointments) {
+      try {
+        final appointment = Appointment(
+          id: aptData['id'] ?? '',
+          patientId: aptData['patient_id'] ?? aptData['patientId'] ?? '',
+          service: aptData['service'] ?? '',
+          doctorName: aptData['doctor_name'] ?? aptData['doctorName'] ?? '',
+          date: DateTime.parse(aptData['appointment_date'] ??
+              aptData['appointmentDate'] ??
+              DateTime.now().toIso8601String()),
+          timeSlot: aptData['time_slot'] ?? aptData['timeSlot'] ?? '',
+          status: _parseStatus(aptData['status'] ?? 'pending'),
+          notes: aptData['notes'],
+        );
+        addAppointment(appointment);
+        print(
+            '✅ Added appointment: ${appointment.id} for patient ${appointment.patientId} with status ${appointment.status}');
+      } catch (e) {
+        print('❌ Error converting backend appointment data: $e');
+        print('Problematic data: $aptData');
+      }
+    }
+
+    print(
+        '📈 Total appointments in HistoryService after loading: ${_appointments.length}');
+    if (patientId != null) {
+      final patientAppointments =
+          _appointments.where((apt) => apt.patientId == patientId).toList();
+      print(
+          '👤 Appointments for patient $patientId: ${patientAppointments.length}');
+      final pendingAppointments = patientAppointments
+          .where((apt) => apt.status == AppointmentStatus.pending)
+          .toList();
+      print(
+          '⏳ Pending appointments for patient $patientId: ${pendingAppointments.length}');
+
+      // Show all appointments for this patient
+      for (final apt in patientAppointments) {
+        print('   📋 ${apt.id}: ${apt.service} (${apt.status}) - ${apt.date}');
+      }
+    }
+  }
+
+  // Clear appointments for a specific patient
+  void clearAppointmentsForPatient(String patientId) {
+    final beforeCount = _appointments.length;
+    _appointments.removeWhere((apt) => apt.patientId == patientId);
+    final afterCount = _appointments.length;
+    print(
+        '🗑️ Cleared ${beforeCount - afterCount} appointments for patient $patientId');
+  }
+
+  // Clear all appointments (for debugging)
+  void clearAllAppointments() {
+    final count = _appointments.length;
+    _appointments.clear();
+    print('🗑️ Cleared all $count appointments from HistoryService');
+  }
+
+  // Parse status string to AppointmentStatus enum
+  AppointmentStatus _parseStatus(String status) {
+    switch (status.toLowerCase()) {
+      case 'pending':
+        return AppointmentStatus.pending;
+      case 'scheduled':
+        return AppointmentStatus.scheduled;
+      case 'completed':
+        return AppointmentStatus.completed;
+      case 'cancelled':
+        return AppointmentStatus.cancelled;
+      case 'missed':
+        return AppointmentStatus.missed;
+      case 'rescheduled':
+        return AppointmentStatus.rescheduled;
+      default:
+        return AppointmentStatus.pending;
+    }
+  }
+
+  // Debug method to show all appointments
+  void debugShowAllAppointments() {
+    print(
+        '🔍 DEBUG: All appointments in HistoryService (${_appointments.length} total)');
+    for (int i = 0; i < _appointments.length; i++) {
+      final apt = _appointments[i];
+      print(
+          '   $i: ID=${apt.id}, PatientID=${apt.patientId}, Service=${apt.service}, Status=${apt.status}');
+    }
   }
 }

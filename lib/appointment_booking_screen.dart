@@ -3,6 +3,8 @@ import 'services/appointment_service.dart';
 import 'services/patient_limit_service.dart';
 import 'services/api_service.dart';
 import 'services/survey_service.dart';
+import 'services/history_service.dart';
+import 'models/appointment.dart';
 import 'user_state_manager.dart';
 
 class AppointmentBookingScreen extends StatefulWidget {
@@ -831,6 +833,20 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen>
       setState(() => _isLoading = false);
 
       if (result.success) {
+        // Add the booked appointment to HistoryService for immediate display
+        final bookedAppointment = Appointment(
+          id: result.appointmentId ??
+              'temp_${DateTime.now().millisecondsSinceEpoch}',
+          patientId: UserStateManager().currentPatientId ?? '',
+          service: selectedService!,
+          doctorName: '', // Will be assigned by admin
+          date: selectedDate,
+          timeSlot: '', // Will be assigned by admin
+          status: AppointmentStatus.pending,
+          notes: surveyNotes,
+        );
+        HistoryService().addAppointment(bookedAppointment);
+
         // Show success dialog
         showDialog(
           context: context,

@@ -731,6 +731,36 @@ class ApiService {
     }
   }
 
+  /// Cancel appointment as admin with note
+  static Future<void> cancelAppointmentAsAdmin(
+      String appointmentId, String note) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/admin/appointments/$appointmentId/cancel'),
+      headers: _headers,
+      body: json.encode({'note': note}),
+    );
+    if (response.statusCode != 200) {
+      throw Exception('Failed to cancel appointment: \n${response.body}');
+    }
+  }
+
+  /// Rebook appointment as admin (reschedule date/time/service)
+  static Future<void> rebookAppointmentAsAdmin(String appointmentId,
+      {String? service, String? date, String? timeSlot}) async {
+    final response = await http.put(
+      Uri.parse('$baseUrl/admin/appointments/$appointmentId/rebook'),
+      headers: _headers,
+      body: json.encode({
+        if (service != null) 'service': service,
+        if (date != null) 'date': date,
+        if (timeSlot != null) 'time_slot': timeSlot,
+      }),
+    );
+    if (response.statusCode != 200) {
+      throw Exception('Failed to rebook appointment: \n${response.body}');
+    }
+  }
+
   // UTILITY METHODS
 
   /// Check if user is authenticated

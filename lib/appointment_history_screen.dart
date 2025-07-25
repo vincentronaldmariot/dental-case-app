@@ -16,6 +16,8 @@ class AppointmentHistoryScreen extends StatefulWidget {
 class _AppointmentHistoryScreenState extends State<AppointmentHistoryScreen> {
   late List<dynamic> completedAppointments;
   late List<bool> expanded;
+  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
@@ -38,6 +40,14 @@ class _AppointmentHistoryScreenState extends State<AppointmentHistoryScreen> {
   }
 
   Widget _buildHistoryScreen(BuildContext context) {
+    final filteredAppointments = completedAppointments.where((appt) {
+      final query = _searchQuery.toLowerCase();
+      return (appt['service']?.toLowerCase().contains(query) == true) ||
+          (_formatDate(appt['appointmentDate'] ?? appt['appointment_date'])
+              .toLowerCase()
+              .contains(query)) ||
+          (appt['notes']?.toLowerCase().contains(query) == true);
+    }).toList();
     return Scaffold(
       appBar: AppBar(
         title: Text(
@@ -52,69 +62,120 @@ class _AppointmentHistoryScreenState extends State<AppointmentHistoryScreen> {
                 style: TextStyle(fontSize: 18, color: Colors.grey[600]),
               ),
             )
-          : ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: completedAppointments.length,
-              itemBuilder: (context, index) {
-                final appt = completedAppointments[index];
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  child: Column(
-                    children: [
-                      ListTile(
-                        leading:
-                            const Icon(Icons.check_circle, color: Colors.green),
-                        title: Text(appt['service'] ?? 'Unknown Service'),
-                        subtitle: Text(
-                          'Date: ' +
-                              _formatDate(appt['appointmentDate'] ??
-                                  appt['appointment_date']) +
-                              '\nStatus: ${appt['status'] ?? 'N/A'}',
-                        ),
-                        trailing: IconButton(
-                          icon: Icon(expanded[index]
-                              ? Icons.expand_less
-                              : Icons.expand_more),
-                          onPressed: () {
-                            setState(() {
-                              expanded[index] = !expanded[index];
-                            });
+          : Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                  child: TextField(
+                    controller: _searchController,
+                    decoration: InputDecoration(
+                      hintText: 'Search by service, date, or note',
+                      prefixIcon: const Icon(Icons.search),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8)),
+                      suffixIcon: _searchQuery.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear),
+                              onPressed: () {
+                                setState(() {
+                                  _searchQuery = '';
+                                  _searchController.clear();
+                                });
+                              },
+                            )
+                          : null,
+                    ),
+                    onChanged: (value) {
+                      setState(() {
+                        _searchQuery = value;
+                      });
+                    },
+                  ),
+                ),
+                Expanded(
+                  child: filteredAppointments.isEmpty
+                      ? Center(
+                          child: Text(
+                            'No completed appointments found.',
+                            style: TextStyle(
+                                fontSize: 18, color: Colors.grey[600]),
+                          ),
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.all(16),
+                          itemCount: filteredAppointments.length,
+                          itemBuilder: (context, index) {
+                            final appt = filteredAppointments[index];
+                            final expandedIndex =
+                                completedAppointments.indexOf(appt);
+                            return Card(
+                              margin: const EdgeInsets.only(bottom: 12),
+                              child: Column(
+                                children: [
+                                  ListTile(
+                                    leading: const Icon(Icons.check_circle,
+                                        color: Colors.green),
+                                    title: Text(
+                                        appt['service'] ?? 'Unknown Service'),
+                                    subtitle: Text(
+                                      'Date: ' +
+                                          _formatDate(appt['appointmentDate'] ??
+                                              appt['appointment_date']) +
+                                          '\nStatus: ${appt['status'] ?? 'N/A'}',
+                                    ),
+                                    trailing: IconButton(
+                                      icon: Icon(expanded[expandedIndex]
+                                          ? Icons.expand_less
+                                          : Icons.expand_more),
+                                      onPressed: () {
+                                        setState(() {
+                                          expanded[expandedIndex] =
+                                              !expanded[expandedIndex];
+                                        });
+                                      },
+                                    ),
+                                  ),
+                                  if (expanded[expandedIndex])
+                                    Container(
+                                      width: double.infinity,
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 12),
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey[100],
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Row(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Expanded(
+                                            child: Text(
+                                              'Note: ' +
+                                                  (appt['notes']?.toString() ??
+                                                      'No note'),
+                                              style: TextStyle(
+                                                  color: Colors.grey[800]),
+                                            ),
+                                          ),
+                                          IconButton(
+                                            icon: const Icon(Icons.edit,
+                                                size: 18),
+                                            tooltip: 'Edit Note',
+                                            onPressed: () {
+                                              _showEditNoteDialog(
+                                                  context, appt, expandedIndex);
+                                            },
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            );
                           },
                         ),
-                      ),
-                      if (expanded[index])
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 12),
-                          decoration: BoxDecoration(
-                            color: Colors.grey[100],
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  'Note: ' +
-                                      (appt['notes']?.toString() ?? 'No note'),
-                                  style: TextStyle(color: Colors.grey[800]),
-                                ),
-                              ),
-                              IconButton(
-                                icon: const Icon(Icons.edit, size: 18),
-                                tooltip: 'Edit Note',
-                                onPressed: () {
-                                  _showEditNoteDialog(context, appt, index);
-                                },
-                              ),
-                            ],
-                          ),
-                        ),
-                    ],
-                  ),
-                );
-              },
+                ),
+              ],
             ),
     );
   }

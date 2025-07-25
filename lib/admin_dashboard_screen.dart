@@ -37,6 +37,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   final String _selectedNewTimeSlot = '';
   String _approvalNotes = '';
   String _rejectionReason = '';
+  String _appointmentSearchQuery = '';
+  final TextEditingController _appointmentSearchController =
+      TextEditingController();
+  String _approvedSearchQuery = '';
+  final TextEditingController _approvedSearchController =
+      TextEditingController();
 
   @override
   void initState() {
@@ -1631,10 +1637,46 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   }
 
   Widget _buildAppointmentsTab() {
+    final filteredAppointments = _pendingAppointments.where((app) {
+      final query = _appointmentSearchQuery.toLowerCase();
+      return app['patient_name']?.toLowerCase().contains(query) == true ||
+          app['patient_email']?.toLowerCase().contains(query) == true ||
+          app['patient_classification']?.toLowerCase().contains(query) == true;
+    }).toList();
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
+          // Search bar
+          Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: TextField(
+              controller: _appointmentSearchController,
+              decoration: InputDecoration(
+                hintText:
+                    'Search appointments by name, email, or classification',
+                prefixIcon: const Icon(Icons.search),
+                border:
+                    OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                suffixIcon: _appointmentSearchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          setState(() {
+                            _appointmentSearchQuery = '';
+                            _appointmentSearchController.clear();
+                          });
+                        },
+                      )
+                    : null,
+              ),
+              onChanged: (value) {
+                setState(() {
+                  _appointmentSearchQuery = value;
+                });
+              },
+            ),
+          ),
           // Header with count and summary
           Container(
             padding: const EdgeInsets.all(16),
@@ -1752,7 +1794,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
             ),
           ),
           const SizedBox(height: 16),
-          if (_pendingAppointments.isEmpty)
+          if (filteredAppointments.isEmpty)
             Container(
               padding: const EdgeInsets.all(32),
               child: Column(
@@ -1780,7 +1822,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
               ),
             )
           else
-            ..._pendingAppointments.map(
+            ...filteredAppointments.map(
               (appointment) => Card(
                 margin: const EdgeInsets.only(bottom: 16),
                 elevation: 2,
@@ -1894,6 +1936,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   }
 
   Widget _buildTreatmentsTab() {
+    final filteredApproved = _approvedAppointments.where((app) {
+      final query = _approvedSearchQuery.toLowerCase();
+      return (app['patientName']?.toLowerCase().contains(query) == true) ||
+          (app['service']?.toLowerCase().contains(query) == true) ||
+          (app['status']?.toLowerCase().contains(query) == true);
+    }).toList();
     if (_approvedAppointments.isEmpty) {
       return Center(
         child: Padding(
@@ -1909,175 +1957,413 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         ),
       );
     } else {
-      return ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: _approvedAppointments.length,
-        itemBuilder: (context, index) {
-          final appointment = _approvedAppointments[index];
-          return Card(
-            margin: const EdgeInsets.only(bottom: 16),
-            elevation: 2,
-            child: ExpansionTile(
-              title: ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const Icon(Icons.check_circle, color: Colors.teal),
-                title: Text(appointment['patientName'] ?? 'Unknown Patient'),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Service: ${appointment['service'] ?? 'N/A'}'),
-                    Text('Date: ${appointment['appointmentDate'] ?? 'N/A'}'),
-                    Text('Time: ${appointment['timeSlot'] ?? 'N/A'}'),
-                    Text('Status: ${appointment['status'] ?? 'N/A'}'),
-                  ],
-                ),
+      return Column(
+        children: [
+          // Search bar
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+            child: TextField(
+              controller: _approvedSearchController,
+              decoration: InputDecoration(
+                hintText: 'Search approved by name, service, or status',
+                prefixIcon: const Icon(Icons.search),
+                border:
+                    OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                suffixIcon: _approvedSearchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          setState(() {
+                            _approvedSearchQuery = '';
+                            _approvedSearchController.clear();
+                          });
+                        },
+                      )
+                    : null,
               ),
-              children: [
-                Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      ElevatedButton.icon(
-                        onPressed: () async {
-                          final confirmed = await showDialog<bool>(
-                            context: context,
-                            builder: (context) => AlertDialog(
-                              title: const Text('Mark as Completed'),
-                              content: const Text(
-                                  'Are you sure you want to mark this appointment as completed?'),
-                              actions: [
-                                TextButton(
-                                  onPressed: () =>
-                                      Navigator.of(context).pop(false),
-                                  child: const Text('Cancel'),
-                                ),
-                                ElevatedButton(
-                                  onPressed: () =>
-                                      Navigator.of(context).pop(true),
-                                  child: const Text('Confirm'),
-                                ),
+              onChanged: (value) {
+                setState(() {
+                  _approvedSearchQuery = value;
+                });
+              },
+            ),
+          ),
+          Expanded(
+            child: filteredApproved.isEmpty
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(32.0),
+                      child: Text(
+                        'No approved appointments',
+                        style: TextStyle(
+                          fontSize: 20,
+                          color: Colors.grey.shade600,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: filteredApproved.length,
+                    itemBuilder: (context, index) {
+                      final appointment = filteredApproved[index];
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 16),
+                        elevation: 2,
+                        child: ExpansionTile(
+                          title: ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: const Icon(Icons.check_circle,
+                                color: Colors.teal),
+                            title: Text(appointment['patientName'] ??
+                                'Unknown Patient'),
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                    'Service: ${appointment['service'] ?? 'N/A'}'),
+                                Text(
+                                    'Date: ${appointment['appointmentDate'] ?? 'N/A'}'),
+                                Text(
+                                    'Time: ${appointment['timeSlot'] ?? 'N/A'}'),
+                                Text(
+                                    'Status: ${appointment['status'] ?? 'N/A'}'),
                               ],
                             ),
-                          );
-                          if (confirmed == true) {
-                            // Mark as completed in backend
-                            await _markAppointmentCompleted(appointment);
-                            // Remove from approved list
-                            setState(() {
-                              _approvedAppointments.removeAt(index);
-                            });
-                            // Add to patient's appointment history in _patients
-                            final patientId = appointment['patientId'] ??
-                                appointment['patient_id'];
-                            if (patientId != null) {
-                              final patientIndex = _patients.indexWhere((p) =>
-                                  (p['id'] ?? p['patientId']) == (patientId));
-                              if (patientIndex != -1) {
-                                final patient = _patients[patientIndex];
-                                final appointmentsList =
-                                    (patient['appointments'] as List?) ?? [];
-                                // Avoid duplicate by checking id
-                                if (!appointmentsList.any((a) =>
-                                    a['id'] == appointment['appointmentId'] ||
-                                    a['appointmentId'] ==
-                                        appointment['appointmentId'])) {
-                                  final completedAppointment =
-                                      Map<String, dynamic>.from(appointment);
-                                  completedAppointment['status'] = 'completed';
-                                  appointmentsList.add(completedAppointment);
-                                  patient['appointments'] = appointmentsList;
-                                  setState(() {
-                                    _patients[patientIndex] = patient;
-                                  });
-                                }
-                              }
-                            }
-                            // Fetch patientId and navigate to appointment history
-                            if (patientId != null) {
-                              showDialog(
-                                context: context,
-                                barrierDismissible: false,
-                                builder: (context) => const Center(
-                                    child: CircularProgressIndicator()),
-                              );
-                              try {
-                                final appointments =
-                                    await ApiService.getAppointmentsAsAdmin(
-                                        patientId);
-                                Navigator.of(context)
-                                    .pop(); // Remove loading dialog
-                                final patientWithAppointments = {
-                                  'appointments': appointments,
-                                  'fullName': appointment['patientName'] ?? ''
-                                };
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) =>
-                                        AppointmentHistoryScreen(
-                                            patient: patientWithAppointments),
+                          ),
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 8),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  ElevatedButton.icon(
+                                    onPressed: () async {
+                                      final confirmed = await showDialog<bool>(
+                                        context: context,
+                                        builder: (context) => AlertDialog(
+                                          title:
+                                              const Text('Mark as Completed'),
+                                          content: const Text(
+                                              'Are you sure you want to mark this appointment as completed?'),
+                                          actions: [
+                                            TextButton(
+                                              onPressed: () =>
+                                                  Navigator.of(context)
+                                                      .pop(false),
+                                              child: const Text('Cancel'),
+                                            ),
+                                            ElevatedButton(
+                                              onPressed: () =>
+                                                  Navigator.of(context)
+                                                      .pop(true),
+                                              child: const Text('Confirm'),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                      if (confirmed == true) {
+                                        // Mark as completed in backend
+                                        await _markAppointmentCompleted(
+                                            appointment);
+                                        // Remove from approved list
+                                        setState(() {
+                                          _approvedAppointments.removeAt(index);
+                                        });
+                                        // Add to patient's appointment history in _patients
+                                        final patientId =
+                                            appointment['patientId'] ??
+                                                appointment['patient_id'];
+                                        if (patientId != null) {
+                                          final patientIndex =
+                                              _patients.indexWhere((p) =>
+                                                  (p['id'] ?? p['patientId']) ==
+                                                  (patientId));
+                                          if (patientIndex != -1) {
+                                            final patient =
+                                                _patients[patientIndex];
+                                            final appointmentsList =
+                                                (patient['appointments']
+                                                        as List?) ??
+                                                    [];
+                                            // Avoid duplicate by checking id
+                                            if (!appointmentsList.any((a) =>
+                                                a['id'] ==
+                                                    appointment[
+                                                        'appointmentId'] ||
+                                                a['appointmentId'] ==
+                                                    appointment[
+                                                        'appointmentId'])) {
+                                              final completedAppointment =
+                                                  Map<String, dynamic>.from(
+                                                      appointment);
+                                              completedAppointment['status'] =
+                                                  'completed';
+                                              appointmentsList
+                                                  .add(completedAppointment);
+                                              patient['appointments'] =
+                                                  appointmentsList;
+                                              setState(() {
+                                                _patients[patientIndex] =
+                                                    patient;
+                                              });
+                                            }
+                                          }
+                                        }
+                                        // Fetch patientId and navigate to appointment history
+                                        if (patientId != null) {
+                                          showDialog(
+                                            context: context,
+                                            barrierDismissible: false,
+                                            builder: (context) => const Center(
+                                                child:
+                                                    CircularProgressIndicator()),
+                                          );
+                                          try {
+                                            final appointments =
+                                                await ApiService
+                                                    .getAppointmentsAsAdmin(
+                                                        patientId);
+                                            Navigator.of(context)
+                                                .pop(); // Remove loading dialog
+                                            final patientWithAppointments = {
+                                              'appointments': appointments,
+                                              'fullName':
+                                                  appointment['patientName'] ??
+                                                      ''
+                                            };
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (context) =>
+                                                    AppointmentHistoryScreen(
+                                                        patient:
+                                                            patientWithAppointments),
+                                              ),
+                                            );
+                                          } catch (e) {
+                                            Navigator.of(context).pop();
+                                            showDialog(
+                                              context: context,
+                                              builder: (context) => AlertDialog(
+                                                title: const Text('Error'),
+                                                content: Text(
+                                                    'Failed to load appointment history:\n$e'),
+                                                actions: [
+                                                  TextButton(
+                                                    onPressed: () =>
+                                                        Navigator.of(context)
+                                                            .pop(),
+                                                    child: const Text('OK'),
+                                                  ),
+                                                ],
+                                              ),
+                                            );
+                                          }
+                                        }
+                                      }
+                                    },
+                                    icon: const Icon(Icons.check, size: 16),
+                                    label: const Text('Completed'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.green,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 12),
+                                    ),
                                   ),
-                                );
-                              } catch (e) {
-                                Navigator.of(context).pop();
-                                showDialog(
-                                  context: context,
-                                  builder: (context) => AlertDialog(
-                                    title: const Text('Error'),
-                                    content: Text(
-                                        'Failed to load appointment history:\n$e'),
-                                    actions: [
-                                      TextButton(
-                                        onPressed: () =>
-                                            Navigator.of(context).pop(),
-                                        child: const Text('OK'),
-                                      ),
-                                    ],
+                                  const SizedBox(height: 8),
+                                  ElevatedButton.icon(
+                                    onPressed: () async {
+                                      DateTime? newDate;
+                                      TimeOfDay? newTime;
+                                      final serviceController =
+                                          TextEditingController(
+                                              text:
+                                                  appointment['service'] ?? '');
+                                      final confirmed = await showDialog<bool>(
+                                        context: context,
+                                        builder: (context) => StatefulBuilder(
+                                          builder: (context, setState) =>
+                                              AlertDialog(
+                                            title: const Text(
+                                                'Re-book Appointment'),
+                                            content: Column(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                TextField(
+                                                  controller: serviceController,
+                                                  decoration:
+                                                      const InputDecoration(
+                                                    labelText: 'Service',
+                                                    border:
+                                                        OutlineInputBorder(),
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 12),
+                                                Row(
+                                                  children: [
+                                                    Expanded(
+                                                      child: OutlinedButton(
+                                                        onPressed: () async {
+                                                          final picked =
+                                                              await showDatePicker(
+                                                            context: context,
+                                                            initialDate: DateTime.tryParse(
+                                                                    appointment[
+                                                                            'appointmentDate'] ??
+                                                                        '') ??
+                                                                DateTime.now(),
+                                                            firstDate:
+                                                                DateTime.now(),
+                                                            lastDate: DateTime
+                                                                    .now()
+                                                                .add(const Duration(
+                                                                    days: 365)),
+                                                          );
+                                                          if (picked != null)
+                                                            setState(() =>
+                                                                newDate =
+                                                                    picked);
+                                                        },
+                                                        child: Text(newDate !=
+                                                                null
+                                                            ? 'Date: \\${newDate!.toLocal().toString().split(' ')[0]}'
+                                                            : 'Pick new date'),
+                                                      ),
+                                                    ),
+                                                    const SizedBox(width: 8),
+                                                    Expanded(
+                                                      child: OutlinedButton(
+                                                        onPressed: () async {
+                                                          final picked =
+                                                              await showTimePicker(
+                                                            context: context,
+                                                            initialTime: TimeOfDay
+                                                                .fromDateTime(
+                                                              DateTime.tryParse(
+                                                                      appointment[
+                                                                              'appointmentDate'] ??
+                                                                          '') ??
+                                                                  DateTime
+                                                                      .now(),
+                                                            ),
+                                                          );
+                                                          if (picked != null)
+                                                            setState(() =>
+                                                                newTime =
+                                                                    picked);
+                                                        },
+                                                        child: Text(newTime !=
+                                                                null
+                                                            ? 'Time: \\${newTime!.format(context)}'
+                                                            : 'Pick new time'),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ],
+                                            ),
+                                            actions: [
+                                              TextButton(
+                                                onPressed: () =>
+                                                    Navigator.of(context)
+                                                        .pop(false),
+                                                child: const Text('Cancel'),
+                                              ),
+                                              ElevatedButton(
+                                                onPressed: () =>
+                                                    Navigator.of(context)
+                                                        .pop(true),
+                                                child: const Text('Confirm'),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      );
+                                      if (confirmed == true) {
+                                        try {
+                                          final newDateStr = newDate != null
+                                              ? newDate!
+                                                  .toIso8601String()
+                                                  .split('T')[0]
+                                              : null;
+                                          final newTimeStr = newTime != null
+                                              ? newTime!.format(context)
+                                              : null;
+                                          await ApiService
+                                              .rebookAppointmentAsAdmin(
+                                            appointment['appointmentId'] ??
+                                                appointment['id'],
+                                            service: serviceController.text
+                                                    .trim()
+                                                    .isEmpty
+                                                ? null
+                                                : serviceController.text.trim(),
+                                            date: newDateStr,
+                                            timeSlot: newTimeStr,
+                                          );
+                                          setState(() {
+                                            _approvedAppointments[index]
+                                                    ['appointmentDate'] =
+                                                newDateStr ??
+                                                    _approvedAppointments[index]
+                                                        ['appointmentDate'];
+                                            _approvedAppointments[index]
+                                                    ['timeSlot'] =
+                                                newTimeStr ??
+                                                    _approvedAppointments[index]
+                                                        ['timeSlot'];
+                                          });
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(
+                                            const SnackBar(
+                                                content: Text(
+                                                    'Appointment rebooked and patient notified.')),
+                                          );
+                                        } catch (e) {
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(
+                                            SnackBar(
+                                                content: Text(
+                                                    'Failed to rebook appointment: \\${e.toString()}')),
+                                          );
+                                        }
+                                      }
+                                    },
+                                    icon: const Icon(Icons.refresh, size: 16),
+                                    label: const Text('Re-book'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.blue,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 12),
+                                    ),
                                   ),
-                                );
-                              }
-                            }
-                          }
-                        },
-                        icon: const Icon(Icons.check, size: 16),
-                        label: const Text('Completed'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
+                                  const SizedBox(height: 8),
+                                  ElevatedButton.icon(
+                                    onPressed: () {},
+                                    icon: const Icon(Icons.cancel, size: 16),
+                                    label: const Text('Cancel Appointment'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.red,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 12),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                      const SizedBox(height: 8),
-                      ElevatedButton.icon(
-                        onPressed: () {},
-                        icon: const Icon(Icons.refresh, size: 16),
-                        label: const Text('Re-book'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      ElevatedButton.icon(
-                        onPressed: () {},
-                        icon: const Icon(Icons.cancel, size: 16),
-                        label: const Text('Cancel Appointment'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
-                      ),
-                    ],
+                      );
+                    },
                   ),
-                ),
-              ],
-            ),
-          );
-        },
+          ),
+        ],
       );
     }
   }

@@ -4,7 +4,6 @@ class TreatmentRecord {
   final String appointmentId;
   final String treatmentType;
   final String description;
-  final String doctorName;
   final DateTime treatmentDate;
   final List<String> procedures;
   final String? notes;
@@ -18,15 +17,14 @@ class TreatmentRecord {
     required this.appointmentId,
     required this.treatmentType,
     required this.description,
-    required this.doctorName,
     required this.treatmentDate,
     required this.procedures,
     this.notes,
     this.prescription,
     DateTime? createdAt,
     DateTime? updatedAt,
-  }) : createdAt = createdAt ?? DateTime.now(),
-       updatedAt = updatedAt ?? DateTime.now();
+  })  : createdAt = createdAt ?? DateTime.now(),
+        updatedAt = updatedAt ?? DateTime.now();
 
   // Convert to Map for storage
   Map<String, dynamic> toMap() {
@@ -36,7 +34,6 @@ class TreatmentRecord {
       'appointment_id': appointmentId,
       'treatment_type': treatmentType,
       'description': description,
-      'doctor_name': doctorName,
       'treatment_date': treatmentDate.toIso8601String(),
       'procedures': procedures,
       'notes': notes,
@@ -54,7 +51,6 @@ class TreatmentRecord {
       appointmentId: map['appointment_id'],
       treatmentType: map['treatment_type'],
       description: map['description'],
-      doctorName: map['doctor_name'],
       treatmentDate: DateTime.parse(map['treatment_date']),
       procedures: List<String>.from(map['procedures'] ?? []),
       notes: map['notes'],
@@ -71,7 +67,6 @@ class TreatmentRecord {
     String? appointmentId,
     String? treatmentType,
     String? description,
-    String? doctorName,
     DateTime? treatmentDate,
     List<String>? procedures,
     String? notes,
@@ -85,7 +80,6 @@ class TreatmentRecord {
       appointmentId: appointmentId ?? this.appointmentId,
       treatmentType: treatmentType ?? this.treatmentType,
       description: description ?? this.description,
-      doctorName: doctorName ?? this.doctorName,
       treatmentDate: treatmentDate ?? this.treatmentDate,
       procedures: procedures ?? this.procedures,
       notes: notes ?? this.notes,

@@ -547,7 +547,6 @@ class ApiService {
           'appointmentDate':
               appointmentData['date'], // This should now be YYYY-MM-DD format
           'timeSlot': appointmentData['timeSlot'],
-          'doctorName': appointmentData['doctorName'],
           'notes': appointmentData['notes'],
         }),
       );
@@ -594,7 +593,6 @@ class ApiService {
             'appointmentDate':
                 appointmentData['date'], // This should now be YYYY-MM-DD format
             'timeSlot': appointmentData['timeSlot'],
-            'doctorName': appointmentData['doctorName'],
             'notes': appointmentData['notes'],
           }),
         );
@@ -694,7 +692,6 @@ class ApiService {
                   'service': apt['service'],
                   'appointment_date': apt['appointmentDate'],
                   'time_slot': apt['timeSlot'],
-                  'doctor_name': apt['doctorName'],
                   'status': apt['status'],
                   'notes': apt['notes'],
                   'created_at': apt['createdAt'],

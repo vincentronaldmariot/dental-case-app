@@ -16,11 +16,7 @@ const appointmentValidation = [
     .withMessage('Valid appointment date is required'),
   body('timeSlot')
     .notEmpty()
-    .withMessage('Time slot is required'),
-  body('doctorName')
-    .optional()
-    .isLength({ min: 2, max: 100 })
-    .withMessage('Doctor name must be between 2 and 100 characters')
+    .withMessage('Time slot is required')
 ];
 
 // POST /api/appointments - Book new appointment
@@ -35,7 +31,7 @@ router.post('/', verifyPatient, appointmentValidation, async (req, res) => {
       });
     }
 
-    const { service, appointmentDate, timeSlot, doctorName, notes } = req.body;
+    const { service, appointmentDate, timeSlot, notes } = req.body;
     const patientId = req.patient.id;
 
     // Validate appointment date is in the future
@@ -61,10 +57,10 @@ router.post('/', verifyPatient, appointmentValidation, async (req, res) => {
     // Create new appointment
     const result = await query(`
       INSERT INTO appointments (
-        patient_id, service, appointment_date, time_slot, doctor_name, notes, status
-      ) VALUES ($1, $2, $3::date, $4, $5, $6, 'pending')
-      RETURNING id, service, appointment_date, time_slot, doctor_name, status, notes, created_at
-    `, [patientId, service, appointmentDate, timeSlot, doctorName || 'Dr. Smith', notes || null]);
+        patient_id, service, appointment_date, time_slot, notes, status
+      ) VALUES ($1, $2, $3::date, $4, $5, 'pending')
+      RETURNING id, service, appointment_date, time_slot, status, notes, created_at
+    `, [patientId, service, appointmentDate, timeSlot, notes || null]);
 
     const appointment = result.rows[0];
 
@@ -76,7 +72,6 @@ router.post('/', verifyPatient, appointmentValidation, async (req, res) => {
         service: appointment.service,
         appointmentDate: appointment.appointment_date,
         timeSlot: appointment.time_slot,
-        doctorName: appointment.doctor_name,
         status: appointment.status,
         notes: appointment.notes,
         createdAt: appointment.created_at
@@ -98,7 +93,7 @@ router.get('/', verifyPatient, async (req, res) => {
     const { status, limit = 50, offset = 0 } = req.query;
 
     let queryText = `
-      SELECT id, service, appointment_date, time_slot, doctor_name, status, notes, created_at, updated_at
+      SELECT id, service, appointment_date, time_slot, status, notes, created_at, updated_at
       FROM appointments 
       WHERE patient_id = $1
     `;
@@ -134,7 +129,6 @@ router.get('/', verifyPatient, async (req, res) => {
         service: appointment.service,
         appointmentDate: appointment.appointment_date,
         timeSlot: appointment.time_slot,
-        doctorName: appointment.doctor_name,
         status: appointment.status,
         notes: appointment.notes,
         createdAt: appointment.created_at,
@@ -163,7 +157,7 @@ router.get('/:id', verifyPatient, async (req, res) => {
     const patientId = req.patient.id;
 
     const result = await query(`
-      SELECT id, service, appointment_date, time_slot, doctor_name, status, notes, created_at, updated_at
+      SELECT id, service, appointment_date, time_slot, status, notes, created_at, updated_at
       FROM appointments 
       WHERE id = $1 AND patient_id = $2
     `, [appointmentId, patientId]);
@@ -183,7 +177,6 @@ router.get('/:id', verifyPatient, async (req, res) => {
         service: appointment.service,
         appointmentDate: appointment.appointment_date,
         timeSlot: appointment.time_slot,
-        doctorName: appointment.doctor_name,
         status: appointment.status,
         notes: appointment.notes,
         createdAt: appointment.created_at,
@@ -259,7 +252,7 @@ router.put('/:id', verifyPatient, async (req, res) => {
           notes = COALESCE($3, notes),
           updated_at = CURRENT_TIMESTAMP
       WHERE id = $4 AND patient_id = $5
-      RETURNING id, service, appointment_date, time_slot, doctor_name, status, notes, updated_at
+      RETURNING id, service, appointment_date, time_slot, status, notes, updated_at
     `, [appointmentDate, timeSlot, notes, appointmentId, patientId]);
 
     const appointment = result.rows[0];
@@ -272,7 +265,6 @@ router.put('/:id', verifyPatient, async (req, res) => {
         service: appointment.service,
         appointmentDate: appointment.appointment_date,
         timeSlot: appointment.time_slot,
-        doctorName: appointment.doctor_name,
         status: appointment.status,
         notes: appointment.notes,
         updatedAt: appointment.updated_at

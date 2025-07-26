@@ -18,16 +18,15 @@ async function createTestAppointment() {
     const appointmentResult = await query(`
       INSERT INTO appointments (
         patient_id, service, appointment_date, time_slot, 
-        doctor_name, status, notes, created_at, updated_at
+        status, notes, created_at, updated_at
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+        $1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
       ) RETURNING id, service, appointment_date, status
     `, [
       patientId,
       'Test Service',
       '2025-07-20T10:00:00.000Z',
       '10:00 AM',
-      'Dr. Test',
       'pending',
       'Test appointment for notification testing'
     ]);

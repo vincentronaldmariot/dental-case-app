@@ -200,6 +200,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
 
   Future<void> _loadApprovedAppointments() async {
     try {
+      // Load both approved and completed appointments
       final response = await http.get(
         Uri.parse('http://localhost:3000/api/admin/appointments/approved'),
         headers: {
@@ -217,10 +218,33 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
           appointments = [];
         }
 
+        // Also load completed appointments
+        final completedResponse = await http.get(
+          Uri.parse('http://localhost:3000/api/admin/appointments/completed'),
+          headers: {
+            'Authorization':
+                'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImJlNTBjOTAxLTdlZWQtNDIyOC05NzExLTk5OWIwOGEwZTcyZCIsInVzZXJuYW1lIjoiYWRtaW4iLCJ0eXBlIjoiYWRtaW4iLCJpYXQiOjE3NTMwODM4NzQsImV4cCI6MTc1MzY4ODY3NH0.jTqWoKAaX3SG2njDlgWbdFMyTjJab5kdgr5466cJcq4',
+          },
+        );
+
+        List<dynamic> completedAppointments = [];
+        if (completedResponse.statusCode == 200) {
+          final completedData = jsonDecode(completedResponse.body);
+          if (completedData is Map &&
+              completedData.containsKey('completedAppointments')) {
+            completedAppointments =
+                completedData['completedAppointments'] ?? [];
+          }
+        }
+
+        // Combine both lists
+        appointments.addAll(completedAppointments);
+
         setState(() {
           _approvedAppointments = appointments;
         });
-        print('✅ Loaded ${_approvedAppointments.length} approved appointments');
+        print(
+            '✅ Loaded ${appointments.length - completedAppointments.length} approved appointments and ${completedAppointments.length} completed appointments');
       } else {
         print('❌ Failed to load approved appointments: ${response.statusCode}');
       }
@@ -287,9 +311,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         appointment is Appointment ? '' : (appointment['patient_phone'] ?? '');
     final notes =
         appointment is Appointment ? appointment.notes : appointment['notes'];
-    final doctorName = appointment is Appointment
-        ? appointment.doctorName
-        : (appointment['doctor_name'] ?? '');
+
     final effectiveSurvey = survey ??
         ((appointment is Map && (appointment).containsKey('survey_data'))
             ? (appointment)['survey_data']
@@ -588,7 +610,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                                 'Time', localTimeSlot, Icons.access_time),
                           ],
                           _buildInfoRow('Status', status, Icons.info),
-                          _buildInfoRow('Doctor', doctorName, Icons.person),
                           if (notes != null && notes.toString().isNotEmpty)
                             _buildInfoRow(
                                 'Notes', notes.toString(), Icons.note),
@@ -1028,7 +1049,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
             treatmentType: appointment['service'] ?? 'General Treatment',
             description:
                 'Treatment for ${appointment['service'] ?? 'General Treatment'}',
-            doctorName: appointment['doctor_name'] ?? 'Unknown',
             treatmentDate:
                 DateTime.tryParse(appointment['date'] ?? '') ?? DateTime.now(),
             procedures: [],
@@ -1130,8 +1150,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
               backgroundColor: Colors.green,
             ),
           );
-          _loadApprovedAppointments();
-          await _loadData();
+          // Refresh only the approved appointments list
+          await _loadApprovedAppointments();
+          // Also refresh pending appointments in case there are any updates
+          await _fetchPendingAppointmentsWithSurvey();
         } else {
           throw Exception(
               'Failed to mark appointment as completed: ${response.statusCode}');
@@ -1143,6 +1165,96 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         SnackBar(
           content:
               Text('Failed to mark appointment as completed: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _cancelAppointment(dynamic appointment) async {
+    try {
+      print('❌ Cancelling appointment: ${appointment['appointmentId']}');
+      print('📋 Patient: ${appointment['patientName']}');
+      print('🦷 Service: ${appointment['service']}');
+
+      // Show dialog to get cancellation note
+      String? cancellationNote;
+      bool? confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text('Cancel Appointment'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Are you sure you want to cancel this appointment?'),
+                const SizedBox(height: 16),
+                TextField(
+                  decoration: const InputDecoration(
+                    labelText: 'Cancellation Note (Optional)',
+                    hintText: 'Enter reason for cancellation...',
+                    border: OutlineInputBorder(),
+                  ),
+                  maxLines: 3,
+                  onChanged: (value) {
+                    cancellationNote = value;
+                  },
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Confirm Cancel'),
+              ),
+            ],
+          );
+        },
+      );
+
+      if (confirmed == true) {
+        final response = await http.post(
+          Uri.parse(
+              'http://localhost:3000/api/admin/appointments/${appointment['appointmentId']}/cancel'),
+          headers: {
+            'Authorization':
+                'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImJlNTBjOTAxLTdlZWQtNDIyOC05NzExLTk5OWIwOGEwZTcyZCIsInVzZXJuYW1lIjoiYWRtaW4iLCJ0eXBlIjoiYWRtaW4iLCJpYXQiOjE3NTMwODM4NzQsImV4cCI6MTc1MzY4ODY3NH0.jTqWoKAaX3SG2njDlgWbdFMyTjJab5kdgr5466cJcq4',
+            'Content-Type': 'application/json',
+          },
+          body: jsonEncode({'note': cancellationNote ?? ''}),
+        );
+
+        print('📊 Cancel response status: ${response.statusCode}');
+        print('📊 Cancel response body: ${response.body}');
+
+        if (response.statusCode == 200) {
+          print('✅ Appointment cancelled successfully!');
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Appointment cancelled and patient notified'),
+              backgroundColor: Colors.green,
+            ),
+          );
+          // Refresh the approved appointments list
+          await _loadApprovedAppointments();
+        } else {
+          throw Exception(
+              'Failed to cancel appointment: ${response.statusCode}');
+        }
+      }
+    } catch (e) {
+      print('Error cancelling appointment: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to cancel appointment: ${e.toString()}'),
           backgroundColor: Colors.red,
         ),
       );
@@ -1354,7 +1466,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       Expanded(
                         child: _buildStatCard(
                           'Approved Appointments',
-                          _approvedAppointments.length.toString(),
+                          _approvedAppointments
+                              .where((app) => app['status'] == 'approved')
+                              .length
+                              .toString(),
                           Icons.medical_services,
                           Colors.teal,
                         ),
@@ -1963,18 +2078,26 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   }
 
   Widget _buildTreatmentsTab() {
-    final filteredApproved = _approvedAppointments.where((app) {
+    // Separate approved and completed appointments
+    final approvedAppointments = _approvedAppointments
+        .where((app) => app['status'] == 'approved')
+        .toList();
+    final completedAppointments = _approvedAppointments
+        .where((app) => app['status'] == 'completed')
+        .toList();
+
+    final filteredApproved = approvedAppointments.where((app) {
       final query = _approvedSearchQuery.toLowerCase();
       return (app['patientName']?.toLowerCase().contains(query) == true) ||
           (app['service']?.toLowerCase().contains(query) == true) ||
           (app['status']?.toLowerCase().contains(query) == true);
     }).toList();
-    if (_approvedAppointments.isEmpty) {
+    if (approvedAppointments.isEmpty && completedAppointments.isEmpty) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(32.0),
           child: Text(
-            'No approved appointments',
+            'No approved or completed appointments',
             style: TextStyle(
               fontSize: 20,
               color: Colors.grey.shade600,
@@ -2095,10 +2218,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                                         // Mark as completed in backend
                                         await _markAppointmentCompleted(
                                             appointment);
-                                        // Remove from approved list
-                                        setState(() {
-                                          _approvedAppointments.removeAt(index);
-                                        });
+                                        // The backend refresh will handle the state update
                                         // Add to patient's appointment history in _patients
                                         final patientId =
                                             appointment['patientId'] ??
@@ -2371,7 +2491,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                                   ),
                                   const SizedBox(height: 8),
                                   ElevatedButton.icon(
-                                    onPressed: () {},
+                                    onPressed: () {
+                                      _cancelAppointment(appointment);
+                                    },
                                     icon: const Icon(Icons.cancel, size: 16),
                                     label: const Text('Cancel Appointment'),
                                     style: ElevatedButton.styleFrom(

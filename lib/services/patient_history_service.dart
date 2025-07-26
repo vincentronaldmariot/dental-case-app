@@ -70,7 +70,6 @@ class PatientHistoryService {
               service: apt['service'],
               date: DateTime.parse(apt['date']),
               timeSlot: apt['timeSlot'],
-              doctorName: apt['doctorName'],
               status: AppointmentStatus.values.firstWhere(
                 (e) => e.name == apt['status'],
                 orElse: () => AppointmentStatus.scheduled,
@@ -90,7 +89,6 @@ class PatientHistoryService {
               appointmentId: tr['appointmentId'] ?? '',
               treatmentType: tr['treatmentType'],
               description: tr['description'],
-              doctorName: tr['doctorName'],
               treatmentDate: DateTime.parse(tr['treatmentDate']),
               procedures: List<String>.from(tr['procedures'] ?? []),
               notes: tr['notes'],

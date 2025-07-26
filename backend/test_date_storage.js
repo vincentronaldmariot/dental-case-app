@@ -40,8 +40,8 @@ async function testDateStorage() {
     console.log('Inserting date:', testDate);
     
     const insertResult = await query(`
-      INSERT INTO appointments (patient_id, service, appointment_date, time_slot, doctor_name, status)
-      VALUES ($1, 'Test Service', $2::date, '10:00', 'Dr. Test', 'pending')
+      INSERT INTO appointments (patient_id, service, appointment_date, time_slot, status)
+      VALUES ($1, 'Test Service', $2::date, '10:00', 'pending')
       RETURNING id, appointment_date
     `, [testPatientId, testDate]);
     
@@ -95,8 +95,8 @@ async function testDateStorage() {
       console.log(`\nTesting date: ${testDate}`);
       
       const testInsertResult = await query(`
-        INSERT INTO appointments (patient_id, service, appointment_date, time_slot, doctor_name, status)
-        VALUES ($1, 'Test Service', $2::date, '10:00', 'Dr. Test', 'pending')
+        INSERT INTO appointments (patient_id, service, appointment_date, time_slot, status)
+        VALUES ($1, 'Test Service', $2::date, '10:00', 'pending')
         RETURNING appointment_date
       `, [testPatientId, testDate]);
       

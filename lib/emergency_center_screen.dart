@@ -747,7 +747,7 @@ class _EmergencyCenterScreenState extends State<EmergencyCenterScreen> {
       service: 'Emergency Treatment',
       date: DateTime.now().add(const Duration(hours: 2)),
       timeSlot: 'Emergency Slot',
-      doctorName: 'Duty Dentist',
+
       status: AppointmentStatus.scheduled,
       notes: 'Emergency appointment - Priority scheduling',
     );

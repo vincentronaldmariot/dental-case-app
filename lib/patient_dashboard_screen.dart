@@ -20,7 +20,8 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
         .where(
           (apt) =>
               apt.date.isAfter(DateTime.now()) &&
-              apt.status != AppointmentStatus.cancelled,
+              apt.status != AppointmentStatus.cancelled &&
+              apt.status != AppointmentStatus.pending,
         )
         .take(3)
         .toList();

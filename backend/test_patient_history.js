@@ -49,7 +49,7 @@ async function testPatientHistory() {
     console.log('\n📊 Testing appointments query...');
     const appointmentsResult = await query(`
       SELECT 
-        id, service, appointment_date, time_slot, doctor_name, 
+        id, service, appointment_date, time_slot, 
         status, notes, created_at, updated_at
       FROM appointments 
       LIMIT 1
@@ -87,7 +87,7 @@ async function testPatientHistory() {
     const treatmentResult = await query(`
       SELECT 
         id, treatment_type, description, date_performed, 
-        doctor_name, notes, created_at
+        notes, created_at
       FROM treatment_records 
       LIMIT 1
     `);

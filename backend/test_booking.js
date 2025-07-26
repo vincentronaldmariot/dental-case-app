@@ -53,7 +53,6 @@ async function testBookingConflict() {
       service: 'General Checkup',
       appointmentDate: tomorrow.toISOString(),
       timeSlot: '10:00 AM',
-      doctorName: 'Dr. Smith',
       notes: 'Test booking from script'
     });
 

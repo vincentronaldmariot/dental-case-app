@@ -6,7 +6,7 @@ async function checkPendingAppointments() {
     
     // Get all pending appointments
     const pendingResult = await query(`
-      SELECT id, patient_id, service, appointment_date, time_slot, doctor_name, status, notes, created_at
+      SELECT id, patient_id, service, appointment_date, time_slot, status, notes, created_at
       FROM appointments 
       WHERE status = 'pending'
       ORDER BY created_at DESC
@@ -35,7 +35,7 @@ async function checkPendingAppointments() {
     
     // Get all appointments for comparison
     const allResult = await query(`
-      SELECT id, patient_id, service, appointment_date, time_slot, doctor_name, status, notes, created_at
+      SELECT id, patient_id, service, appointment_date, time_slot, status, notes, created_at
       FROM appointments 
       ORDER BY created_at DESC
     `);

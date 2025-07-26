@@ -43,7 +43,6 @@ async function testAppointmentFlow() {
         service: 'General Checkup',
         appointmentDate: futureDateString,
         timeSlot: '02:30 PM',
-        doctorName: 'Dr. Smith',
         notes: 'Test appointment from API'
       });
 

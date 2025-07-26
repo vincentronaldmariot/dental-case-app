@@ -309,10 +309,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ...lastThree.map(
             (appointment) => _buildActivityCard(
               appointment.service,
-              appointment.doctorName != null &&
-                      appointment.doctorName.isNotEmpty
-                  ? 'with ${appointment.doctorName}'
-                  : '',
+              '',
               DateFormat('MMM dd, yyyy').format(appointment.date),
               Icons.history,
               Colors.green,
@@ -1373,13 +1370,15 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                       setState(() {});
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text('🗑️ All appointments cleared for debugging'),
+                          content: Text(
+                              '🗑️ All appointments cleared for debugging'),
                           backgroundColor: Colors.red,
                           duration: Duration(seconds: 2),
                         ),
                       );
                     },
-                    icon: const Icon(Icons.clear_all, color: Colors.white, size: 24),
+                    icon: const Icon(Icons.clear_all,
+                        color: Colors.white, size: 24),
                     tooltip: 'Clear all appointments (debug)',
                   ),
                   IconButton(
@@ -1630,16 +1629,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                 ],
               ),
               const SizedBox(height: 8),
-              Row(
-                children: [
-                  Icon(Icons.person, size: 16, color: Colors.grey[600]),
-                  const SizedBox(width: 4),
-                  Text(
-                    appointment.doctorName,
-                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                  ),
-                ],
-              ),
+
               const SizedBox(height: 4),
               Row(
                 children: [
@@ -1784,7 +1774,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _buildDetailRow('Service', appointment.service),
-                    _buildDetailRow('Doctor', appointment.doctorName),
+
                     _buildDetailRow(
                       'Date',
                       DateFormat('EEEE, MMM dd, yyyy').format(appointment.date),

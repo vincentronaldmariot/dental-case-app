@@ -470,8 +470,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
           const SizedBox(height: 8),
           Text('Date: ${_formatHistoryDate(appointment['appointmentDate'])}'),
           Text('Time: ${appointment['timeSlot'] ?? 'N/A'}'),
-          if (appointment['doctorName']?.isNotEmpty == true)
-            Text('Doctor: ${appointment['doctorName']}'),
+
           if (appointment['notes']?.isNotEmpty == true)
             Text('Notes: ${appointment['notes']}'),
         ],
@@ -598,8 +597,7 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
           const SizedBox(height: 8),
           Text('Description: ${treatment['description'] ?? 'N/A'}'),
           Text('Date: ${_formatHistoryDate(treatment['datePerformed'])}'),
-          if (treatment['doctorName']?.isNotEmpty == true)
-            Text('Doctor: ${treatment['doctorName']}'),
+
           if (treatment['notes']?.isNotEmpty == true)
             Text('Notes: ${treatment['notes']}'),
         ],

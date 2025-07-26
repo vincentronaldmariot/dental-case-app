@@ -4,7 +4,6 @@ class Appointment {
   final String service;
   final DateTime date;
   final String timeSlot;
-  final String doctorName;
   final AppointmentStatus status;
   final String? notes;
   final DateTime createdAt;
@@ -15,7 +14,6 @@ class Appointment {
     required this.service,
     required this.date,
     required this.timeSlot,
-    required this.doctorName,
     required this.status,
     this.notes,
     DateTime? createdAt,
@@ -29,7 +27,6 @@ class Appointment {
       'service': service,
       'date': date.toIso8601String(),
       'time_slot': timeSlot,
-      'doctor_name': doctorName,
       'status': status.name,
       'notes': notes,
       'created_at': createdAt.toIso8601String(),
@@ -44,7 +41,6 @@ class Appointment {
       service: map['service']?.toString() ?? '',
       date: _parseDateSafely(map['date']),
       timeSlot: map['time_slot']?.toString() ?? '',
-      doctorName: map['doctor_name']?.toString() ?? '',
       status: map['status'] != null
           ? AppointmentStatus.values.firstWhere(
               (e) => e.name == map['status'].toString(),
@@ -98,7 +94,6 @@ class Appointment {
     String? service,
     DateTime? date,
     String? timeSlot,
-    String? doctorName,
     AppointmentStatus? status,
     String? notes,
     DateTime? createdAt,
@@ -109,7 +104,6 @@ class Appointment {
       service: service ?? this.service,
       date: date ?? this.date,
       timeSlot: timeSlot ?? this.timeSlot,
-      doctorName: doctorName ?? this.doctorName,
       status: status ?? this.status,
       notes: notes ?? this.notes,
       createdAt: createdAt ?? this.createdAt,

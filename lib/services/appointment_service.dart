@@ -211,10 +211,7 @@ class AppointmentService {
     return services[index % services.length];
   }
 
-  String _getRandomDoctor(int index) {
-    final doctors = ['Smith', 'Johnson', 'Williams', 'Brown', 'Davis'];
-    return doctors[index % doctors.length];
-  }
+
 
   // Book a new appointment
   Future<AppointmentBookingResult> bookAppointment({
@@ -323,7 +320,6 @@ class AppointmentService {
         service: service,
         date: date,
         timeSlot: availableTimeSlot,
-        doctorName: 'Dr. ${_getRandomDoctor(DateTime.now().millisecond)}',
         status: AppointmentStatus.scheduled,
         notes: 'Booked via app',
       );
@@ -399,7 +395,7 @@ class AppointmentService {
         service: service,
         date: date,
         timeSlot: availableSlot,
-        doctorName: 'Dr. Smith',
+
         status: AppointmentStatus.pending, // Set to pending for admin review
         notes: surveyNotes.isNotEmpty ? 'Survey: $surveyNotes' : null,
         createdAt: DateTime.now(),
@@ -416,7 +412,7 @@ class AppointmentService {
           'service': appointment.service,
           'date': _formatDate(appointment.date), // Send YYYY-MM-DD format
           'timeSlot': appointment.timeSlot,
-          'doctorName': appointment.doctorName,
+
           'status': appointment.status.name,
           'notes': appointment.notes,
           'createdAt': appointment.createdAt.toIso8601String(),

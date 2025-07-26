@@ -175,7 +175,6 @@ class HistoryService {
           id: aptData['id'] ?? '',
           patientId: aptData['patient_id'] ?? aptData['patientId'] ?? '',
           service: aptData['service'] ?? '',
-          doctorName: aptData['doctor_name'] ?? aptData['doctorName'] ?? '',
           date: DateTime.parse(aptData['appointment_date'] ??
               aptData['appointmentDate'] ??
               DateTime.now().toIso8601String()),

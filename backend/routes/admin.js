@@ -157,7 +157,6 @@ router.get('/appointments', verifyAdmin, async (req, res) => {
         a.service,
         a.appointment_date,
         a.time_slot,
-        a.doctor_name,
         a.status,
         a.notes,
         a.created_at,
@@ -213,7 +212,7 @@ router.get('/appointments', verifyAdmin, async (req, res) => {
         service: appointment.service || 'N/A',
         appointmentDate: appointment.appointment_date,
         timeSlot: appointment.time_slot || 'N/A', // Handle null time slots
-        doctorName: appointment.doctor_name || 'N/A',
+
         status: appointment.status,
         notes: appointment.notes,
         createdAt: appointment.created_at,
@@ -248,7 +247,6 @@ router.get('/appointments/pending', verifyAdmin, async (req, res) => {
         a.service,
         a.appointment_date,
         a.time_slot,
-        a.doctor_name,
         a.status,
         a.notes,
         a.created_at,
@@ -288,7 +286,6 @@ router.get('/appointments/pending', verifyAdmin, async (req, res) => {
         service: appointment.service || 'N/A',
         appointmentDate: appointment.appointment_date,
         timeSlot: appointment.time_slot || 'N/A', // Handle null time slots
-        doctorName: appointment.doctor_name || 'N/A',
         status: appointment.status,
         notes: appointment.notes,
         createdAt: appointment.created_at,
@@ -324,7 +321,6 @@ router.get('/appointments/approved', verifyAdmin, async (req, res) => {
         a.service,
         a.appointment_date,
         a.time_slot,
-        a.doctor_name,
         a.status,
         a.notes,
         a.created_at,
@@ -372,7 +368,6 @@ router.get('/appointments/approved', verifyAdmin, async (req, res) => {
           service: appointment.service || 'N/A',
           appointmentDate: formattedDate,
           timeSlot: appointment.time_slot || 'N/A',
-          doctorName: appointment.doctor_name || 'N/A',
           status: appointment.status,
           notes: appointment.notes,
           createdAt: appointment.created_at,
@@ -398,6 +393,89 @@ router.get('/appointments/approved', verifyAdmin, async (req, res) => {
   }
 });
 
+// GET /api/admin/appointments/completed - Get completed appointments
+router.get('/appointments/completed', verifyAdmin, async (req, res) => {
+  try {
+    const { limit = 50, offset = 0 } = req.query;
+
+    const queryText = `
+      SELECT 
+        a.id,
+        a.service,
+        a.appointment_date,
+        a.time_slot,
+        a.status,
+        a.notes,
+        a.created_at,
+        a.updated_at,
+        p.id as patient_id,
+        p.first_name,
+        p.last_name,
+        p.email,
+        p.phone,
+        p.classification,
+        p.other_classification,
+        ds.survey_data,
+        ds.completed_at as survey_completed_at
+      FROM appointments a
+      LEFT JOIN patients p ON a.patient_id = p.id
+      LEFT JOIN dental_surveys ds ON p.id = ds.patient_id
+      WHERE a.status = 'completed'
+      ORDER BY a.appointment_date DESC, a.time_slot ASC
+      LIMIT $1 OFFSET $2
+    `;
+
+    const result = await query(queryText, [parseInt(limit), parseInt(offset)]);
+
+    // Get total completed count
+    const countResult = await query("SELECT COUNT(*) FROM appointments WHERE status = 'completed'");
+    const totalCount = parseInt(countResult.rows[0].count);
+
+    res.json({
+      completedAppointments: result.rows.map(appointment => {
+        // Format the date properly to avoid timezone issues
+        let formattedDate = appointment.appointment_date;
+        if (appointment.appointment_date) {
+          // Extract date in local timezone, not UTC
+          formattedDate = formatDateLocal(appointment.appointment_date);
+        }
+        
+        return {
+          appointmentId: appointment.id,
+          patientId: appointment.patient_id,
+          patientName: `${appointment.first_name} ${appointment.last_name}`,
+          patientEmail: appointment.email,
+          patientPhone: appointment.phone,
+          patientClassification: appointment.classification,
+          patientOtherClassification: appointment.other_classification,
+          service: appointment.service || 'N/A',
+          appointmentDate: formattedDate,
+          timeSlot: appointment.time_slot || 'N/A',
+          status: appointment.status,
+          notes: appointment.notes,
+          createdAt: appointment.created_at,
+          updatedAt: appointment.updated_at,
+          surveyData: appointment.survey_data,
+          surveyCompletedAt: appointment.survey_completed_at,
+          hasSurveyData: appointment.survey_data !== null
+        };
+      }),
+      pagination: {
+        total: totalCount,
+        limit: parseInt(limit),
+        offset: parseInt(offset),
+        hasMore: totalCount > parseInt(offset) + parseInt(limit)
+      }
+    });
+
+  } catch (error) {
+    console.error('Admin get completed appointments error:', error);
+    res.status(500).json({
+      error: 'Failed to retrieve completed appointments. Please try again.'
+    });
+  }
+});
+
 // GET /api/admin/appointments/:id - Get specific appointment with full details
 router.get('/appointments/:id', verifyAdmin, async (req, res) => {
   try {
@@ -409,7 +487,6 @@ router.get('/appointments/:id', verifyAdmin, async (req, res) => {
         a.service,
         a.appointment_date,
         a.time_slot,
-        a.doctor_name,
         a.status,
         a.notes,
         a.created_at,
@@ -475,7 +552,6 @@ router.get('/appointments/:id', verifyAdmin, async (req, res) => {
           return appointment.appointment_date;
         })(),
         timeSlot: appointment.time_slot || 'N/A', // Handle null time slots
-        doctorName: appointment.doctor_name || 'N/A',
         status: appointment.status,
         notes: appointment.notes,
         createdAt: appointment.created_at,
@@ -737,8 +813,7 @@ router.post('/appointments/:id/reject', verifyAdmin, [
     // Get appointment details with patient info
     const appointmentResult = await query(`
       SELECT 
-        a.id, a.service, a.appointment_date, a.time_slot, a.doctor_name,
-        p.first_name, p.last_name, p.email, p.phone
+        a.id, a.service, a.appointment_date, a.time_slot, p.first_name, p.last_name, p.email, p.phone
       FROM appointments a
       JOIN patients p ON a.patient_id = p.id
       WHERE a.id = $1 AND a.status IN ('pending', 'approved')
@@ -847,8 +922,7 @@ router.post('/appointments/:id/approve', verifyAdmin, [
     // Get appointment details with patient info
     const appointmentResult = await query(`
       SELECT 
-        a.id, a.service, a.appointment_date, a.time_slot, a.doctor_name,
-        p.first_name, p.last_name, p.email, p.phone
+        a.id, a.service, a.appointment_date, a.time_slot, p.first_name, p.last_name, p.email, p.phone
       FROM appointments a
       JOIN patients p ON a.patient_id = p.id
       WHERE a.id = $1 AND a.status = 'pending'
@@ -874,8 +948,7 @@ router.post('/appointments/:id/approve', verifyAdmin, [
     // Fetch the updated appointment
     const updatedAppointmentResult = await query(`
       SELECT 
-        a.id, a.status, a.service, a.appointment_date, a.time_slot, a.doctor_name,
-        p.first_name, p.last_name, p.email, p.phone
+        a.id, a.status, a.service, a.appointment_date, a.time_slot, p.first_name, p.last_name, p.email, p.phone
       FROM appointments a
       JOIN patients p ON a.patient_id = p.id
       WHERE a.id = $1
@@ -1325,8 +1398,7 @@ router.get('/patients/history', verifyAdmin, async (req, res) => {
         // Get appointments for this patient
         const appointmentsResult = await query(`
           SELECT 
-            id, service, appointment_date, time_slot, doctor_name, 
-            status, notes, created_at, updated_at
+            id, service, appointment_date, time_slot, status, notes, created_at, updated_at
           FROM appointments 
           WHERE patient_id = $1 
           ORDER BY created_at DESC
@@ -1353,7 +1425,7 @@ router.get('/patients/history', verifyAdmin, async (req, res) => {
         const treatmentResult = await query(`
           SELECT 
             id, treatment_type, description, treatment_date, 
-            doctor_name, notes, created_at
+            notes, created_at
           FROM treatment_records 
           WHERE patient_id = $1 
           ORDER BY treatment_date DESC
@@ -1384,7 +1456,6 @@ router.get('/patients/history', verifyAdmin, async (req, res) => {
             service: apt.service,
             appointmentDate: apt.appointment_date,
             timeSlot: apt.time_slot,
-            doctorName: apt.doctor_name,
             status: apt.status,
             notes: apt.notes,
             createdAt: apt.created_at,
@@ -1410,7 +1481,6 @@ router.get('/patients/history', verifyAdmin, async (req, res) => {
             treatmentType: treatment.treatment_type,
             description: treatment.description,
             datePerformed: treatment.treatment_date,
-            doctorName: treatment.doctor_name,
             notes: treatment.notes,
             createdAt: treatment.created_at
           })),
@@ -1724,8 +1794,7 @@ router.get('/patients/:id/appointments', verifyAdmin, async (req, res) => {
     const patientId = req.params.id;
     const appointmentsResult = await query(
       `SELECT 
-        id, service, appointment_date, time_slot, doctor_name, 
-        status, notes, created_at, updated_at
+        id, service, appointment_date, time_slot, status, notes, created_at, updated_at
        FROM appointments 
        WHERE patient_id = $1 
        ORDER BY created_at DESC`,

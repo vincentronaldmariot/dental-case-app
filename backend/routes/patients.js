@@ -342,7 +342,7 @@ router.get('/:id/history', verifyToken, async (req, res) => {
 
     // Get patient's appointments
     const appointmentsResult = await query(`
-      SELECT id, service, date, time_slot, doctor_name, status, notes, created_at
+      SELECT id, service, date, time_slot, status, notes, created_at
       FROM appointments 
       WHERE patient_id = $1
       ORDER BY date DESC
@@ -351,7 +351,7 @@ router.get('/:id/history', verifyToken, async (req, res) => {
 
     // Get patient's treatment records (if they exist in database)
     const treatmentResult = await query(`
-      SELECT id, treatment_type, description, doctor_name, treatment_date, 
+      SELECT id, treatment_type, description, treatment_date, 
              procedures, notes, prescription, created_at
       FROM treatment_records 
       WHERE patient_id = $1
@@ -382,7 +382,6 @@ router.get('/:id/history', verifyToken, async (req, res) => {
         service: apt.service,
         date: apt.date,
         timeSlot: apt.time_slot,
-        doctorName: apt.doctor_name,
         status: apt.status,
         notes: apt.notes,
         createdAt: apt.created_at
@@ -391,7 +390,6 @@ router.get('/:id/history', verifyToken, async (req, res) => {
         id: tr.id,
         treatmentType: tr.treatment_type,
         description: tr.description,
-        doctorName: tr.doctor_name,
         treatmentDate: tr.treatment_date,
         procedures: tr.procedures,
         notes: tr.notes,

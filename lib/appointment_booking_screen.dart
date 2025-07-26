@@ -839,7 +839,7 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen>
               'temp_${DateTime.now().millisecondsSinceEpoch}',
           patientId: UserStateManager().currentPatientId ?? '',
           service: selectedService!,
-          doctorName: '', // Will be assigned by admin
+
           date: selectedDate,
           timeSlot: '', // Will be assigned by admin
           status: AppointmentStatus.pending,

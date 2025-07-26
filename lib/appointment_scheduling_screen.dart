@@ -1163,7 +1163,7 @@ class _AppointmentSchedulingScreenState
               if (patient != null) ...[
                 Text('Patient: ${patient.fullName}'),
                 Text('Service: ${appointment.service}'),
-                Text('Doctor: ${appointment.doctorName}'),
+
               ] else ...[
                 const Text('Patient information not available'),
               ],

@@ -234,6 +234,8 @@ class HistoryService {
         return AppointmentStatus.pending;
       case 'scheduled':
         return AppointmentStatus.scheduled;
+      case 'approved':
+        return AppointmentStatus.scheduled; // Map 'approved' to 'scheduled'
       case 'completed':
         return AppointmentStatus.completed;
       case 'cancelled':

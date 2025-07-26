@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'dart:async';
 import 'models/appointment.dart';
 import 'services/history_service.dart';
+import 'services/api_service.dart';
+import 'user_state_manager.dart';
 
 class PatientDashboardScreen extends StatefulWidget {
   const PatientDashboardScreen({super.key});
@@ -12,6 +17,91 @@ class PatientDashboardScreen extends StatefulWidget {
 
 class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
   final HistoryService _historyService = HistoryService();
+  Timer? _notificationCheckTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshAppointmentData();
+    _checkForApprovalNotifications();
+
+    // Set up periodic check for approval notifications every 2 minutes
+    _notificationCheckTimer =
+        Timer.periodic(const Duration(minutes: 2), (timer) {
+      _checkForApprovalNotifications();
+    });
+  }
+
+  @override
+  void dispose() {
+    _notificationCheckTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _refreshAppointmentData() async {
+    try {
+      final patientId = UserStateManager().currentPatientId;
+      if (patientId.isNotEmpty && patientId != 'guest') {
+        print('🔄 Refreshing appointment data for patient dashboard...');
+        final backendAppointments = await ApiService.getAppointments(patientId);
+        _historyService.loadAppointmentsFromBackend(backendAppointments,
+            patientId: patientId);
+        setState(() {}); // Refresh UI
+        print('✅ Appointment data refreshed for patient dashboard');
+      }
+    } catch (e) {
+      print('❌ Error refreshing appointment data: $e');
+    }
+  }
+
+  // Check for approval notifications and refresh appointments if needed
+  Future<void> _checkForApprovalNotifications() async {
+    try {
+      final patientId = UserStateManager().currentPatientId;
+      final patientToken = UserStateManager().patientToken;
+
+      if (patientId.isEmpty || patientToken == null || patientId == 'guest') {
+        print('❌ No valid patient ID or token for notification check');
+        return;
+      }
+
+      print('🔍 Checking for approval notifications in patient dashboard...');
+
+      final response = await http.get(
+        Uri.parse(
+            'http://localhost:3000/api/patients/$patientId/notifications'),
+        headers: {
+          'Authorization': 'Bearer $patientToken',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final notifications = data['notifications'] ?? [];
+
+        // Check if there are any recent approval notifications
+        final approvalNotifications = notifications.where((notification) {
+          final type = notification['type'] ?? '';
+          final createdAt = notification['created_at'];
+          final isRecent = createdAt != null &&
+              DateTime.parse(createdAt)
+                  .isAfter(DateTime.now().subtract(const Duration(hours: 1)));
+          return type == 'appointment_approved' && isRecent;
+        }).toList();
+
+        if (approvalNotifications.isNotEmpty) {
+          print(
+              '✅ Found ${approvalNotifications.length} recent approval notifications, refreshing appointments...');
+          await _refreshAppointmentData();
+        } else {
+          print('ℹ️ No recent approval notifications found');
+        }
+      }
+    } catch (e) {
+      print('❌ Error checking for approval notifications: $e');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -36,35 +126,46 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
         backgroundColor: const Color(0xFF005800),
         iconTheme: const IconThemeData(color: Colors.white),
         elevation: 0,
+        actions: [
+          IconButton(
+            onPressed: _refreshAppointmentData,
+            icon: const Icon(Icons.refresh, color: Colors.white),
+            tooltip: 'Refresh appointments',
+          ),
+        ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Health Status Overview
-            _buildHealthStatusCard(),
-            const SizedBox(height: 20),
+      body: RefreshIndicator(
+        onRefresh: _refreshAppointmentData,
+        color: const Color(0xFF005800),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Health Status Overview
+              _buildHealthStatusCard(),
+              const SizedBox(height: 20),
 
-            // Quick Stats
-            _buildQuickStatsGrid(),
-            const SizedBox(height: 20),
+              // Quick Stats
+              _buildQuickStatsGrid(),
+              const SizedBox(height: 20),
 
-            // Appointment History (moved here)
-            _buildAppointmentHistoryCard(),
-            const SizedBox(height: 20),
+              // Appointment History (moved here)
+              _buildAppointmentHistoryCard(),
+              const SizedBox(height: 20),
 
-            // Upcoming Appointments
-            _buildUpcomingAppointments(upcomingAppointments),
-            const SizedBox(height: 20),
+              // Upcoming Appointments
+              _buildUpcomingAppointments(upcomingAppointments),
+              const SizedBox(height: 20),
 
-            // Treatment Progress
-            _buildTreatmentProgress(),
-            const SizedBox(height: 20),
+              // Treatment Progress
+              _buildTreatmentProgress(),
+              const SizedBox(height: 20),
 
-            // Health Reminders
-            _buildHealthReminders(),
-          ],
+              // Health Reminders
+              _buildHealthReminders(),
+            ],
+          ),
         ),
       ),
     );

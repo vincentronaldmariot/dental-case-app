@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import './welcome_screen.dart';
 import './dental_survey_screen.dart';
 import './appointment_booking_screen.dart';
@@ -14,6 +15,8 @@ import './services/survey_service.dart';
 import './models/appointment.dart';
 import './models/patient.dart';
 import 'package:http/http.dart' as http;
+import 'dart:convert'; // Added for jsonDecode
+import 'dart:async'; // Added for Timer
 
 class MainAppScreen extends StatefulWidget {
   const MainAppScreen({super.key});
@@ -132,12 +135,153 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
+  Timer? _notificationCheckTimer;
+
   @override
   void initState() {
     super.initState();
-    // No test appointments - only real data from backend
+    _fetchAndSyncAppointments();
+    _checkForApprovalNotifications();
+
+    // Set up periodic check for approval notifications every 2 minutes
+    _notificationCheckTimer =
+        Timer.periodic(const Duration(minutes: 2), (timer) {
+      _checkForApprovalNotifications();
+    });
+
     final patientId = UserStateManager().currentPatientId;
-    print('DashboardScreen initState: patientId=$patientId');
+    print('DashboardScreen initState: patientId= [32m$patientId [0m');
+  }
+
+  @override
+  void dispose() {
+    _notificationCheckTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _fetchAndSyncAppointments() async {
+    final patientId = UserStateManager().currentPatientId;
+    if (patientId != null && patientId != 'guest') {
+      try {
+        print('🔄 Fetching appointments from backend for Dashboard...');
+        final backendAppointments = await ApiService.getAppointments(patientId);
+        HistoryService().loadAppointmentsFromBackend(backendAppointments,
+            patientId: patientId);
+        print('✅ Synced appointments for Dashboard');
+        setState(() {}); // Refresh UI after loading
+      } catch (e) {
+        print('❌ Error fetching appointments for Dashboard: $e');
+      }
+    } else {
+      print('❌ No valid patient ID, skipping backend appointment fetch');
+    }
+  }
+
+  // Check for approval notifications and refresh appointments if needed
+  Future<void> _checkForApprovalNotifications() async {
+    try {
+      final patientId = UserStateManager().currentPatientId;
+      final patientToken = UserStateManager().patientToken;
+
+      if (patientId.isEmpty || patientToken == null || patientId == 'guest') {
+        print('❌ No valid patient ID or token for notification check');
+        return;
+      }
+
+      print('🔍 Checking for approval notifications...');
+
+      final response = await http.get(
+        Uri.parse(
+            'http://localhost:3000/api/patients/$patientId/notifications'),
+        headers: {
+          'Authorization': 'Bearer $patientToken',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final notifications = data['notifications'] ?? [];
+
+        // Check if there are any recent approval notifications
+        final approvalNotifications = notifications.where((notification) {
+          final type = notification['type'] ?? '';
+          final createdAt = notification['created_at'];
+          final isRecent = createdAt != null &&
+              DateTime.parse(createdAt)
+                  .isAfter(DateTime.now().subtract(const Duration(hours: 1)));
+          return type == 'appointment_approved' && isRecent;
+        }).toList();
+
+        if (approvalNotifications.isNotEmpty) {
+          print(
+              '✅ Found ${approvalNotifications.length} recent approval notifications, refreshing appointments...');
+          await _fetchAndSyncAppointments();
+          setState(() {}); // Refresh UI
+        } else {
+          print('ℹ️ No recent approval notifications found');
+        }
+      }
+    } catch (e) {
+      print('❌ Error checking for approval notifications: $e');
+    }
+  }
+
+  Widget _buildDetailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 120,
+            child: Text(
+              label,
+              style: const TextStyle(
+                  fontWeight: FontWeight.w600, color: Colors.black87),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(color: Colors.black87),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReceiptRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 100,
+            child: Text(
+              label,
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: Colors.grey[700],
+                fontSize: 14,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(
+                color: Colors.black87,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildUserStatusBanner(BuildContext context) {
@@ -962,6 +1106,290 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             );
                           },
                         ),
+                        _buildQuickActionCard(
+                          context,
+                          'Accepted Appointments',
+                          Icons.check_circle,
+                          const Color(0xFF00B8D4),
+                          () async {
+                            final patientId =
+                                UserStateManager().currentPatientId;
+                            final patient = UserStateManager().currentPatient;
+                            final historyService = HistoryService();
+                            // Assuming 'scheduled' means approved/accepted for patients
+                            final approvedAppointments =
+                                historyService.getAppointmentsByStatus(
+                                    AppointmentStatus.scheduled,
+                                    patientId: patientId);
+                            approvedAppointments
+                                .sort((a, b) => b.date.compareTo(a.date));
+                            final latest = approvedAppointments.isNotEmpty
+                                ? approvedAppointments.first
+                                : null;
+                            // DEBUG PRINTS
+                            print('DEBUG: patientId = '
+                                ' [32m$patientId [0m');
+                            print('DEBUG: patient = '
+                                ' [36m$patient [0m');
+                            print('DEBUG: approvedAppointments = '
+                                ' [35m$approvedAppointments [0m');
+                            if (latest != null) {
+                              print('DEBUG: latest approved = '
+                                  ' [33m$latest [0m');
+                            }
+                            if (latest == null || patient == null) {
+                              showDialog(
+                                context: context,
+                                builder: (context) => AlertDialog(
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(15),
+                                  ),
+                                  title: const Row(
+                                    children: [
+                                      Icon(Icons.info_outline,
+                                          color: Colors.orange, size: 30),
+                                      SizedBox(width: 10),
+                                      Text('No Appointments'),
+                                    ],
+                                  ),
+                                  content: const Text(
+                                    'No approved appointments found.',
+                                    style: TextStyle(fontSize: 16),
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () =>
+                                          Navigator.of(context).pop(),
+                                      child: Text('Close',
+                                          style: TextStyle(color: Colors.grey)),
+                                    ),
+                                  ],
+                                ),
+                              );
+                              return;
+                            }
+
+                            showDialog(
+                              context: context,
+                              builder: (context) => AlertDialog(
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(15),
+                                ),
+                                contentPadding: EdgeInsets.zero,
+                                content: Container(
+                                  width: 350,
+                                  constraints: BoxConstraints(
+                                    maxHeight:
+                                        MediaQuery.of(context).size.height *
+                                            0.75,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(15),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.1),
+                                        blurRadius: 10,
+                                        offset: Offset(0, 5),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      // Receipt Header
+                                      Container(
+                                        width: double.infinity,
+                                        padding: EdgeInsets.all(16),
+                                        decoration: BoxDecoration(
+                                          color: Color(0xFF00B8D4),
+                                          borderRadius: BorderRadius.only(
+                                            topLeft: Radius.circular(15),
+                                            topRight: Radius.circular(15),
+                                          ),
+                                        ),
+                                        child: Column(
+                                          children: [
+                                            Icon(
+                                              Icons.check_circle,
+                                              color: Colors.white,
+                                              size: 32,
+                                            ),
+                                            SizedBox(height: 6),
+                                            Text(
+                                              'APPOINTMENT RECEIPT',
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.bold,
+                                                letterSpacing: 1.0,
+                                              ),
+                                            ),
+                                            SizedBox(height: 2),
+                                            Text(
+                                              'Approved & Confirmed',
+                                              style: TextStyle(
+                                                color: Colors.white
+                                                    .withOpacity(0.9),
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+
+                                      // Receipt Content - Scrollable
+                                      Expanded(
+                                        child: SingleChildScrollView(
+                                          padding: EdgeInsets.all(16),
+                                          child: Column(
+                                            children: [
+                                              // Receipt Details
+                                              Container(
+                                                padding: EdgeInsets.all(12),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.grey[50],
+                                                  borderRadius:
+                                                      BorderRadius.circular(8),
+                                                  border: Border.all(
+                                                      color: Colors.grey[200]!),
+                                                ),
+                                                child: Column(
+                                                  children: [
+                                                    _buildReceiptRow(
+                                                        'Patient Name',
+                                                        '${patient.firstName} ${patient.lastName}'),
+                                                    Divider(
+                                                        height: 16,
+                                                        color:
+                                                            Colors.grey[300]),
+                                                    _buildReceiptRow('Service',
+                                                        latest.service),
+                                                    Divider(
+                                                        height: 16,
+                                                        color:
+                                                            Colors.grey[300]),
+                                                    _buildReceiptRow(
+                                                        'Classification',
+                                                        patient.classification
+                                                                .isNotEmpty
+                                                            ? patient
+                                                                .classification
+                                                            : 'N/A'),
+                                                    Divider(
+                                                        height: 16,
+                                                        color:
+                                                            Colors.grey[300]),
+                                                    _buildReceiptRow(
+                                                        'ID Reference',
+                                                        latest.id),
+                                                    Divider(
+                                                        height: 16,
+                                                        color:
+                                                            Colors.grey[300]),
+                                                    _buildReceiptRow(
+                                                        'Date',
+                                                        DateFormat(
+                                                                'MMM dd, yyyy')
+                                                            .format(
+                                                                latest.date)),
+                                                    Divider(
+                                                        height: 16,
+                                                        color:
+                                                            Colors.grey[300]),
+                                                    _buildReceiptRow('Time',
+                                                        latest.timeSlot),
+                                                  ],
+                                                ),
+                                              ),
+
+                                              SizedBox(height: 16),
+
+                                              // QR Code
+                                              Container(
+                                                padding: EdgeInsets.all(12),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.white,
+                                                  borderRadius:
+                                                      BorderRadius.circular(8),
+                                                  border: Border.all(
+                                                      color: Colors.grey[200]!),
+                                                ),
+                                                child: Column(
+                                                  children: [
+                                                    Text(
+                                                      'Scan for Details',
+                                                      style: TextStyle(
+                                                        fontSize: 12,
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                        color: Colors.grey[700],
+                                                      ),
+                                                    ),
+                                                    SizedBox(height: 8),
+                                                    Container(
+                                                      padding:
+                                                          EdgeInsets.all(8),
+                                                      decoration: BoxDecoration(
+                                                        color: Colors.white,
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(6),
+                                                        border: Border.all(
+                                                            color: Colors
+                                                                .grey[300]!),
+                                                      ),
+                                                      child: QrImageView(
+                                                        data:
+                                                            'APPT:${latest.id}|${patient.firstName} ${patient.lastName}|${latest.service}|${DateFormat('yyyy-MM-dd').format(latest.date)}|${latest.timeSlot}',
+                                                        version:
+                                                            QrVersions.auto,
+                                                        size: 100,
+                                                        backgroundColor:
+                                                            Colors.white,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+
+                                      // Close Button
+                                      Container(
+                                        width: double.infinity,
+                                        padding: EdgeInsets.all(16),
+                                        child: ElevatedButton(
+                                          onPressed: () =>
+                                              Navigator.of(context).pop(),
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: Color(0xFF00B8D4),
+                                            foregroundColor: Colors.white,
+                                            padding: EdgeInsets.symmetric(
+                                                vertical: 10),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                            ),
+                                          ),
+                                          child: Text(
+                                            'Close Receipt',
+                                            style: TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
                       ],
                     ),
                   ],
@@ -1280,6 +1708,56 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
 
   Future<void> _refreshAppointments() async {
     await _loadAppointmentsFromBackend();
+  }
+
+  // Check for approval notifications and refresh appointments if needed
+  Future<void> _checkForApprovalNotifications() async {
+    try {
+      final patientId = UserStateManager().currentPatientId;
+      final patientToken = UserStateManager().patientToken;
+
+      if (patientId.isEmpty || patientToken == null || patientId == 'guest') {
+        print('❌ No valid patient ID or token for notification check');
+        return;
+      }
+
+      print('🔍 Checking for approval notifications...');
+
+      final response = await http.get(
+        Uri.parse(
+            'http://localhost:3000/api/patients/$patientId/notifications'),
+        headers: {
+          'Authorization': 'Bearer $patientToken',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final notifications = data['notifications'] ?? [];
+
+        // Check if there are any recent approval notifications
+        final approvalNotifications = notifications.where((notification) {
+          final type = notification['type'] ?? '';
+          final createdAt = notification['created_at'];
+          final isRecent = createdAt != null &&
+              DateTime.parse(createdAt)
+                  .isAfter(DateTime.now().subtract(const Duration(hours: 1)));
+          return type == 'appointment_approved' && isRecent;
+        }).toList();
+
+        if (approvalNotifications.isNotEmpty) {
+          print(
+              '✅ Found ${approvalNotifications.length} recent approval notifications, refreshing appointments...');
+          await _refreshAppointments();
+          setState(() {}); // Refresh UI
+        } else {
+          print('ℹ️ No recent approval notifications found');
+        }
+      }
+    } catch (e) {
+      print('❌ Error checking for approval notifications: $e');
+    }
   }
 
   Widget _buildUserStatusBanner(BuildContext context) {
@@ -1629,7 +2107,6 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                 ],
               ),
               const SizedBox(height: 8),
-
               const SizedBox(height: 4),
               Row(
                 children: [
@@ -1774,7 +2251,6 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _buildDetailRow('Service', appointment.service),
-
                     _buildDetailRow(
                       'Date',
                       DateFormat('EEEE, MMM dd, yyyy').format(appointment.date),

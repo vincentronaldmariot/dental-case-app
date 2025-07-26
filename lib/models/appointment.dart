@@ -42,10 +42,7 @@ class Appointment {
       date: _parseDateSafely(map['date']),
       timeSlot: map['time_slot']?.toString() ?? '',
       status: map['status'] != null
-          ? AppointmentStatus.values.firstWhere(
-              (e) => e.name == map['status'].toString(),
-              orElse: () => AppointmentStatus.scheduled,
-            )
+          ? _parseStatusFromString(map['status'].toString())
           : AppointmentStatus.scheduled,
       notes: map['notes']?.toString(),
       createdAt: map['created_at'] != null
@@ -85,6 +82,28 @@ class Appointment {
 
     // Fallback to DateTime.tryParse
     return DateTime.tryParse(dateString) ?? DateTime.now();
+  }
+
+  // Helper method to parse status string to AppointmentStatus enum
+  static AppointmentStatus _parseStatusFromString(String status) {
+    switch (status.toLowerCase()) {
+      case 'pending':
+        return AppointmentStatus.pending;
+      case 'scheduled':
+        return AppointmentStatus.scheduled;
+      case 'approved':
+        return AppointmentStatus.scheduled; // Map 'approved' to 'scheduled'
+      case 'completed':
+        return AppointmentStatus.completed;
+      case 'cancelled':
+        return AppointmentStatus.cancelled;
+      case 'missed':
+        return AppointmentStatus.missed;
+      case 'rescheduled':
+        return AppointmentStatus.rescheduled;
+      default:
+        return AppointmentStatus.pending;
+    }
   }
 
   // Copy with updated fields

@@ -28,13 +28,19 @@ jobs:
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
       
+    - name: Flutter doctor
+      run: flutter doctor -v
+      
     - name: Get dependencies
       run: flutter pub get
       
-    - name: Build Debug APK
-      run: flutter build apk --debug
+    - name: Clean build
+      run: flutter clean
       
-    - name: Upload Debug APK
+    - name: Build APK
+      run: flutter build apk --debug --verbose
+      
+    - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: dental-case-app-debug

@@ -35,11 +35,17 @@ jobs:
     - name: Setup Android SDK
       uses: android-actions/setup-android@v3
       
+    - name: Flutter doctor
+      run: flutter doctor -v
+      
     - name: Get dependencies
       run: flutter pub get
       
+    - name: Clean build
+      run: flutter clean
+      
     - name: Build APK
-      run: flutter build apk --${{ github.event.inputs.build_type }}
+      run: flutter build apk --${{ github.event.inputs.build_type }} --verbose
       
     - name: Upload APK
       uses: actions/upload-artifact@v4

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dental_survey_screen.dart';
+import 'services/print_service.dart';
 
 class KioskModeScreen extends StatefulWidget {
   const KioskModeScreen({super.key});
@@ -34,50 +35,99 @@ class _KioskModeScreenState extends State<KioskModeScreen> {
                 children: [
                   // Logo and Title
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Container(
-                        width: 60,
-                        height: 60,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.1),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: const Icon(
-                          Icons.medical_services,
-                          color: Color(0xFF0029B2),
-                          size: 32,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      const Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      // Left side - Logo and Title
+                      Row(
                         children: [
-                          Text(
-                            'DENTAL CLINIC',
-                            style: TextStyle(
+                          Container(
+                            width: 60,
+                            height: 60,
+                            decoration: BoxDecoration(
                               color: Colors.white,
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1.2,
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.1),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: const Icon(
+                              Icons.medical_services,
+                              color: Color(0xFF0029B2),
+                              size: 32,
                             ),
                           ),
-                          Text(
-                            'Self-Assessment Kiosk',
-                            style: TextStyle(
-                              color: Colors.white70,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
-                            ),
+                          const SizedBox(width: 16),
+                          const Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'DENTAL CLINIC',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 1.2,
+                                ),
+                              ),
+                              Text(
+                                'Self-Assessment Kiosk',
+                                style: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
                           ),
                         ],
+                      ),
+
+                      // Right side - Print Button
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.3),
+                            width: 1,
+                          ),
+                        ),
+                        child: IconButton(
+                          onPressed: () {
+                            // Show print instructions
+                            showDialog(
+                              context: context,
+                              builder: (context) => AlertDialog(
+                                title: const Row(
+                                  children: [
+                                    Icon(Icons.print, color: Color(0xFF0029B2)),
+                                    SizedBox(width: 8),
+                                    Text('Print Receipt'),
+                                  ],
+                                ),
+                                content: const Text(
+                                  'To print a receipt, please complete the survey first. The print option will be available on the receipt screen.',
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(context),
+                                    child: const Text('OK'),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                          icon: const Icon(
+                            Icons.print,
+                            color: Colors.white,
+                            size: 24,
+                          ),
+                          tooltip: 'Print Receipt',
+                        ),
                       ),
                     ],
                   ),

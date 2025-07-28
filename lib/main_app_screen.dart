@@ -5,7 +5,6 @@ import './welcome_screen.dart';
 import './dental_survey_screen.dart';
 import './appointment_booking_screen.dart';
 import './emergency_center_screen.dart';
-import './patient_dashboard_screen.dart';
 
 import './user_state_manager.dart';
 import './services/history_service.dart';
@@ -161,7 +160,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<void> _fetchAndSyncAppointments() async {
     final patientId = UserStateManager().currentPatientId;
-    if (patientId != null && patientId != 'guest') {
+    if (patientId != 'guest') {
       try {
         print('🔄 Fetching appointments from backend for Dashboard...');
         final backendAppointments = await ApiService.getAppointments(patientId);
@@ -1096,14 +1095,71 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           'Health Assessment',
                           Icons.assignment_outlined,
                           const Color(0xFF005800),
-                          () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    const DentalSurveyScreen(),
-                              ),
-                            );
+                          () async {
+                            // Check if patient has already completed the survey
+                            final surveyService = SurveyService();
+                            final surveyStatus =
+                                await surveyService.checkSurveyStatus();
+
+                            if (surveyStatus['success'] == true &&
+                                surveyStatus['hasCompletedSurvey'] == true) {
+                              // Show confirmation dialog if survey already completed
+                              showDialog(
+                                context: context,
+                                builder: (context) => AlertDialog(
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(15),
+                                  ),
+                                  title: const Row(
+                                    children: [
+                                      Icon(Icons.assignment_outlined,
+                                          color: Color(0xFF005800), size: 30),
+                                      SizedBox(width: 10),
+                                      Text('Survey Already Completed'),
+                                    ],
+                                  ),
+                                  content: const Text(
+                                    'You have already completed the health assessment survey. Would you like to answer it again?',
+                                    style: TextStyle(fontSize: 16),
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () =>
+                                          Navigator.of(context).pop(),
+                                      child: const Text('Cancel',
+                                          style: TextStyle(color: Colors.grey)),
+                                    ),
+                                    ElevatedButton(
+                                      onPressed: () {
+                                        Navigator.of(context).pop();
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) =>
+                                                const DentalSurveyScreen(),
+                                          ),
+                                        );
+                                      },
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor:
+                                            const Color(0xFF005800),
+                                        foregroundColor: Colors.white,
+                                      ),
+                                      child: const Text('Answer Again'),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            } else {
+                              // Navigate directly to survey if not completed
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      const DentalSurveyScreen(),
+                                ),
+                              );
+                            }
                           },
                         ),
                         _buildQuickActionCard(
@@ -1160,7 +1216,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     TextButton(
                                       onPressed: () =>
                                           Navigator.of(context).pop(),
-                                      child: Text('Close',
+                                      child: const Text('Close',
                                           style: TextStyle(color: Colors.grey)),
                                     ),
                                   ],
@@ -1190,7 +1246,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       BoxShadow(
                                         color: Colors.black.withOpacity(0.1),
                                         blurRadius: 10,
-                                        offset: Offset(0, 5),
+                                        offset: const Offset(0, 5),
                                       ),
                                     ],
                                   ),
@@ -1200,8 +1256,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       // Receipt Header
                                       Container(
                                         width: double.infinity,
-                                        padding: EdgeInsets.all(16),
-                                        decoration: BoxDecoration(
+                                        padding: const EdgeInsets.all(16),
+                                        decoration: const BoxDecoration(
                                           color: Color(0xFF00B8D4),
                                           borderRadius: BorderRadius.only(
                                             topLeft: Radius.circular(15),
@@ -1210,13 +1266,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                         ),
                                         child: Column(
                                           children: [
-                                            Icon(
+                                            const Icon(
                                               Icons.check_circle,
                                               color: Colors.white,
                                               size: 32,
                                             ),
-                                            SizedBox(height: 6),
-                                            Text(
+                                            const SizedBox(height: 6),
+                                            const Text(
                                               'APPOINTMENT RECEIPT',
                                               style: TextStyle(
                                                 color: Colors.white,
@@ -1225,7 +1281,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                                 letterSpacing: 1.0,
                                               ),
                                             ),
-                                            SizedBox(height: 2),
+                                            const SizedBox(height: 2),
                                             Text(
                                               'Approved & Confirmed',
                                               style: TextStyle(
@@ -1241,12 +1297,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       // Receipt Content - Scrollable
                                       Expanded(
                                         child: SingleChildScrollView(
-                                          padding: EdgeInsets.all(16),
+                                          padding: const EdgeInsets.all(16),
                                           child: Column(
                                             children: [
                                               // Receipt Details
                                               Container(
-                                                padding: EdgeInsets.all(12),
+                                                padding:
+                                                    const EdgeInsets.all(12),
                                                 decoration: BoxDecoration(
                                                   color: Colors.grey[50],
                                                   borderRadius:
@@ -1303,11 +1360,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                                 ),
                                               ),
 
-                                              SizedBox(height: 16),
+                                              const SizedBox(height: 16),
 
                                               // QR Code
                                               Container(
-                                                padding: EdgeInsets.all(12),
+                                                padding:
+                                                    const EdgeInsets.all(12),
                                                 decoration: BoxDecoration(
                                                   color: Colors.white,
                                                   borderRadius:
@@ -1326,10 +1384,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                                         color: Colors.grey[700],
                                                       ),
                                                     ),
-                                                    SizedBox(height: 8),
+                                                    const SizedBox(height: 8),
                                                     Container(
                                                       padding:
-                                                          EdgeInsets.all(8),
+                                                          const EdgeInsets.all(
+                                                              8),
                                                       decoration: BoxDecoration(
                                                         color: Colors.white,
                                                         borderRadius:
@@ -1360,21 +1419,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       // Close Button
                                       Container(
                                         width: double.infinity,
-                                        padding: EdgeInsets.all(16),
+                                        padding: const EdgeInsets.all(16),
                                         child: ElevatedButton(
                                           onPressed: () =>
                                               Navigator.of(context).pop(),
                                           style: ElevatedButton.styleFrom(
-                                            backgroundColor: Color(0xFF00B8D4),
+                                            backgroundColor:
+                                                const Color(0xFF00B8D4),
                                             foregroundColor: Colors.white,
-                                            padding: EdgeInsets.symmetric(
+                                            padding: const EdgeInsets.symmetric(
                                                 vertical: 10),
                                             shape: RoundedRectangleBorder(
                                               borderRadius:
                                                   BorderRadius.circular(8),
                                             ),
                                           ),
-                                          child: Text(
+                                          child: const Text(
                                             'Close Receipt',
                                             style: TextStyle(
                                               fontSize: 14,
@@ -1688,7 +1748,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
 
     try {
       final patientId = UserStateManager().currentPatientId;
-      if (patientId != null && patientId != 'guest') {
+      if (patientId != 'guest') {
         print('Loading appointments from backend for patient: $patientId');
         final backendAppointments = await ApiService.getAppointments(patientId);
         _historyService.loadAppointmentsFromBackend(backendAppointments,
@@ -2779,14 +2839,14 @@ class MoreScreen extends StatelessWidget {
 }
 
 class AppointmentHistoryScreen extends StatelessWidget {
-  const AppointmentHistoryScreen({Key? key}) : super(key: key);
+  const AppointmentHistoryScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Appointment History'),
-        backgroundColor: Color(0xFF0029B2),
+        backgroundColor: const Color(0xFF0029B2),
         foregroundColor: Colors.white,
       ),
       body: const Center(

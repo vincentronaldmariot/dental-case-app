@@ -93,7 +93,11 @@ router.get('/', verifyPatient, async (req, res) => {
     const { status, limit = 50, offset = 0 } = req.query;
 
     let queryText = `
-      SELECT id, service, appointment_date, time_slot, status, notes, created_at, updated_at
+      SELECT id, service, 
+        TO_CHAR(appointment_date AT TIME ZONE 'Asia/Manila', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as appointment_date, 
+        time_slot, status, notes, 
+        TO_CHAR(created_at AT TIME ZONE 'Asia/Manila', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as created_at, 
+        TO_CHAR(updated_at AT TIME ZONE 'Asia/Manila', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as updated_at
       FROM appointments 
       WHERE patient_id = $1
     `;
@@ -157,7 +161,11 @@ router.get('/:id', verifyPatient, async (req, res) => {
     const patientId = req.patient.id;
 
     const result = await query(`
-      SELECT id, service, appointment_date, time_slot, status, notes, created_at, updated_at
+      SELECT id, service, 
+        TO_CHAR(appointment_date AT TIME ZONE 'Asia/Manila', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as appointment_date, 
+        time_slot, status, notes, 
+        TO_CHAR(created_at AT TIME ZONE 'Asia/Manila', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as created_at, 
+        TO_CHAR(updated_at AT TIME ZONE 'Asia/Manila', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as updated_at
       FROM appointments 
       WHERE id = $1 AND patient_id = $2
     `, [appointmentId, patientId]);

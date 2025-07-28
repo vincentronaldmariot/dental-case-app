@@ -40,7 +40,7 @@ router.post('/', verifyPatient, [
       INSERT INTO emergency_records (
         patient_id, reported_at, emergency_type, priority, description,
         pain_level, symptoms, location, duty_related, unit_command
-      ) VALUES ($1, CURRENT_TIMESTAMP, $2, $3, $4, $5, $6, $7, $8, $9)
+      ) VALUES ($1, CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Manila', $2, $3, $4, $5, $6, $7, $8, $9)
       RETURNING id, reported_at, status
     `, [
       patientId, emergencyType, priority, description,
@@ -74,10 +74,18 @@ router.get('/', verifyPatient, async (req, res) => {
 
     const result = await query(`
       SELECT 
-        id, reported_at, emergency_type, priority, status, description,
+        id, 
+        TO_CHAR(reported_at AT TIME ZONE 'Asia/Manila', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as reported_at,
+        emergency_type, priority, status, description,
         pain_level, symptoms, location, duty_related, unit_command,
-        handled_by, first_aid_provided, resolved_at, resolution,
-        follow_up_required, emergency_contact, notes, created_at
+        handled_by, first_aid_provided, 
+        CASE WHEN resolved_at IS NOT NULL 
+          THEN TO_CHAR(resolved_at AT TIME ZONE 'Asia/Manila', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')
+          ELSE NULL 
+        END as resolved_at,
+        resolution,
+        follow_up_required, emergency_contact, notes, 
+        TO_CHAR(created_at AT TIME ZONE 'Asia/Manila', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as created_at
       FROM emergency_records 
       WHERE patient_id = $1
       ORDER BY reported_at DESC

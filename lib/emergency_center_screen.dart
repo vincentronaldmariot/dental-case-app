@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import './user_state_manager.dart';
 import './models/appointment.dart';
+import './models/emergency_record.dart';
 import './services/history_service.dart';
+import './services/emergency_service.dart';
 import './emergency_pain_assessment_screen.dart';
+import './admin_dashboard_screen.dart';
 
 class EmergencyCenterScreen extends StatefulWidget {
   const EmergencyCenterScreen({super.key});
@@ -12,6 +15,13 @@ class EmergencyCenterScreen extends StatefulWidget {
 }
 
 class _EmergencyCenterScreenState extends State<EmergencyCenterScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Initialize emergency service with sample data
+    EmergencyService().initializeSampleData();
+  }
+
   Widget _buildUserStatusBanner(BuildContext context) {
     final userState = UserStateManager();
 
@@ -148,41 +158,36 @@ class _EmergencyCenterScreenState extends State<EmergencyCenterScreen> {
             ),
             const SizedBox(height: 16),
 
-            GridView.count(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisCount: 2,
-              mainAxisSpacing: 16,
-              crossAxisSpacing: 16,
-              childAspectRatio: 1.1,
+            Row(
               children: [
-                _buildEmergencyCard(
-                  'Emergency Hotline',
-                  Icons.phone,
-                  const Color(0xFFE74C3C),
-                  'Call duty dentist now',
-                  () => _showEmergencyHotline(context),
+                Expanded(
+                  child: _buildEmergencyCard(
+                    'Emergency Booking',
+                    Icons.calendar_today,
+                    const Color(0xFFFF6B35),
+                    'Schedule urgent care',
+                    () => _showEmergencyBooking(context),
+                  ),
                 ),
-                _buildEmergencyCard(
-                  'Emergency Booking',
-                  Icons.calendar_today,
-                  const Color(0xFFFF6B35),
-                  'Schedule urgent care',
-                  () => _showEmergencyBooking(context),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildEmergencyCard(
+                    'Pain Assessment',
+                    Icons.assignment_outlined,
+                    const Color(0xFF9B59B6),
+                    'Evaluate emergency level',
+                    () => _showPainAssessment(context),
+                  ),
                 ),
-                _buildEmergencyCard(
-                  'Pain Assessment',
-                  Icons.assignment_outlined,
-                  const Color(0xFF9B59B6),
-                  'Evaluate emergency level',
-                  () => _showPainAssessment(context),
-                ),
-                _buildEmergencyCard(
-                  'First Aid Guide',
-                  Icons.medical_services,
-                  const Color(0xFF3498DB),
-                  'Emergency instructions',
-                  () => _showFirstAidGuide(context),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildEmergencyCard(
+                    'First Aid Guide',
+                    Icons.medical_services,
+                    const Color(0xFF3498DB),
+                    'Emergency instructions',
+                    () => _showFirstAidGuide(context),
+                  ),
                 ),
               ],
             ),
@@ -218,11 +223,6 @@ class _EmergencyCenterScreenState extends State<EmergencyCenterScreen> {
               Icons.broken_image,
               const Color(0xFF9B59B6),
             ),
-
-            const SizedBox(height: 24),
-
-            // Emergency Contacts
-            _buildContactSection(),
 
             const SizedBox(height: 20),
           ],
@@ -344,181 +344,6 @@ class _EmergencyCenterScreenState extends State<EmergencyCenterScreen> {
                 ),
               ],
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildContactSection() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.phone, color: Colors.red[600], size: 24),
-              const SizedBox(width: 8),
-              const Text(
-                'Emergency Contacts',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          _buildContactItem(
-            'AFPHSAC Emergency Hotline',
-            '(02) 8123-4567',
-            Icons.local_hospital,
-          ),
-          _buildContactItem(
-            'Duty Dentist (24/7)',
-            '(02) 8234-5678',
-            Icons.person,
-          ),
-          _buildContactItem(
-            'Base Medical Emergency',
-            '911 or (02) 8345-6789',
-            Icons.emergency,
-          ),
-          _buildContactItem(
-            'Dental Clinic Main Line',
-            '(02) 8456-7890',
-            Icons.medical_services,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildContactItem(String label, String number, IconData icon) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        children: [
-          Icon(icon, color: Colors.grey[600], size: 20),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.black87,
-                  ),
-                ),
-                Text(
-                  number,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.blue[700],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          IconButton(
-            onPressed: () {
-              // In a real app, this would dial the number
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(SnackBar(content: Text('Calling $number...')));
-            },
-            icon: Icon(Icons.call, color: Colors.green[600]),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showEmergencyHotline(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-        title: Row(
-          children: [
-            Icon(Icons.phone, color: Colors.red[600], size: 28),
-            const SizedBox(width: 12),
-            const Text('Emergency Hotline'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text(
-              'AFPHSAC 24/7 Emergency Dental Hotline',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.red[50],
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.red[200]!),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.phone, color: Colors.red[600]),
-                  const SizedBox(width: 8),
-                  Text(
-                    '(02) 8123-4567',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.red[700],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              'Available 24/7 for all dental emergencies',
-              style: TextStyle(color: Colors.grey),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Calling emergency hotline...')),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red[600],
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Call Now'),
           ),
         ],
       ),
@@ -739,30 +564,84 @@ class _EmergencyCenterScreenState extends State<EmergencyCenterScreen> {
     );
   }
 
-  void _bookEmergencyAppointment() {
-    // Create emergency appointment
-    final emergency = Appointment(
-      id: 'emergency_${DateTime.now().millisecondsSinceEpoch}',
-      patientId: UserStateManager().currentPatientId,
-      service: 'Emergency Treatment',
-      date: DateTime.now().add(const Duration(hours: 2)),
-      timeSlot: 'Emergency Slot',
+  Future<void> _bookEmergencyAppointment() async {
+    try {
+      final now = DateTime.now();
 
-      status: AppointmentStatus.scheduled,
-      notes: 'Emergency appointment - Priority scheduling',
-    );
+      // Create emergency record with current timestamp (when reported)
+      final emergencyRecord = EmergencyRecord(
+        id: 'emr_${now.millisecondsSinceEpoch}',
+        patientId: UserStateManager().currentPatientId,
+        reportedAt: now, // When the emergency was reported
+        type: EmergencyType
+            .severeToothache, // Default type, can be enhanced later
+        priority: EmergencyPriority.urgent,
+        status: EmergencyStatus.reported,
+        description: 'Emergency booking requested by patient',
+        painLevel: 7, // Default pain level
+        symptoms: ['Emergency booking'],
+        location: 'Mobile App',
+        dutyRelated: false,
+        emergencyContact: UserStateManager().currentPatient?.phone ?? 'N/A',
+        notes: 'Emergency appointment requested through mobile app',
+      );
 
-    HistoryService().addAppointment(emergency);
+      // Add emergency record to service (now uses API)
+      await EmergencyService().addEmergencyRecord(emergencyRecord);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text(
-          'Emergency appointment booked! You will be contacted within 30 minutes.',
+      // Create emergency appointment scheduled for 2-4 hours later
+      final emergency = Appointment(
+        id: 'emergency_${now.millisecondsSinceEpoch}',
+        patientId: UserStateManager().currentPatientId,
+        service: 'Emergency Treatment',
+        date: now.add(const Duration(hours: 2)), // Schedule for 2 hours later
+        timeSlot: 'Emergency Slot',
+        status: AppointmentStatus.scheduled,
+        notes: 'Emergency appointment - Priority scheduling',
+      );
+
+      HistoryService().addAppointment(emergency);
+
+      // Check if current user is an admin
+      final userState = UserStateManager();
+      final isAdmin = userState.isAdminLoggedIn;
+
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            isAdmin
+                ? 'Emergency booking submitted! Redirecting to admin dashboard...'
+                : 'Emergency booking submitted successfully! We will contact you shortly.',
+          ),
+          backgroundColor: Colors.green[600],
+          duration: const Duration(seconds: 2),
         ),
-        backgroundColor: Colors.green[600],
-        duration: const Duration(seconds: 4),
-      ),
-    );
+      );
+
+      // Only navigate to admin dashboard if user is an admin
+      if (isAdmin) {
+        Future.delayed(const Duration(seconds: 2), () {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const AdminDashboardScreen(
+                  initialTabIndex: 4), // Emergencies tab
+            ),
+            (Route<dynamic> route) => false,
+          );
+        });
+      }
+    } catch (error) {
+      // Show error message if emergency booking fails
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Emergency booking failed: ${error.toString()}'),
+          backgroundColor: Colors.red[600],
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
   }
 
   void _startPainAssessment() {

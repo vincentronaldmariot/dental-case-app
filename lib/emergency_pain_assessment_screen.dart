@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'models/emergency_record.dart';
 import 'services/emergency_service.dart';
 import 'user_state_manager.dart';
+import 'services/api_service.dart';
 
 class EmergencyPainAssessmentScreen extends StatefulWidget {
   const EmergencyPainAssessmentScreen({super.key});
@@ -19,7 +20,7 @@ class _EmergencyPainAssessmentScreenState
   // Assessment variables
   int _painLevel = 0;
   EmergencyType _selectedType = EmergencyType.severeToothache;
-  List<String> _symptoms = [];
+  final List<String> _symptoms = [];
   bool _hasFacialSwelling = false;
   bool _hasDifficultySwallowing = false;
   bool _hasBleeding = false;
@@ -28,52 +29,13 @@ class _EmergencyPainAssessmentScreenState
   bool _isDutyRelated = false;
   String _unitCommand = '';
 
-  // Calculated priority
-  EmergencyPriority? _assessedPriority;
-  Color _priorityColor = Colors.grey;
-  String _priorityMessage = '';
-  List<String> _emergencyInstructions = [];
-
   @override
   void initState() {
     super.initState();
     _emergencyService.initializeSampleData();
   }
 
-  void _assessPriority() {
-    setState(() {
-      _assessedPriority = _emergencyService.assessPriority(
-        type: _selectedType,
-        painLevel: _painLevel,
-        symptoms: _symptoms,
-        hasSwelling: _hasFacialSwelling,
-        hasBleeding: _hasBleeding,
-        difficultySwallowing: _hasDifficultySwallowing,
-      );
-
-      // Set priority color and message
-      switch (_assessedPriority!) {
-        case EmergencyPriority.immediate:
-          _priorityColor = Colors.red;
-          _priorityMessage =
-              'IMMEDIATE ATTENTION REQUIRED - Call Emergency Hotline Now!';
-          break;
-        case EmergencyPriority.urgent:
-          _priorityColor = Colors.orange;
-          _priorityMessage = 'URGENT - Seek care within 2-4 hours';
-          break;
-        case EmergencyPriority.standard:
-          _priorityColor = Colors.green;
-          _priorityMessage =
-              'NON-URGENT - Schedule appointment next business day';
-          break;
-      }
-
-      _emergencyInstructions = _emergencyService.getEmergencyInstructionsFor(
-        _selectedType,
-      );
-    });
-  }
+  bool _isSubmitting = false;
 
   @override
   Widget build(BuildContext context) {
@@ -144,17 +106,62 @@ class _EmergencyPainAssessmentScreenState
 
               const SizedBox(height: 30),
 
-              // Assess Button
-              _buildAssessButton(),
+              // Submit Button
+              _buildSubmitButton(),
 
-              // Assessment Results
-              if (_assessedPriority != null) ...[
-                const SizedBox(height: 30),
-                _buildAssessmentResults(),
-              ],
+              const SizedBox(height: 20),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildSubmitButton() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: ElevatedButton(
+        onPressed: _isSubmitting ? null : _submitEmergencyAssessment,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.red.shade600,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          elevation: 3,
+        ),
+        child: _isSubmitting
+            ? const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  ),
+                  SizedBox(width: 12),
+                  Text('Submitting Emergency Report...'),
+                ],
+              )
+            : const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.emergency, size: 24),
+                  SizedBox(width: 8),
+                  Text(
+                    'Submit Emergency Assessment',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
       ),
     );
   }
@@ -521,199 +528,6 @@ class _EmergencyPainAssessmentScreenState
     );
   }
 
-  Widget _buildAssessButton() {
-    return Container(
-      width: double.infinity,
-      height: 56,
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFFE74C3C), Color(0xFFC0392B)],
-        ),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: _assessPriority,
-          child: const Center(
-            child: Text(
-              'Assess Emergency Level',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAssessmentResults() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Priority Result
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: _priorityColor.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(15),
-            border: Border.all(color: _priorityColor, width: 2),
-          ),
-          child: Column(
-            children: [
-              Icon(_getPriorityIcon(), color: _priorityColor, size: 48),
-              const SizedBox(height: 12),
-              Text(
-                _assessedPriority!.name.toUpperCase(),
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: _priorityColor,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                _priorityMessage,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: _priorityColor,
-                ),
-              ),
-            ],
-          ),
-        ),
-
-        const SizedBox(height: 20),
-
-        // Emergency Instructions
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(15),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.grey.withOpacity(0.1),
-                blurRadius: 10,
-                offset: const Offset(0, 3),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(
-                    Icons.medical_information,
-                    color: Colors.blue.shade600,
-                    size: 24,
-                  ),
-                  const SizedBox(width: 10),
-                  const Text(
-                    'Emergency Instructions',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 15),
-              ...(_emergencyInstructions.asMap().entries.map((entry) {
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: 24,
-                        height: 24,
-                        decoration: BoxDecoration(
-                          color: Colors.blue.shade100,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Center(
-                          child: Text(
-                            '${entry.key + 1}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.blue.shade700,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          entry.value,
-                          style: const TextStyle(fontSize: 14, height: 1.4),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              }).toList()),
-            ],
-          ),
-        ),
-
-        const SizedBox(height: 20),
-
-        // Action Buttons
-        Row(
-          children: [
-            if (_assessedPriority == EmergencyPriority.immediate) ...[
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () => _callEmergencyHotline(),
-                  icon: const Icon(Icons.phone),
-                  label: const Text('Call Emergency'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 15),
-                  ),
-                ),
-              ),
-            ] else ...[
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () => _bookEmergencyAppointment(),
-                  icon: const Icon(Icons.calendar_today),
-                  label: const Text('Book Emergency Appointment'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _priorityColor,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 15),
-                  ),
-                ),
-              ),
-            ],
-            const SizedBox(width: 10),
-            Expanded(
-              child: ElevatedButton.icon(
-                onPressed: () => _saveAssessment(),
-                icon: const Icon(Icons.save),
-                label: const Text('Save Assessment'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 15),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
   String _getPainDescription(int level) {
     if (level == 0) return 'No pain';
     if (level <= 2) return 'Mild discomfort';
@@ -748,17 +562,6 @@ class _EmergencyPainAssessmentScreenState
     }
   }
 
-  IconData _getPriorityIcon() {
-    switch (_assessedPriority!) {
-      case EmergencyPriority.immediate:
-        return Icons.warning;
-      case EmergencyPriority.urgent:
-        return Icons.access_time;
-      case EmergencyPriority.standard:
-        return Icons.schedule;
-    }
-  }
-
   void _callEmergencyHotline() {
     // In real implementation, this would initiate a call
     showDialog(
@@ -788,33 +591,141 @@ class _EmergencyPainAssessmentScreenState
     );
   }
 
-  void _saveAssessment() {
-    // Create emergency record
-    final record = EmergencyRecord(
-      id: 'emergency_${DateTime.now().millisecondsSinceEpoch}',
-      patientId:
-          UserStateManager().currentPatientId, // Use authenticated patient ID
-      reportedAt: DateTime.now(),
-      type: _selectedType,
-      priority: _assessedPriority!,
-      status: EmergencyStatus.reported,
-      description: _description,
-      painLevel: _painLevel,
-      symptoms: _symptoms,
-      location: _location,
-      dutyRelated: _isDutyRelated,
-      unitCommand: _isDutyRelated ? _unitCommand : null,
-    );
+  Future<void> _submitEmergencyAssessment() async {
+    // Validate form
+    if (!_formKey.currentState!.validate()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please fill in all required fields'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
 
-    // Save to service (in real app, this would save to database)
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Emergency assessment saved successfully'),
-        backgroundColor: Colors.green,
-      ),
-    );
+    // Validate pain level
+    if (_painLevel == 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please select a pain level'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
 
-    // Navigate back with results
-    Navigator.pop(context);
+    setState(() {
+      _isSubmitting = true;
+    });
+
+    try {
+      // Check if user is logged in
+      final userState = UserStateManager();
+      if (!userState.isPatientLoggedIn) {
+        throw Exception(
+            'You must be logged in to submit an emergency assessment');
+      }
+
+      // Assess priority based on symptoms
+      final priority = _emergencyService.assessPriority(
+        type: _selectedType,
+        painLevel: _painLevel,
+        symptoms: _symptoms,
+        hasSwelling: _hasFacialSwelling,
+        hasBleeding: _hasBleeding,
+        difficultySwallowing: _hasDifficultySwallowing,
+      );
+
+      // Create emergency record
+      final emergencyRecord = EmergencyRecord(
+        id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
+        patientId: userState.currentPatientId,
+        reportedAt: DateTime.now(),
+        type: _selectedType,
+        priority: priority,
+        status: EmergencyStatus.reported,
+        description: _description.isNotEmpty
+            ? _description
+            : _getEmergencyTypeDisplay(_selectedType),
+        painLevel: _painLevel,
+        symptoms: _symptoms,
+        location: _location,
+        dutyRelated: _isDutyRelated,
+        unitCommand: _isDutyRelated ? _unitCommand : null,
+        emergencyContact: userState.currentPatient?.phone ?? 'N/A',
+        notes: _buildEmergencyNotes(),
+      );
+
+      // Save emergency record
+      await _emergencyService.addEmergencyRecord(emergencyRecord);
+
+      // Show success message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              priority == EmergencyPriority.immediate
+                  ? '🚨 IMMEDIATE EMERGENCY REPORTED! Medical staff will contact you immediately.'
+                  : priority == EmergencyPriority.urgent
+                      ? '⚠️ URGENT EMERGENCY REPORTED! You will be contacted within 2-4 hours.'
+                      : '✅ Emergency assessment submitted successfully. You will be contacted soon.',
+            ),
+            backgroundColor: priority == EmergencyPriority.immediate
+                ? Colors.red
+                : priority == EmergencyPriority.urgent
+                    ? Colors.orange
+                    : Colors.green,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+
+        // Navigate back after a delay
+        Future.delayed(const Duration(seconds: 3), () {
+          if (mounted) {
+            Navigator.of(context).pop();
+          }
+        });
+      }
+    } catch (e) {
+      print('❌ Emergency assessment submission error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to submit emergency assessment: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSubmitting = false;
+        });
+      }
+    }
+  }
+
+  String _buildEmergencyNotes() {
+    final notes = <String>[];
+
+    if (_hasFacialSwelling)
+      notes.add('Facial swelling affecting eyes or breathing');
+    if (_hasDifficultySwallowing)
+      notes.add('Difficulty swallowing or breathing');
+    if (_hasBleeding) notes.add('Uncontrolled bleeding');
+
+    if (_symptoms.isNotEmpty) {
+      notes.add('Additional symptoms: ${_symptoms.join(', ')}');
+    }
+
+    if (_isDutyRelated) {
+      notes.add('Duty-related incident');
+      if (_unitCommand.isNotEmpty) {
+        notes.add('Unit/Command: $_unitCommand');
+      }
+    }
+
+    return notes.join('; ');
   }
 }

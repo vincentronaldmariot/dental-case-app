@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'dart:convert';
 import 'kiosk_mode_screen.dart';
+import 'services/print_service.dart';
+import 'services/thermal_print_service.dart';
 
 class KioskReceiptScreen extends StatelessWidget {
   final Map<String, dynamic> surveyData;
@@ -195,7 +197,7 @@ class KioskReceiptScreen extends StatelessWidget {
                                     color: const Color(0xFF005800),
                                     borderRadius: BorderRadius.circular(20),
                                   ),
-                                  child: Text(
+                                  child: const Text(
                                     'COMPLETED',
                                     style: TextStyle(
                                       color: Colors.white,
@@ -400,47 +402,166 @@ class KioskReceiptScreen extends StatelessWidget {
                     const SizedBox(height: 20),
 
                     // Action Buttons
-                    Row(
+                    Column(
                       children: [
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: () {
-                              // TODO: Implement print functionality
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content:
-                                      Text('Print functionality coming soon'),
-                                  backgroundColor: Colors.blue,
+                        // Print Options Row
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: () async {
+                                  try {
+                                    // Show loading indicator
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Preparing PDF print...'),
+                                        backgroundColor: Colors.blue,
+                                        duration: Duration(seconds: 1),
+                                      ),
+                                    );
+
+                                    // Call the PDF print service
+                                    await PrintService.printReceipt(
+                                      surveyData: surveyData,
+                                      receiptNumber: receiptNumber,
+                                    );
+
+                                    // Show success message
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        const SnackBar(
+                                          content:
+                                              Text('PDF printed successfully!'),
+                                          backgroundColor: Colors.green,
+                                          duration: Duration(seconds: 2),
+                                        ),
+                                      );
+                                    }
+
+                                    // After print, return to survey for next patient
+                                    Future.delayed(const Duration(seconds: 2),
+                                        () {
+                                      if (context.mounted) {
+                                        Navigator.pushReplacement(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) =>
+                                                const KioskModeScreen(),
+                                          ),
+                                        );
+                                      }
+                                    });
+                                  } catch (e) {
+                                    // Show error message
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                              'PDF print failed: ${e.toString()}'),
+                                          backgroundColor: Colors.red,
+                                          duration: const Duration(seconds: 3),
+                                        ),
+                                      );
+                                    }
+                                  }
+                                },
+                                icon: const Icon(Icons.picture_as_pdf),
+                                label: const Text('Print PDF'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFF0029B2),
+                                  foregroundColor: Colors.white,
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 16),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
                                 ),
-                              );
-                              // After print, return to survey for next patient
-                              Future.delayed(const Duration(seconds: 2), () {
-                                if (context.mounted) {
-                                  // Navigate directly to kiosk mode screen (replacing current screen)
-                                  Navigator.pushReplacement(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) =>
-                                          const KioskModeScreen(),
-                                    ),
-                                  );
-                                }
-                              });
-                            },
-                            icon: const Icon(Icons.print),
-                            label: const Text('Print Receipt'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF0029B2),
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
                               ),
                             ),
-                          ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: () async {
+                                  try {
+                                    // Show loading indicator
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content:
+                                            Text('Preparing thermal print...'),
+                                        backgroundColor: Colors.orange,
+                                        duration: Duration(seconds: 1),
+                                      ),
+                                    );
+
+                                    // Call the thermal print service
+                                    await ThermalPrintService.printReceipt(
+                                      surveyData: surveyData,
+                                      receiptNumber: receiptNumber,
+                                      context: context,
+                                    );
+
+                                    // Show success message
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        const SnackBar(
+                                          content:
+                                              Text('Thermal receipt printed!'),
+                                          backgroundColor: Colors.green,
+                                          duration: Duration(seconds: 2),
+                                        ),
+                                      );
+                                    }
+
+                                    // After print, return to survey for next patient
+                                    Future.delayed(const Duration(seconds: 2),
+                                        () {
+                                      if (context.mounted) {
+                                        Navigator.pushReplacement(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) =>
+                                                const KioskModeScreen(),
+                                          ),
+                                        );
+                                      }
+                                    });
+                                  } catch (e) {
+                                    // Show error message
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                              'Thermal print failed: ${e.toString()}'),
+                                          backgroundColor: Colors.red,
+                                          duration: const Duration(seconds: 3),
+                                        ),
+                                      );
+                                    }
+                                  }
+                                },
+                                icon: const Icon(Icons.receipt_long),
+                                label: const Text('Thermal Print'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: const Color(0xFFFF6B35),
+                                  foregroundColor: Colors.white,
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 16),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 16),
-                        Expanded(
+                        const SizedBox(height: 16),
+                        // Next Patient Button
+                        SizedBox(
+                          width: double.infinity,
                           child: ElevatedButton.icon(
                             onPressed: () {
                               // Navigate directly to kiosk mode screen (replacing current screen)

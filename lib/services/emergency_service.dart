@@ -1,4 +1,5 @@
 import '../models/emergency_record.dart';
+import 'api_service.dart';
 
 class EmergencyService {
   static final EmergencyService _instance = EmergencyService._internal();
@@ -6,6 +7,7 @@ class EmergencyService {
   EmergencyService._internal();
 
   final List<EmergencyRecord> _emergencyRecords = [];
+  bool _isInitialized = false;
 
   List<EmergencyRecord> get emergencyRecords =>
       List.unmodifiable(_emergencyRecords);
@@ -65,14 +67,28 @@ class EmergencyService {
     ],
   };
 
-  void initializeSampleData() {
+  Future<void> initializeSampleData() async {
+    if (_isInitialized) return;
+
+    try {
+      // Try to load from API first
+      if (!ApiService.isOfflineMode) {
+        await loadEmergencyRecordsFromAPI();
+        _isInitialized = true;
+        return;
+      }
+    } catch (e) {
+      print('⚠️ Failed to load emergency records from API: $e');
+    }
+
+    // Fallback to sample data if API is not available
     if (_emergencyRecords.isNotEmpty) return;
 
     // Sample emergency records for demonstration
     _emergencyRecords.addAll([
       EmergencyRecord(
         id: 'emr_001',
-        patientId: '1',
+        patientId: '8c3a807b-03ae-4cd8-9778-5bd2d6219582',
         reportedAt: DateTime.now().subtract(const Duration(days: 2)),
         type: EmergencyType.severeToothache,
         priority: EmergencyPriority.urgent,
@@ -92,7 +108,7 @@ class EmergencyService {
       ),
       EmergencyRecord(
         id: 'emr_002',
-        patientId: '2',
+        patientId: '45f784a4-ecd4-49d1-a8d0-909b25d2b03e',
         reportedAt: DateTime.now().subtract(const Duration(hours: 6)),
         type: EmergencyType.dentalTrauma,
         priority: EmergencyPriority.immediate,
@@ -112,7 +128,7 @@ class EmergencyService {
       ),
       EmergencyRecord(
         id: 'emr_003',
-        patientId: '3',
+        patientId: '00000000-0000-0000-0000-000000000000',
         reportedAt: DateTime.now().subtract(const Duration(days: 1)),
         type: EmergencyType.lostCrown,
         priority: EmergencyPriority.standard,
@@ -129,10 +145,135 @@ class EmergencyService {
         emergencyContact: '(02) 8456-7890',
       ),
     ]);
+    _isInitialized = true;
   }
 
-  void addEmergencyRecord(EmergencyRecord record) {
+  Future<void> loadEmergencyRecordsFromAPI() async {
+    try {
+      final records = await ApiService.getEmergencyRecords();
+      _emergencyRecords.clear();
+      
+      for (final record in records) {
+        _emergencyRecords.add(EmergencyRecord(
+          id: record['id'],
+          patientId: record['patientId'],
+          reportedAt: DateTime.parse(record['reportedAt']),
+          type: _parseEmergencyType(record['emergencyType']),
+          priority: _parseEmergencyPriority(record['priority']),
+          status: _parseEmergencyStatus(record['status']),
+          description: record['description'],
+          painLevel: record['painLevel'],
+          symptoms: List<String>.from(record['symptoms']),
+          location: record['location'],
+          dutyRelated: record['dutyRelated'] ?? false,
+          unitCommand: record['unitCommand'],
+          handledBy: record['handledBy'],
+          firstAidProvided: record['firstAidProvided'],
+          resolvedAt: record['resolvedAt'] != null ? DateTime.parse(record['resolvedAt']) : null,
+          resolution: record['resolution'],
+          followUpRequired: record['followUpRequired'],
+          emergencyContact: record['emergencyContact'],
+          notes: record['notes'],
+        ));
+      }
+      print('✅ Loaded ${_emergencyRecords.length} emergency records from API');
+    } catch (e) {
+      print('❌ Failed to load emergency records from API: $e');
+      rethrow;
+    }
+  }
+
+  EmergencyType _parseEmergencyType(String type) {
+    switch (type) {
+      case 'severeToothache': return EmergencyType.severeToothache;
+      case 'knockedOutTooth': return EmergencyType.knockedOutTooth;
+      case 'brokenTooth': return EmergencyType.brokenTooth;
+      case 'dentalTrauma': return EmergencyType.dentalTrauma;
+      case 'abscess': return EmergencyType.abscess;
+      case 'excessiveBleeding': return EmergencyType.excessiveBleeding;
+      case 'lostFilling': return EmergencyType.lostFilling;
+      case 'lostCrown': return EmergencyType.lostCrown;
+      case 'orthodonticEmergency': return EmergencyType.orthodonticEmergency;
+      case 'other': return EmergencyType.other;
+      default: return EmergencyType.other;
+    }
+  }
+
+  EmergencyPriority _parseEmergencyPriority(String priority) {
+    switch (priority) {
+      case 'immediate': return EmergencyPriority.immediate;
+      case 'urgent': return EmergencyPriority.urgent;
+      case 'standard': return EmergencyPriority.standard;
+      default: return EmergencyPriority.standard;
+    }
+  }
+
+  EmergencyStatus _parseEmergencyStatus(String status) {
+    switch (status) {
+      case 'reported': return EmergencyStatus.reported;
+      case 'triaged': return EmergencyStatus.triaged;
+      case 'inProgress': return EmergencyStatus.inProgress;
+      case 'resolved': return EmergencyStatus.resolved;
+      case 'referred': return EmergencyStatus.referred;
+      default: return EmergencyStatus.reported;
+    }
+  }
+
+  Future<void> addEmergencyRecord(EmergencyRecord record) async {
+    try {
+      // Try to save to API first
+      if (!ApiService.isOfflineMode) {
+        final result = await ApiService.submitEmergencyRecord(
+          emergencyType: _getEmergencyTypeString(record.type),
+          priority: _getEmergencyPriorityString(record.priority),
+          description: record.description,
+          painLevel: record.painLevel,
+          symptoms: record.symptoms,
+          location: record.location,
+          dutyRelated: record.dutyRelated,
+          unitCommand: record.unitCommand,
+        );
+        
+        // Update the record with the API response
+        final updatedRecord = record.copyWith(
+          id: result['id'],
+          reportedAt: DateTime.parse(result['reportedAt']),
+        );
+        
+        _emergencyRecords.add(updatedRecord);
+        print('✅ Emergency record saved to API: ${result['id']}');
+        return;
+      }
+    } catch (e) {
+      print('⚠️ Failed to save emergency record to API: $e');
+    }
+
+    // Fallback to local storage
     _emergencyRecords.add(record);
+    print('⚠️ Emergency record saved locally (offline mode)');
+  }
+
+  String _getEmergencyTypeString(EmergencyType type) {
+    switch (type) {
+      case EmergencyType.severeToothache: return 'severeToothache';
+      case EmergencyType.knockedOutTooth: return 'knockedOutTooth';
+      case EmergencyType.brokenTooth: return 'brokenTooth';
+      case EmergencyType.dentalTrauma: return 'dentalTrauma';
+      case EmergencyType.abscess: return 'abscess';
+      case EmergencyType.excessiveBleeding: return 'excessiveBleeding';
+      case EmergencyType.lostFilling: return 'lostFilling';
+      case EmergencyType.lostCrown: return 'lostCrown';
+      case EmergencyType.orthodonticEmergency: return 'orthodonticEmergency';
+      case EmergencyType.other: return 'other';
+    }
+  }
+
+  String _getEmergencyPriorityString(EmergencyPriority priority) {
+    switch (priority) {
+      case EmergencyPriority.immediate: return 'immediate';
+      case EmergencyPriority.urgent: return 'urgent';
+      case EmergencyPriority.standard: return 'standard';
+    }
   }
 
   void updateEmergencyRecord(String id, EmergencyRecord updatedRecord) {
@@ -188,9 +329,8 @@ class EmergencyService {
 
   String getCurrentDutyDentist() {
     // Rotate duty dentists based on day of year
-    final dayOfYear = DateTime.now()
-        .difference(DateTime(DateTime.now().year))
-        .inDays;
+    final dayOfYear =
+        DateTime.now().difference(DateTime(DateTime.now().year)).inDays;
     final index = dayOfYear % dutyDentists.length;
     return dutyDentists[index];
   }

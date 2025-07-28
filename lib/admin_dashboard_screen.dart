@@ -6,15 +6,22 @@ import 'models/patient.dart';
 import 'models/treatment_record.dart';
 import 'models/emergency_record.dart';
 import 'services/history_service.dart';
+import 'services/emergency_service.dart';
 import 'patient_detail_screen.dart';
 import 'admin_survey_detail_screen.dart';
 import 'dental_survey_simple.dart';
 import 'services/api_service.dart';
 import 'user_state_manager.dart';
 import 'appointment_history_screen.dart';
+import 'qr_scanner_screen.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
-  const AdminDashboardScreen({super.key});
+  final int initialTabIndex;
+
+  const AdminDashboardScreen({
+    super.key,
+    this.initialTabIndex = 0,
+  });
 
   @override
   _AdminDashboardScreenState createState() => _AdminDashboardScreenState();
@@ -31,6 +38,34 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   List<TreatmentRecord> _treatmentRecords = [];
   List<EmergencyRecord> _emergencyRecords = [];
   Map<String, dynamic> _dashboardStats = {};
+
+  List<EmergencyRecord> get _filteredEmergencyRecords {
+    return _emergencyRecords.where((record) {
+      // Filter out resolved emergencies
+      if (record.status == EmergencyStatus.resolved) {
+        return false;
+      }
+
+      // Search by patient name
+      final patientData = _patientMap[record.patientId];
+      final patientName = patientData != null
+          ? '${patientData['firstName'] ?? ''} ${patientData['lastName'] ?? ''}'
+              .trim()
+              .toLowerCase()
+          : 'unknown patient';
+
+      return _emergencySearchQuery.isEmpty ||
+          patientName.contains(_emergencySearchQuery.toLowerCase()) ||
+          record.emergencyTypeDisplay
+              .toLowerCase()
+              .contains(_emergencySearchQuery.toLowerCase()) ||
+          (record.notes
+                  ?.toLowerCase()
+                  .contains(_emergencySearchQuery.toLowerCase()) ??
+              false);
+    }).toList();
+  }
+
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
   bool _isLoading = true;
@@ -45,16 +80,29 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   final TextEditingController _approvedSearchController =
       TextEditingController();
 
+  // Emergency tab search
+  String _emergencySearchQuery = '';
+  final TextEditingController _emergencySearchController =
+      TextEditingController();
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 5, vsync: this);
     _loadData();
+
+    // Set initial tab if specified
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (widget.initialTabIndex >= 0 && widget.initialTabIndex < 5) {
+        _tabController.animateTo(widget.initialTabIndex);
+      }
+    });
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _emergencySearchController.dispose();
     super.dispose();
   }
 
@@ -64,6 +112,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     });
 
     try {
+      // Initialize emergency service
+      EmergencyService().initializeSampleData();
+
       await Future.wait([
         _loadPatients(),
         _loadAppointments(),
@@ -254,10 +305,134 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   }
 
   Future<void> _loadEmergencyRecords() async {
-    // Emergency records are not implemented in HistoryService yet
-    setState(() {
-      _emergencyRecords = [];
-    });
+    try {
+      final adminToken = await _getAdminToken();
+      if (adminToken == null) {
+        print('❌ Admin token not available');
+        return;
+      }
+
+      final response = await http.get(
+        Uri.parse(
+            'http://localhost:3000/api/admin/emergency?exclude_resolved=true'),
+        headers: {
+          'Authorization': 'Bearer $adminToken',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final List<dynamic> emergencyData = data['emergencyRecords'] ?? [];
+
+        setState(() {
+          _emergencyRecords = emergencyData.map((record) {
+            return EmergencyRecord(
+              id: record['id'].toString(),
+              patientId: record['patientId'] ?? '',
+              reportedAt: DateTime.parse(record['reportedAt']),
+              type: _parseEmergencyType(record['emergencyType']),
+              priority: _parseEmergencyPriority(record['priority']),
+              status: _parseEmergencyStatus(record['status']),
+              description: record['description'] ?? '',
+              painLevel: record['painLevel'] ?? 0,
+              symptoms: List<String>.from(record['symptoms'] ?? []),
+              location: record['location'],
+              dutyRelated: record['dutyRelated'] ?? false,
+              unitCommand: record['unitCommand'],
+              handledBy: record['handledBy'],
+              firstAidProvided: record['firstAidProvided'],
+              resolvedAt: record['resolvedAt'] != null
+                  ? DateTime.parse(record['resolvedAt'])
+                  : null,
+              resolution: record['resolution'],
+              followUpRequired: record['followUpRequired'],
+              emergencyContact: record['emergencyContact'],
+              notes: record['notes'],
+            );
+          }).toList();
+        });
+
+        print(
+            '✅ Loaded ${_emergencyRecords.length} emergency records from backend');
+      } else {
+        print(
+            '❌ Failed to load emergency records: ${response.statusCode} - ${response.body}');
+        // Fallback to local data if backend fails
+        setState(() {
+          _emergencyRecords = List.from(EmergencyService().emergencyRecords);
+        });
+      }
+    } catch (e) {
+      print('❌ Error loading emergency records: $e');
+      // Fallback to local data if there's an error
+      setState(() {
+        _emergencyRecords = List.from(EmergencyService().emergencyRecords);
+      });
+    }
+  }
+
+  EmergencyType _parseEmergencyType(String? type) {
+    switch (type?.toLowerCase()) {
+      case 'severe_toothache':
+      case 'severetoothache':
+        return EmergencyType.severeToothache;
+      case 'knocked_out_tooth':
+      case 'knockedouttooth':
+        return EmergencyType.knockedOutTooth;
+      case 'broken_tooth':
+      case 'brokentooth':
+        return EmergencyType.brokenTooth;
+      case 'dental_trauma':
+      case 'dentaltrauma':
+        return EmergencyType.dentalTrauma;
+      case 'abscess':
+        return EmergencyType.abscess;
+      case 'excessive_bleeding':
+      case 'excessivebleeding':
+        return EmergencyType.excessiveBleeding;
+      case 'lost_filling':
+      case 'lostfilling':
+        return EmergencyType.lostFilling;
+      case 'lost_crown':
+      case 'lostcrown':
+        return EmergencyType.lostCrown;
+      case 'orthodontic_emergency':
+      case 'orthodonticemergency':
+        return EmergencyType.orthodonticEmergency;
+      default:
+        return EmergencyType.other;
+    }
+  }
+
+  EmergencyPriority _parseEmergencyPriority(String? priority) {
+    switch (priority?.toLowerCase()) {
+      case 'immediate':
+        return EmergencyPriority.immediate;
+      case 'urgent':
+        return EmergencyPriority.urgent;
+      case 'standard':
+        return EmergencyPriority.standard;
+      default:
+        return EmergencyPriority.standard;
+    }
+  }
+
+  EmergencyStatus _parseEmergencyStatus(String? status) {
+    switch (status?.toLowerCase()) {
+      case 'reported':
+        return EmergencyStatus.reported;
+      case 'triaged':
+        return EmergencyStatus.triaged;
+      case 'in_progress':
+      case 'inprogress':
+        return EmergencyStatus.inProgress;
+      case 'resolved':
+        return EmergencyStatus.resolved;
+      case 'referred':
+        return EmergencyStatus.referred;
+      default:
+        return EmergencyStatus.reported;
+    }
   }
 
   Future<void> _loadDashboardStats() async {
@@ -1402,6 +1577,77 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // QR Scanner Card
+          Card(
+            elevation: 4,
+            child: InkWell(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const QRScannerScreen(),
+                  ),
+                );
+              },
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF0029B2), Color(0xFF001B8A)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(
+                        Icons.qr_code_scanner,
+                        color: Colors.white,
+                        size: 32,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'QR Code Scanner',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Scan patient QR codes and appointment receipts',
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.9),
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Icon(
+                      Icons.arrow_forward_ios,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -2370,10 +2616,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                                                                 .add(const Duration(
                                                                     days: 365)),
                                                           );
-                                                          if (picked != null)
+                                                          if (picked != null) {
                                                             setState(() =>
                                                                 newDate =
                                                                     picked);
+                                                          }
                                                         },
                                                         child: Text(newDate !=
                                                                 null
@@ -2398,10 +2645,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                                                                       .now(),
                                                             ),
                                                           );
-                                                          if (picked != null)
+                                                          if (picked != null) {
                                                             setState(() =>
                                                                 newTime =
                                                                     picked);
+                                                          }
                                                         },
                                                         child: Text(newTime !=
                                                                 null
@@ -2437,9 +2685,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                                                   .toIso8601String()
                                                   .split('T')[0]
                                               : null;
-                                          final newTimeStr = newTime != null
-                                              ? newTime!.format(context)
-                                              : null;
+                                          final newTimeStr =
+                                              newTime?.format(context);
                                           await ApiService
                                               .rebookAppointmentAsAdmin(
                                             appointment['appointmentId'] ??
@@ -2521,31 +2768,330 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
-        children: _emergencyRecords
-            .map((record) => _buildEmergencyCard(record))
-            .toList(),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Search Section
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Search',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF0029B2),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Search Bar
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: TextField(
+                      controller: _emergencySearchController,
+                      decoration: InputDecoration(
+                        hintText:
+                            'Search by patient name, emergency type, or notes...',
+                        prefixIcon: const Icon(Icons.search),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        filled: true,
+                        fillColor: Colors.grey.shade50,
+                        suffixIcon: _emergencySearchQuery.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear),
+                                onPressed: () {
+                                  setState(() {
+                                    _emergencySearchController.clear();
+                                    _emergencySearchQuery = '';
+                                  });
+                                },
+                              )
+                            : null,
+                      ),
+                      onChanged: (value) {
+                        setState(() {
+                          _emergencySearchQuery = value;
+                        });
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Results Count
+          Text(
+            'Found ${_filteredEmergencyRecords.length} emergency record${_filteredEmergencyRecords.length == 1 ? '' : 's'}',
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[600],
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // Emergency Records
+          ..._filteredEmergencyRecords
+              .map((record) => _buildEmergencyCard(record))
+              .toList(),
+        ],
       ),
     );
   }
 
   Widget _buildEmergencyCard(EmergencyRecord record) {
+    // Get patient information from the patient map
+    final patientData = _patientMap[record.patientId];
+    final patientName = patientData != null
+        ? '${patientData['firstName'] ?? ''} ${patientData['lastName'] ?? ''}'
+            .trim()
+        : 'Unknown Patient';
+    final classification = patientData?['classification'] ?? 'N/A';
+    final unitAssignment = patientData?['unitAssignment'] ?? 'N/A';
+    final serialNumber = patientData?['serialNumber'] ?? 'N/A';
+
+    // Format date and time
+    final dateStr =
+        '${record.reportedAt.year}-${record.reportedAt.month.toString().padLeft(2, '0')}-${record.reportedAt.day.toString().padLeft(2, '0')}';
+    final timeStr =
+        '${record.reportedAt.hour.toString().padLeft(2, '0')}:${record.reportedAt.minute.toString().padLeft(2, '0')}';
+
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
-      child: ListTile(
-        leading: const Icon(Icons.emergency, color: Colors.red),
-        title: Text('Emergency - ${record.emergencyTypeDisplay}'),
-        subtitle: Column(
+      child: ExpansionTile(
+        leading: const Icon(Icons.emergency, color: Colors.red, size: 24),
+        title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Patient ID: ${record.patientId}'),
-            Text('Pain Level: ${record.painLevel}'),
-            Text('Date: ${record.reportedAt.toString().split(' ')[0]}'),
-            if (record.notes != null) Text('Notes: ${record.notes}'),
+            Text(
+              'Emergency - ${record.emergencyTypeDisplay}',
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.red,
+              ),
+            ),
+            Text(
+              patientName,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: Colors.black87,
+              ),
+            ),
+            Text(
+              'Priority: ${record.priorityDisplay}',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: record.priority == EmergencyPriority.immediate
+                    ? Colors.red
+                    : record.priority == EmergencyPriority.urgent
+                        ? Colors.orange
+                        : Colors.green,
+              ),
+            ),
           ],
         ),
-        isThreeLine: true,
+        subtitle: Row(
+          children: [
+            Text(
+              '$dateStr at $timeStr',
+              style: const TextStyle(
+                fontSize: 12,
+                color: Colors.grey,
+              ),
+            ),
+            const Spacer(),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: _getStatusColor(record.status),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                record.statusDisplay,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Patient Information Section
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.blue.shade200),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Row(
+                        children: [
+                          Icon(Icons.person, color: Color(0xFF0029B2)),
+                          SizedBox(width: 8),
+                          Text('Patient Information',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                  color: Color(0xFF0029B2))),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      _buildEmergencyInfoRow('Name', patientName),
+                      _buildEmergencyInfoRow('Classification', classification),
+                      _buildEmergencyInfoRow('Unit Assignment', unitAssignment),
+                      _buildEmergencyInfoRow('Serial Number', serialNumber),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // Emergency Details Section
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.red.shade200),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Row(
+                        children: [
+                          Icon(Icons.emergency, color: Colors.red),
+                          SizedBox(width: 8),
+                          Text('Emergency Details',
+                              style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                  color: Colors.red)),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      _buildEmergencyInfoRow(
+                          'Emergency Type', record.emergencyTypeDisplay),
+                      _buildEmergencyInfoRow(
+                          'Priority', record.priorityDisplay),
+                      _buildEmergencyInfoRow('Status', record.statusDisplay),
+                      _buildEmergencyInfoRow(
+                          'Pain Level', '${record.painLevel}/10'),
+                      _buildEmergencyInfoRow('Date', dateStr),
+                      _buildEmergencyInfoRow('Time', timeStr),
+                      if (record.notes != null && record.notes!.isNotEmpty)
+                        _buildEmergencyInfoRow('Notes', record.notes!),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // Action Buttons
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          _markEmergencyCompleted(record);
+                        },
+                        icon: const Icon(Icons.check_circle, size: 16),
+                        label: const Text('Completed'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          _removeEmergency(record);
+                        },
+                        icon: const Icon(Icons.delete, size: 16),
+                        label: const Text('Remove'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
+  }
+
+  Widget _buildEmergencyInfoRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 120,
+            child: Text(
+              '$label:',
+              style: const TextStyle(
+                fontWeight: FontWeight.w600,
+                color: Colors.black87,
+                fontSize: 14,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(
+                color: Colors.black87,
+                fontSize: 14,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _getStatusColor(EmergencyStatus status) {
+    switch (status) {
+      case EmergencyStatus.reported:
+        return Colors.orange;
+      case EmergencyStatus.triaged:
+        return Colors.blue;
+      case EmergencyStatus.inProgress:
+        return Colors.purple;
+      case EmergencyStatus.resolved:
+        return Colors.green;
+      case EmergencyStatus.referred:
+        return Colors.grey;
+    }
   }
 
   @override
@@ -3037,7 +3583,7 @@ $allPatientsData
               ),
             ),
             const SizedBox(height: 6),
-            ...(value as Map).entries.map(
+            ...(value).entries.map(
                 (e) => _buildSurveyEntry(e.key, e.value, indent: indent + 1)),
           ],
         ),
@@ -3059,7 +3605,7 @@ $allPatientsData
                   children: [
                     if (indent > 0)
                       TextSpan(
-                        text: _capitalize(key) + ': ',
+                        text: '${_capitalize(key)}: ',
                         style: const TextStyle(fontWeight: FontWeight.w500),
                       ),
                     TextSpan(
@@ -3079,5 +3625,362 @@ $allPatientsData
   String _capitalize(String s) {
     if (s.isEmpty) return s;
     return s[0].toUpperCase() + s.substring(1).replaceAll('_', ' ');
+  }
+
+  Future<void> _markEmergencyCompleted(EmergencyRecord record) async {
+    try {
+      // Get patient information for the confirmation dialog
+      final patientData = _patientMap[record.patientId];
+      final patientName = patientData != null
+          ? '${patientData['firstName'] ?? ''} ${patientData['lastName'] ?? ''}'
+              .trim()
+          : 'Unknown Patient';
+
+      bool? confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text('Complete Emergency & Create Appointment'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Are you sure you want to complete this emergency?',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 16),
+                Text('Patient: $patientName'),
+                Text('Emergency Type: ${record.emergencyTypeDisplay}'),
+                Text('Priority: ${record.priorityDisplay}'),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: Colors.blue.shade200),
+                  ),
+                  child: const Text(
+                    'This will:\n• Mark emergency as resolved\n• Create an appointment record\n• Remove from emergency list\n• Add to patient\'s appointment history',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Complete Emergency'),
+              ),
+            ],
+          );
+        },
+      );
+
+      if (confirmed == true) {
+        // Show loading indicator
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => const Center(
+            child: CircularProgressIndicator(),
+          ),
+        );
+
+        try {
+          // Get admin token
+          final adminToken = await _getAdminToken();
+          if (adminToken == null) {
+            throw Exception('Admin token not available');
+          }
+
+          // Step 1: Update emergency status to resolved
+          final emergencyResponse = await http.put(
+            Uri.parse(
+                'http://localhost:3000/api/admin/emergencies/${record.id}/status'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $adminToken',
+            },
+            body: jsonEncode({
+              'status': 'resolved',
+              'handledBy': 'Admin',
+              'resolution': 'Emergency resolved and converted to appointment',
+              'followUpRequired': 'Follow-up appointment created',
+            }),
+          );
+
+          if (emergencyResponse.statusCode != 200) {
+            throw Exception(
+                'Failed to update emergency status: ${emergencyResponse.statusCode}');
+          }
+
+          // Step 1.5: Get the updated emergency record to get the resolved_at date
+          final updatedEmergencyResponse = await http.get(
+            Uri.parse('http://localhost:3000/api/admin/emergencies'),
+            headers: {
+              'Authorization': 'Bearer $adminToken',
+            },
+          );
+
+          if (updatedEmergencyResponse.statusCode != 200) {
+            throw Exception(
+                'Failed to fetch updated emergency record: ${updatedEmergencyResponse.statusCode}');
+          }
+
+          final updatedEmergencyData =
+              jsonDecode(updatedEmergencyResponse.body);
+          final updatedEmergency =
+              updatedEmergencyData['emergencyRecords'].firstWhere(
+            (e) => e['id'] == record.id,
+            orElse: () => null,
+          );
+
+          if (updatedEmergency == null) {
+            throw Exception('Could not find updated emergency record');
+          }
+
+          // Step 2: Create appointment record for the patient
+          // Use the resolved date from the updated emergency record
+          final resolvedAtString = updatedEmergency['resolvedAt'];
+          final resolvedDate = resolvedAtString != null
+              ? DateTime.parse(resolvedAtString)
+              : DateTime.now();
+          final appointmentDate = resolvedDate.toIso8601String().split('T')[0];
+
+          final appointmentResponse = await http.post(
+            Uri.parse('http://localhost:3000/api/admin/appointments/rebook'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $adminToken',
+            },
+            body: jsonEncode({
+              'patient_id': record.patientId,
+              'service': 'Emergency Follow-up: ${record.emergencyTypeDisplay}',
+              'date': appointmentDate,
+              'time_slot': 'Emergency Resolution',
+              'notify_patient':
+                  false, // Don't notify since this is a completed emergency
+            }),
+          );
+
+          if (appointmentResponse.statusCode == 200) {
+            // Update the appointment status to completed since this is a resolved emergency
+            final appointmentData = jsonDecode(appointmentResponse.body);
+            final appointmentId = appointmentData['appointment']['id'];
+
+            final updateAppointmentResponse = await http.put(
+              Uri.parse(
+                  'http://localhost:3000/api/admin/appointments/$appointmentId/status'),
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer $adminToken',
+              },
+              body: jsonEncode({
+                'status': 'completed',
+                'notes':
+                    'Emergency resolved and converted to completed appointment',
+              }),
+            );
+
+            if (updateAppointmentResponse.statusCode != 200) {
+              print(
+                  'Warning: Failed to update appointment status to completed: ${updateAppointmentResponse.statusCode}');
+            }
+          }
+
+          if (appointmentResponse.statusCode != 200) {
+            print(
+                'Warning: Failed to create appointment record: ${appointmentResponse.statusCode}');
+            // Don't throw error here as the emergency was already resolved
+          }
+
+          // Close loading dialog
+          Navigator.of(context).pop();
+
+          // Reload emergency records to reflect the updated status
+          await _loadEmergencyRecords();
+
+          // Show success message
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                  'Emergency completed successfully! Appointment record created for $patientName'),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 4),
+            ),
+          );
+        } catch (e) {
+          // Close loading dialog
+          Navigator.of(context).pop();
+          throw e;
+        }
+      }
+    } catch (e) {
+      print('Error completing emergency: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to complete emergency: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _removeEmergency(EmergencyRecord record) async {
+    try {
+      final TextEditingController noteController = TextEditingController();
+      bool? confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text('Remove Emergency Record'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                    'Are you sure you want to remove this emergency record?'),
+                const SizedBox(height: 16),
+                Text(
+                    'Patient: ${_patientMap[record.patientId]?['firstName'] ?? ''} ${_patientMap[record.patientId]?['lastName'] ?? ''}'),
+                Text('Emergency Type: ${record.emergencyTypeDisplay}'),
+                const SizedBox(height: 16),
+                const Text(
+                  'Leave a note for the patient (optional):',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: noteController,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    hintText: 'Enter a note for the patient...',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'This action cannot be undone.',
+                  style: TextStyle(
+                    color: Colors.red,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Remove & Notify'),
+              ),
+            ],
+          );
+        },
+      );
+
+      if (confirmed == true) {
+        // Call backend API to delete emergency record
+        final adminToken = await _getAdminToken();
+        if (adminToken == null) {
+          throw Exception('Admin token not available');
+        }
+
+        final response = await http.delete(
+          Uri.parse('http://localhost:3000/api/admin/emergencies/${record.id}'),
+          headers: {
+            'Authorization': 'Bearer $adminToken',
+          },
+        );
+
+        if (response.statusCode == 200) {
+          // Send notification to patient if note is provided
+          if (noteController.text.trim().isNotEmpty) {
+            await _sendEmergencyNotification(
+                record, noteController.text.trim());
+          }
+
+          // Reload emergency records to reflect the deletion
+          await _loadEmergencyRecords();
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(noteController.text.trim().isNotEmpty
+                  ? 'Emergency record removed and patient notified successfully'
+                  : 'Emergency record removed successfully'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        } else {
+          print(
+              '❌ Failed to delete emergency record: ${response.statusCode} - ${response.body}');
+          throw Exception(
+              'Failed to delete emergency record: ${response.statusCode}');
+        }
+      }
+    } catch (e) {
+      print('Error removing emergency record: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to remove emergency record: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<String?> _getAdminToken() async {
+    return UserStateManager().adminToken;
+  }
+
+  Future<void> _sendEmergencyNotification(
+      EmergencyRecord record, String note) async {
+    try {
+      final adminToken = await _getAdminToken();
+      if (adminToken == null) {
+        throw Exception('Admin token not available');
+      }
+
+      final response = await http.post(
+        Uri.parse(
+            'http://localhost:3000/api/admin/emergencies/${record.id}/notify'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $adminToken',
+        },
+        body: jsonEncode({
+          'patientId': record.patientId,
+          'message': note,
+          'emergencyType': record.emergencyTypeDisplay,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        print('✅ Emergency notification sent successfully');
+      } else {
+        print(
+            '❌ Failed to send emergency notification: ${response.statusCode} - ${response.body}');
+        throw Exception('Failed to send notification: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('❌ Error sending emergency notification: $e');
+      throw Exception('Failed to send notification: $e');
+    }
   }
 }

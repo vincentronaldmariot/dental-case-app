@@ -1415,7 +1415,8 @@ router.get('/patients/history', verifyAdmin, async (req, res) => {
         const emergencyResult = await query(`
           SELECT 
             id, pain_level, symptoms, status, 
-            created_at, updated_at
+            TO_CHAR(created_at AT TIME ZONE 'Asia/Manila', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as created_at, 
+            TO_CHAR(updated_at AT TIME ZONE 'Asia/Manila', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as updated_at
           FROM emergency_records 
           WHERE patient_id = $1 
           ORDER BY created_at DESC
@@ -1794,7 +1795,11 @@ router.get('/patients/:id/appointments', verifyAdmin, async (req, res) => {
     const patientId = req.params.id;
     const appointmentsResult = await query(
       `SELECT 
-        id, service, appointment_date, time_slot, status, notes, created_at, updated_at
+        id, service, 
+        TO_CHAR(appointment_date AT TIME ZONE 'Asia/Manila', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as appointment_date, 
+        time_slot, status, notes, 
+        TO_CHAR(created_at AT TIME ZONE 'Asia/Manila', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as created_at, 
+        TO_CHAR(updated_at AT TIME ZONE 'Asia/Manila', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as updated_at
        FROM appointments 
        WHERE patient_id = $1 
        ORDER BY created_at DESC`,
@@ -1804,6 +1809,391 @@ router.get('/patients/:id/appointments', verifyAdmin, async (req, res) => {
   } catch (error) {
     console.error('Admin fetch patient appointments error:', error);
     res.status(500).json({ error: 'Failed to fetch patient appointments.' });
+  }
+});
+
+// GET /api/admin/emergencies - Get all emergency records (admin)
+router.get('/emergencies', verifyAdmin, async (req, res) => {
+  try {
+    const result = await query(`
+      SELECT 
+        er.id, er.patient_id, 
+        TO_CHAR(er.reported_at AT TIME ZONE 'Asia/Manila', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as reported_at, 
+        er.emergency_type, er.priority, 
+        er.status, er.description, er.pain_level, er.symptoms, er.location,
+        er.duty_related, er.unit_command, er.handled_by, er.first_aid_provided,
+        CASE WHEN er.resolved_at IS NOT NULL 
+          THEN TO_CHAR(er.resolved_at AT TIME ZONE 'Asia/Manila', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')
+          ELSE NULL 
+        END as resolved_at, 
+        er.resolution, er.follow_up_required, er.emergency_contact,
+        er.notes, 
+        TO_CHAR(er.created_at AT TIME ZONE 'Asia/Manila', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as created_at, 
+        TO_CHAR(er.updated_at AT TIME ZONE 'Asia/Manila', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as updated_at,
+        p.first_name, p.last_name, p.email, p.phone
+      FROM emergency_records er
+      LEFT JOIN patients p ON er.patient_id = p.id
+      ORDER BY er.reported_at DESC
+    `);
+
+    res.json({
+      emergencyRecords: result.rows.map(record => ({
+        id: record.id,
+        patientId: record.patient_id,
+        patientName: record.first_name && record.last_name 
+          ? `${record.first_name} ${record.last_name}` 
+          : 'Unknown Patient',
+        patientEmail: record.email,
+        patientPhone: record.phone,
+        reportedAt: record.reported_at,
+        emergencyType: record.emergency_type,
+        priority: record.priority,
+        status: record.status,
+        description: record.description,
+        painLevel: record.pain_level,
+        symptoms: record.symptoms || [],
+        location: record.location,
+        dutyRelated: record.duty_related,
+        unitCommand: record.unit_command,
+        handledBy: record.handled_by,
+        firstAidProvided: record.first_aid_provided,
+        resolvedAt: record.resolved_at,
+        resolution: record.resolution,
+        followUpRequired: record.follow_up_required,
+        emergencyContact: record.emergency_contact,
+        notes: record.notes,
+        createdAt: record.created_at,
+        updatedAt: record.updated_at
+      }))
+    });
+
+  } catch (error) {
+    console.error('❌ Admin fetch emergency records error:', error);
+    res.status(500).json({ error: 'Failed to fetch emergency records.' });
+  }
+});
+
+// PUT /api/admin/emergencies/:id/status - Update emergency record status (admin)
+router.put('/emergencies/:id/status', verifyAdmin, [
+  body('status').isIn(['reported', 'triaged', 'in_progress', 'resolved', 'referred']).withMessage('Valid status is required'),
+  body('handledBy').optional().isString(),
+  body('resolution').optional().isString(),
+  body('followUpRequired').optional().isString(),
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        error: 'Validation failed',
+        details: errors.array()
+      });
+    }
+
+    const emergencyId = req.params.id;
+    const { status, handledBy, resolution, followUpRequired } = req.body;
+
+    console.log('🔄 Updating emergency record status...');
+    console.log(`Emergency ID: ${emergencyId}`);
+    console.log(`New Status: ${status}`);
+
+    let updateQuery = `
+      UPDATE emergency_records 
+      SET status = $1, updated_at = CURRENT_TIMESTAMP
+    `;
+    let queryParams = [status];
+    let paramCount = 2;
+
+    if (handledBy !== undefined) {
+      updateQuery += `, handled_by = $${paramCount++}`;
+      queryParams.push(handledBy);
+    }
+
+    if (resolution !== undefined) {
+      updateQuery += `, resolution = $${paramCount++}`;
+      queryParams.push(resolution);
+    }
+
+    if (followUpRequired !== undefined) {
+      updateQuery += `, follow_up_required = $${paramCount++}`;
+      queryParams.push(followUpRequired);
+    }
+
+    if (status === 'resolved') {
+      updateQuery += `, resolved_at = CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Manila'`;
+    }
+
+    updateQuery += ` WHERE id = $${paramCount++} RETURNING *`;
+    queryParams.push(emergencyId);
+
+    const result = await query(updateQuery, queryParams);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Emergency record not found.' });
+    }
+
+    console.log('✅ Emergency record status updated successfully');
+
+    res.json({
+      message: 'Emergency record status updated successfully',
+      emergencyRecord: result.rows[0]
+    });
+
+  } catch (error) {
+    console.error('❌ Admin update emergency status error:', error);
+    res.status(500).json({ error: 'Failed to update emergency record status.' });
+  }
+});
+
+// DELETE /api/admin/emergencies/:id - Delete emergency record (admin)
+router.delete('/emergencies/:id', verifyAdmin, async (req, res) => {
+  try {
+    const emergencyId = req.params.id;
+
+    console.log('🗑️ Deleting emergency record...');
+    console.log(`Emergency ID: ${emergencyId}`);
+
+    const result = await query(`
+      DELETE FROM emergency_records 
+      WHERE id = $1 
+      RETURNING id, patient_id, emergency_type
+    `, [emergencyId]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Emergency record not found.' });
+    }
+
+    console.log('✅ Emergency record deleted successfully');
+
+    res.json({
+      message: 'Emergency record deleted successfully',
+      deletedRecord: result.rows[0]
+    });
+
+  } catch (error) {
+    console.error('❌ Admin delete emergency record error:', error);
+    res.status(500).json({ error: 'Failed to delete emergency record.' });
+  }
+});
+
+// POST /api/admin/emergencies/:id/notify - Send notification to patient about emergency resolution
+router.post('/emergencies/:id/notify', verifyAdmin, [
+  body('patientId').isString().withMessage('Patient ID is required'),
+  body('message').isString().withMessage('Message is required'),
+  body('emergencyType').optional().isString(),
+], async (req, res) => {
+  try {
+    // Check validation errors
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        error: 'Validation failed',
+        details: errors.array()
+      });
+    }
+
+    const emergencyId = req.params.id;
+    const { patientId, message, emergencyType } = req.body;
+
+    console.log('🔔 Creating emergency notification...');
+    console.log(`Emergency ID: ${emergencyId}`);
+    console.log(`Patient ID: ${patientId}`);
+    console.log(`Message: ${message}`);
+    console.log(`Emergency Type: ${emergencyType}`);
+
+    // Create notification for the patient
+    const notificationResult = await query(`
+      INSERT INTO notifications (patient_id, title, message, type, created_at)
+      VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
+      RETURNING id, title, message, type, created_at
+    `, [
+      patientId,
+      'Emergency Resolved',
+      `Your emergency (${emergencyType || 'dental emergency'}) has been resolved. ${message}`,
+      'emergency_resolved'
+    ]);
+
+    // Keep only the 20 most recent notifications for this patient
+    await query(`
+      DELETE FROM notifications
+      WHERE id IN (
+        SELECT id FROM notifications
+        WHERE patient_id = $1
+        ORDER BY created_at DESC
+        OFFSET 20
+      )
+    `, [patientId]);
+
+    console.log('✅ Emergency notification created successfully:');
+    console.log(JSON.stringify(notificationResult.rows[0], null, 2));
+
+    res.json({
+      message: 'Emergency notification sent successfully',
+      notification: notificationResult.rows[0]
+    });
+
+  } catch (error) {
+    console.error('❌ Admin emergency notification error:', error);
+    res.status(500).json({
+      error: 'Failed to send emergency notification. Please try again.'
+    });
+  }
+});
+
+// EMERGENCY RECORDS ADMIN ROUTES
+
+// GET /api/admin/emergency - Get all emergency records
+router.get('/emergency', verifyAdmin, async (req, res) => {
+  try {
+    const { limit = 50, offset = 0, status, priority, exclude_resolved } = req.query;
+
+    let queryText = `
+      SELECT 
+        er.id, er.patient_id, 
+        TO_CHAR(er.reported_at AT TIME ZONE 'Asia/Manila', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as reported_at,
+        er.emergency_type, er.priority, 
+        er.status, er.description, er.pain_level, er.symptoms, er.location,
+        er.duty_related, er.unit_command, er.handled_by, er.first_aid_provided,
+        CASE WHEN er.resolved_at IS NOT NULL 
+          THEN TO_CHAR(er.resolved_at AT TIME ZONE 'Asia/Manila', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')
+          ELSE NULL 
+        END as resolved_at,
+        er.resolution, er.follow_up_required, er.emergency_contact,
+        er.notes, 
+        TO_CHAR(er.created_at AT TIME ZONE 'Asia/Manila', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as created_at,
+        p.first_name, p.last_name, p.phone, p.email
+      FROM emergency_records er
+      LEFT JOIN patients p ON er.patient_id = p.id
+    `;
+    const queryParams = [];
+    const conditions = [];
+
+    if (status) {
+      conditions.push(`er.status = $${queryParams.length + 1}`);
+      queryParams.push(status);
+    }
+
+    if (priority) {
+      conditions.push(`er.priority = $${queryParams.length + 1}`);
+      queryParams.push(priority);
+    }
+
+    if (exclude_resolved === 'true') {
+      conditions.push(`er.status != 'resolved'`);
+    }
+
+    if (conditions.isNotEmpty) {
+      queryText += ` WHERE ${conditions.join(' AND ')}`;
+    }
+
+    queryText += ` ORDER BY er.reported_at DESC LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}`;
+    queryParams.push(parseInt(limit), parseInt(offset));
+
+    const result = await query(queryText, queryParams);
+
+    res.json({
+      emergencyRecords: result.rows.map(record => ({
+        id: record.id,
+        patientId: record.patient_id,
+        patientName: `${record.first_name || ''} ${record.last_name || ''}`.trim(),
+        patientPhone: record.phone,
+        patientEmail: record.email,
+        reportedAt: record.reported_at,
+        emergencyType: record.emergency_type,
+        priority: record.priority,
+        status: record.status,
+        description: record.description,
+        painLevel: record.pain_level,
+        symptoms: record.symptoms,
+        location: record.location,
+        dutyRelated: record.duty_related,
+        unitCommand: record.unit_command,
+        handledBy: record.handled_by,
+        firstAidProvided: record.first_aid_provided,
+        resolvedAt: record.resolved_at,
+        resolution: record.resolution,
+        followUpRequired: record.follow_up_required,
+        emergencyContact: record.emergency_contact,
+        notes: record.notes,
+        createdAt: record.created_at
+      }))
+    });
+
+  } catch (error) {
+    console.error('Get emergency records error:', error);
+    res.status(500).json({
+      error: 'Failed to retrieve emergency records. Please try again.'
+    });
+  }
+});
+
+// PUT /api/admin/emergency/:id/status - Update emergency record status
+router.put('/emergency/:id/status', verifyAdmin, [
+  body('status').isIn(['reported', 'triaged', 'inProgress', 'resolved', 'referred']).withMessage('Valid status is required'),
+  body('handledBy').optional().isLength({ max: 100 }).withMessage('Handled by must not exceed 100 characters'),
+  body('resolution').optional().isLength({ max: 500 }).withMessage('Resolution must not exceed 500 characters'),
+  body('notes').optional().isLength({ max: 1000 }).withMessage('Notes must not exceed 1000 characters')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        error: 'Validation failed',
+        details: errors.array()
+      });
+    }
+
+    const { id } = req.params;
+    const { status, handledBy, resolution, notes } = req.body;
+
+    let updateFields = ['status = $1'];
+    let queryParams = [status];
+    let paramIndex = 2;
+
+    if (handledBy !== undefined) {
+      updateFields.push(`handled_by = $${paramIndex++}`);
+      queryParams.push(handledBy);
+    }
+
+    if (resolution !== undefined) {
+      updateFields.push(`resolution = $${paramIndex++}`);
+      queryParams.push(resolution);
+    }
+
+    if (notes !== undefined) {
+      updateFields.push(`notes = $${paramIndex++}`);
+      queryParams.push(notes);
+    }
+
+    // Add resolved_at timestamp if status is resolved
+    if (status === 'resolved') {
+      updateFields.push(`resolved_at = CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Manila'`);
+    }
+
+    queryParams.push(id);
+
+    const result = await query(`
+      UPDATE emergency_records 
+      SET ${updateFields.join(', ')}
+      WHERE id = $${paramIndex}
+      RETURNING id, status, handled_by, resolved_at
+    `, queryParams);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        error: 'Emergency record not found'
+      });
+    }
+
+    res.json({
+      message: 'Emergency record status updated successfully',
+      emergency: result.rows[0]
+    });
+
+  } catch (error) {
+    console.error('Update emergency status error:', error);
+    res.status(500).json({
+      error: 'Failed to update emergency record status. Please try again.'
+    });
   }
 });
 

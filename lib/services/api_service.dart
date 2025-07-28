@@ -767,6 +767,131 @@ class ApiService {
     }
   }
 
+  // EMERGENCY RECORDS API METHODS
+
+  /// Submit emergency record
+  static Future<Map<String, dynamic>> submitEmergencyRecord({
+    required String emergencyType,
+    required String priority,
+    required String description,
+    required int painLevel,
+    required List<String> symptoms,
+    String? location,
+    bool? dutyRelated,
+    String? unitCommand,
+  }) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/emergency'),
+        headers: _headers,
+        body: json.encode({
+          'emergencyType': emergencyType,
+          'priority': priority,
+          'description': description,
+          'painLevel': painLevel,
+          'symptoms': symptoms,
+          if (location != null) 'location': location,
+          if (dutyRelated != null) 'dutyRelated': dutyRelated,
+          if (unitCommand != null) 'unitCommand': unitCommand,
+        }),
+      );
+
+      if (response.statusCode == 201) {
+        final data = json.decode(response.body);
+        print(
+            '✅ Emergency record submitted successfully: ${data['emergency']['id']}');
+        return data['emergency'];
+      } else {
+        final errorData = json.decode(response.body);
+        throw Exception(
+            'Failed to submit emergency record: ${errorData['error'] ?? 'Unknown error'}');
+      }
+    } catch (e) {
+      print('❌ Emergency submission error: $e');
+      throw Exception('Failed to submit emergency record: $e');
+    }
+  }
+
+  /// Get patient's emergency records
+  static Future<List<Map<String, dynamic>>> getEmergencyRecords() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/emergency'),
+        headers: _headers,
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final records =
+            List<Map<String, dynamic>>.from(data['emergencyRecords'] ?? []);
+        print('✅ Retrieved ${records.length} emergency records');
+        return records;
+      } else {
+        final errorData = json.decode(response.body);
+        throw Exception(
+            'Failed to get emergency records: ${errorData['error'] ?? 'Unknown error'}');
+      }
+    } catch (e) {
+      print('❌ Get emergency records error: $e');
+      throw Exception('Failed to get emergency records: $e');
+    }
+  }
+
+  /// Admin: Get all emergency records
+  static Future<List<Map<String, dynamic>>>
+      getAllEmergencyRecordsAsAdmin() async {
+    try {
+      final response = await http.get(
+        Uri.parse('$baseUrl/admin/emergency'),
+        headers: _headers,
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final records =
+            List<Map<String, dynamic>>.from(data['emergencyRecords'] ?? []);
+        print('✅ Retrieved ${records.length} emergency records as admin');
+        return records;
+      } else {
+        final errorData = json.decode(response.body);
+        throw Exception(
+            'Failed to get emergency records as admin: ${errorData['error'] ?? 'Unknown error'}');
+      }
+    } catch (e) {
+      print('❌ Get emergency records as admin error: $e');
+      throw Exception('Failed to get emergency records as admin: $e');
+    }
+  }
+
+  /// Admin: Update emergency record status
+  static Future<void> updateEmergencyRecordStatusAsAdmin(
+      String emergencyId, String status,
+      {String? handledBy, String? resolution, String? notes}) async {
+    try {
+      final response = await http.put(
+        Uri.parse('$baseUrl/admin/emergency/$emergencyId/status'),
+        headers: _headers,
+        body: json.encode({
+          'status': status,
+          if (handledBy != null) 'handledBy': handledBy,
+          if (resolution != null) 'resolution': resolution,
+          if (notes != null) 'notes': notes,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        print('✅ Emergency record status updated successfully');
+      } else {
+        final errorData = json.decode(response.body);
+        throw Exception(
+            'Failed to update emergency status: ${errorData['error'] ?? 'Unknown error'}');
+      }
+    } catch (e) {
+      print('❌ Update emergency status error: $e');
+      throw Exception('Failed to update emergency status: $e');
+    }
+  }
+
   // UTILITY METHODS
 
   /// Check if user is authenticated

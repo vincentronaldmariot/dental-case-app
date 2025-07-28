@@ -135,11 +135,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
 
   Future<void> _loadPatients() async {
     try {
+      final adminToken = await _getAdminToken();
+      if (adminToken == null) {
+        print('❌ Admin token not available for loading patients');
+        return;
+      }
+
       final response = await http.get(
         Uri.parse('http://localhost:3000/api/admin/patients'),
         headers: {
-          'Authorization':
-              'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImJlNTBjOTAxLTdlZWQtNDIyOC05NzExLTk5OWIwOGEwZTcyZCIsInVzZXJuYW1lIjoiYWRtaW4iLCJ0eXBlIjoiYWRtaW4iLCJpYXQiOjE3NTMwODM4NzQsImV4cCI6MTc1MzY4ODY3NH0.jTqWoKAaX3SG2njDlgWbdFMyTjJab5kdgr5466cJcq4',
+          'Authorization': 'Bearer $adminToken',
+          'Content-Type': 'application/json',
         },
       );
 
@@ -172,11 +178,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
 
   Future<void> _loadAppointments() async {
     try {
+      final adminToken = await _getAdminToken();
+      if (adminToken == null) {
+        print('❌ Admin token not available for loading appointments');
+        return;
+      }
+
       final response = await http.get(
         Uri.parse('http://localhost:3000/api/admin/appointments'),
         headers: {
-          'Authorization':
-              'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImJlNTBjOTAxLTdlZWQtNDIyOC05NzExLTk5OWIwOGEwZTcyZCIsInVzZXJuYW1lIjoiYWRtaW4iLCJ0eXBlIjoiYWRtaW4iLCJpYXQiOjE3NTMwODM4NzQsImV4cCI6MTc1MzY4ODY3NH0.jTqWoKAaX3SG2njDlgWbdFMyTjJab5kdgr5466cJcq4',
+          'Authorization': 'Bearer $adminToken',
+          'Content-Type': 'application/json',
         },
       );
 
@@ -206,11 +218,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
 
   Future<void> _fetchPendingAppointmentsWithSurvey() async {
     try {
+      final adminToken = await _getAdminToken();
+      if (adminToken == null) {
+        print('❌ Admin token not available for loading pending appointments');
+        return;
+      }
+
       final response = await http.get(
         Uri.parse('http://localhost:3000/api/admin/pending-appointments'),
         headers: {
-          'Authorization':
-              'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImJlNTBjOTAxLTdlZWQtNDIyOC05NzExLTk5OWIwOGEwZTcyZCIsInVzZXJuYW1lIjoiYWRtaW4iLCJ0eXBlIjoiYWRtaW4iLCJpYXQiOjE3NTMwODM4NzQsImV4cCI6MTc1MzY4ODY3NH0.jTqWoKAaX3SG2njDlgWbdFMyTjJab5kdgr5466cJcq4',
+          'Authorization': 'Bearer $adminToken',
+          'Content-Type': 'application/json',
         },
       );
 
@@ -251,12 +269,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
 
   Future<void> _loadApprovedAppointments() async {
     try {
+      final adminToken = await _getAdminToken();
+      if (adminToken == null) {
+        print('❌ Admin token not available for loading approved appointments');
+        return;
+      }
+
       // Load both approved and completed appointments
       final response = await http.get(
         Uri.parse('http://localhost:3000/api/admin/appointments/approved'),
         headers: {
-          'Authorization':
-              'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImJlNTBjOTAxLTdlZWQtNDIyOC05NzExLTk5OWIwOGEwZTcyZCIsInVzZXJuYW1lIjoiYWRtaW4iLCJ0eXBlIjoiYWRtaW4iLCJpYXQiOjE3NTMwODM4NzQsImV4cCI6MTc1MzY4ODY3NH0.jTqWoKAaX3SG2njDlgWbdFMyTjJab5kdgr5466cJcq4',
+          'Authorization': 'Bearer $adminToken',
+          'Content-Type': 'application/json',
         },
       );
 
@@ -273,8 +297,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         final completedResponse = await http.get(
           Uri.parse('http://localhost:3000/api/admin/appointments/completed'),
           headers: {
-            'Authorization':
-                'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImJlNTBjOTAxLTdlZWQtNDIyOC05NzExLTk5OWIwOGEwZTcyZCIsInVzZXJuYW1lIjoiYWRtaW4iLCJ0eXBlIjoiYWRtaW4iLCJpYXQiOjE3NTMwODM4NzQsImV4cCI6MTc1MzY4ODY3NH0.jTqWoKAaX3SG2njDlgWbdFMyTjJab5kdgr5466cJcq4',
+            'Authorization': 'Bearer $adminToken',
+            'Content-Type': 'application/json',
           },
         );
 
@@ -317,6 +341,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
             'http://localhost:3000/api/admin/emergency?exclude_resolved=true'),
         headers: {
           'Authorization': 'Bearer $adminToken',
+          'Content-Type': 'application/json',
         },
       );
 
@@ -437,11 +462,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
 
   Future<void> _loadDashboardStats() async {
     try {
+      final adminToken = await _getAdminToken();
+      if (adminToken == null) {
+        print('❌ Admin token not available for dashboard stats');
+        return;
+      }
+
       final response = await http.get(
         Uri.parse('http://localhost:3000/api/admin/dashboard'),
         headers: {
-          'Authorization':
-              'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImJlNTBjOTAxLTdlZWQtNDIyOC05NzExLTk5OWIwOGEwZTcyZCIsInVzZXJuYW1lIjoiYWRtaW4iLCJ0eXBlIjoiYWRtaW4iLCJpYXQiOjE3NTMwODM4NzQsImV4cCI6MTc1MzY4ODY3NH0.jTqWoKAaX3SG2njDlgWbdFMyTjJab5kdgr5466cJcq4',
+          'Authorization': 'Bearer $adminToken',
+          'Content-Type': 'application/json',
         },
       );
 
@@ -1193,12 +1224,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         },
       );
       if (confirmed == true) {
+        final adminToken = await _getAdminToken();
+        if (adminToken == null) {
+          throw Exception(
+              'Admin token not available for approving appointment');
+        }
+
         final response = await http.post(
           Uri.parse(
               'http://localhost:3000/api/admin/appointments/${appointment['appointment_id']}/approve'),
           headers: {
-            'Authorization':
-                'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImJlNTBjOTAxLTdlZWQtNDIyOC05NzExLTk5OWIwOGEwZTcyZCIsInVzZXJuYW1lIjoiYWRtaW4iLCJ0eXBlIjoiYWRtaW4iLCJpYXQiOjE3NTMwODM4NzQsImV4cCI6MTc1MzY4ODY3NH0.jTqWoKAaX3SG2njDlgWbdFMyTjJab5kdgr5466cJcq4',
+            'Authorization': 'Bearer $adminToken',
             'Content-Type': 'application/json',
           },
           body: jsonEncode({
@@ -1300,12 +1336,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       );
 
       if (confirmed == true) {
+        final adminToken = await _getAdminToken();
+        if (adminToken == null) {
+          throw Exception(
+              'Admin token not available for marking appointment complete');
+        }
+
         final response = await http.put(
           Uri.parse(
               'http://localhost:3000/api/admin/appointments/${appointment['appointmentId']}/status'),
           headers: {
-            'Authorization':
-                'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImJlNTBjOTAxLTdlZWQtNDIyOC05NzExLTk5OWIwOGEwZTcyZCIsInVzZXJuYW1lIjoiYWRtaW4iLCJ0eXBlIjoiYWRtaW4iLCJpYXQiOjE3NTMwODM4NzQsImV4cCI6MTc1MzY4ODY3NH0.jTqWoKAaX3SG2njDlgWbdFMyTjJab5kdgr5466cJcq4',
+            'Authorization': 'Bearer $adminToken',
             'Content-Type': 'application/json',
           },
           body: jsonEncode({
@@ -1396,12 +1437,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       );
 
       if (confirmed == true) {
+        final adminToken = await _getAdminToken();
+        if (adminToken == null) {
+          throw Exception(
+              'Admin token not available for cancelling appointment');
+        }
+
         final response = await http.post(
           Uri.parse(
               'http://localhost:3000/api/admin/appointments/${appointment['appointmentId']}/cancel'),
           headers: {
-            'Authorization':
-                'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImJlNTBjOTAxLTdlZWQtNDIyOC05NzExLTk5OWIwOGEwZTcyZCIsInVzZXJuYW1lIjoiYWRtaW4iLCJ0eXBlIjoiYWRtaW4iLCJpYXQiOjE3NTMwODM4NzQsImV4cCI6MTc1MzY4ODY3NH0.jTqWoKAaX3SG2njDlgWbdFMyTjJab5kdgr5466cJcq4',
+            'Authorization': 'Bearer $adminToken',
             'Content-Type': 'application/json',
           },
           body: jsonEncode({'note': cancellationNote ?? ''}),
@@ -1481,12 +1527,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         },
       );
       if (confirmed == true) {
+        final adminToken = await _getAdminToken();
+        if (adminToken == null) {
+          throw Exception(
+              'Admin token not available for rejecting appointment');
+        }
+
         final response = await http.post(
           Uri.parse(
               'http://localhost:3000/api/admin/appointments/${appointment['appointment_id']}/reject'),
           headers: {
-            'Authorization':
-                'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImJlNTBjOTAxLTdlZWQtNDIyOC05NzExLTk5OWIwOGEwZTcyZCIsInVzZXJuYW1lIjoiYWRtaW4iLCJ0eXBlIjoiYWRtaW4iLCJpYXQiOjE3NTMwODM4NzQsImV4cCI6MTc1MzY4ODY3NH0.jTqWoKAaX3SG2njDlgWbdFMyTjJab5kdgr5466cJcq4',
+            'Authorization': 'Bearer $adminToken',
             'Content-Type': 'application/json',
           },
           body: jsonEncode({
@@ -1527,12 +1578,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       print('📅 New date: $date');
       print('⏰ New time: $timeSlot');
 
+      final adminToken = await _getAdminToken();
+      if (adminToken == null) {
+        throw Exception('Admin token not available for updating appointment');
+      }
+
       final response = await http.put(
         Uri.parse(
             'http://localhost:3000/api/admin/appointments/$appointmentId/update'),
         headers: {
-          'Authorization':
-              'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImJlNTBjOTAxLTdlZWQtNDIyOC05NzExLTk5OWIwOGEwZTcyZCIsInVzZXJuYW1lIjoiYWRtaW4iLCJ0eXBlIjoiYWRtaW4iLCJpYXQiOjE3NTMwODM4NzQsImV4cCI6MTc1MzY4ODY3NH0.jTqWoKAaX3SG2njDlgWbdFMyTjJab5kdgr5466cJcq4',
+          'Authorization': 'Bearer $adminToken',
           'Content-Type': 'application/json',
         },
         body: jsonEncode({
@@ -1724,7 +1779,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                       Expanded(
                         child: _buildStatCard(
                           'Emergency Records',
-                          _emergencyRecords.length.toString(),
+                          (_dashboardStats['totalEmergencyRecords'] ?? 0)
+                              .toString(),
                           Icons.emergency,
                           Colors.red,
                         ),
@@ -3443,11 +3499,17 @@ $allPatientsData
 
   Future<Map<String, dynamic>?> fetchPatientSurvey(String patientId) async {
     try {
+      final adminToken = await _getAdminToken();
+      if (adminToken == null) {
+        print('❌ Admin token not available for fetching patient survey');
+        return null;
+      }
+
       final response = await http.get(
         Uri.parse('http://localhost:3000/api/admin/patients/$patientId/survey'),
         headers: {
-          'Authorization':
-              'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImJlNTBjOTAxLTdlZWQtNDIyOC05NzExLTk5OWIwOGEwZTcyZCIsInVzZXJuYW1lIjoiYWRtaW4iLCJ0eXBlIjoiYWRtaW4iLCJpYXQiOjE3NTMwODM4NzQsImV4cCI6MTc1MzY4ODY3NH0.jTqWoKAaX3SG2njDlgWbdFMyTjJab5kdgr5466cJcq4',
+          'Authorization': 'Bearer $adminToken',
+          'Content-Type': 'application/json',
         },
       );
       if (response.statusCode == 200) {
@@ -3946,6 +4008,12 @@ $allPatientsData
   }
 
   Future<String?> _getAdminToken() async {
+    // Try to get token from API service first (where it's actually stored)
+    final apiToken = ApiService.currentToken;
+    if (apiToken != null) {
+      return apiToken;
+    }
+    // Fallback to UserStateManager
     return UserStateManager().adminToken;
   }
 

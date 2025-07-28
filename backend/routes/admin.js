@@ -22,11 +22,12 @@ router.get('/dashboard', verifyAdmin, async (req, res) => {
     console.log('🔍 Dashboard request received');
     
     // Get statistics
-    const [patientsResult, appointmentsResult, surveysResult, emergenciesResult, todaysAppointmentsResult] = await Promise.all([
+    const [patientsResult, appointmentsResult, surveysResult, emergenciesResult, totalEmergenciesResult, todaysAppointmentsResult] = await Promise.all([
       query('SELECT COUNT(*) as count FROM patients'),
       query('SELECT COUNT(*) as count, status FROM appointments GROUP BY status'),
       query('SELECT COUNT(*) as count FROM dental_surveys'),
       query('SELECT COUNT(*) as count, status FROM emergency_records GROUP BY status'),
+      query('SELECT COUNT(*) as count FROM emergency_records WHERE status != \'resolved\''),
       // New query for today's scheduled appointments (Philippine Time)
       query(`SELECT COUNT(*) as count FROM appointments WHERE status = 'scheduled' AND appointment_date >= (CURRENT_DATE AT TIME ZONE 'Asia/Manila')::date AND appointment_date < ((CURRENT_DATE AT TIME ZONE 'Asia/Manila')::date + INTERVAL '1 day')`)
     ]);
@@ -52,6 +53,7 @@ router.get('/dashboard', verifyAdmin, async (req, res) => {
         acc[row.status] = parseInt(row.count);
         return acc;
       }, {}),
+      totalEmergencyRecords: parseInt(totalEmergenciesResult.rows[0].count),
       // Add today's appointments count
       todaysAppointments: parseInt(todaysAppointmentsResult.rows[0].count)
     };

@@ -1,8 +1,8 @@
-name: Build APK
+name: Robust APK Build
 
 on:
-  # push:
-  #   branches: [ main ]
+  push:
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
@@ -10,11 +10,15 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - name: Checkout code
+    - name: Checkout repository
       uses: actions/checkout@v4
       with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-        fetch-depth: 0
+        fetch-depth: 1
+        
+    - name: Configure Git
+      run: |
+        git config --global user.email "action@github.com"
+        git config --global user.name "GitHub Action"
         
     - name: Setup Flutter
       uses: subosito/flutter-action@v2
@@ -41,9 +45,9 @@ jobs:
       run: flutter clean
       
     - name: Build APK
-      run: flutter build apk --debug --verbose
+      run: flutter build apk --debug
       
-    - name: Upload APK
+    - name: Upload APK artifact
       uses: actions/upload-artifact@v4
       with:
         name: dental-case-app-debug

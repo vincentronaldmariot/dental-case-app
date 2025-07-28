@@ -1,6 +1,8 @@
 name: Simple APK Build
 
 on:
+  push:
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
@@ -8,21 +10,22 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - uses: actions/checkout@v4
-    
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
     - name: Setup Flutter
       uses: subosito/flutter-action@v2
       with:
         flutter-version: '3.32.7'
-    
-    - name: Get dependencies
+        
+    - name: Install dependencies
       run: flutter pub get
-    
+      
     - name: Build APK
-      run: flutter build apk --debug
-    
-    - name: Upload APK
+      run: flutter build apk
+      
+    - name: Upload APK artifact
       uses: actions/upload-artifact@v4
       with:
-        name: app-debug
-        path: build/app/outputs/flutter-apk/app-debug.apk 
+        name: app-release
+        path: build/app/outputs/flutter-apk/app-release.apk 

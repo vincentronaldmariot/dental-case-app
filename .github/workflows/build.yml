@@ -3,8 +3,6 @@ name: Build APK
 on:
   push:
     branches: [ main ]
-  pull_request:
-    branches: [ main ]
   workflow_dispatch:
 
 jobs:
@@ -33,32 +31,11 @@ jobs:
     - name: Get dependencies
       run: flutter pub get
       
-    - name: Build APK
+    - name: Build Debug APK
       run: flutter build apk --debug
       
-    - name: Upload APK
+    - name: Upload Debug APK
       uses: actions/upload-artifact@v4
       with:
         name: dental-case-app-debug
-        path: build/app/outputs/flutter-apk/app-debug.apk
-        
-    - name: Build Release APK
-      run: flutter build apk --release
-      
-    - name: Upload Release APK
-      uses: actions/upload-artifact@v4
-      with:
-        name: dental-case-app-release
-        path: build/app/outputs/flutter-apk/app-release.apk
-        
-    - name: Build Web (if possible)
-      run: |
-        # Try to build web version, but don't fail if it doesn't work
-        flutter build web || echo "Web build failed (expected due to QR scanner)"
-        
-    - name: Upload Web Build
-      uses: actions/upload-artifact@v4
-      with:
-        name: dental-case-app-web
-        path: build/web/
-      if: success() || failure() # Upload even if web build failed 
+        path: build/app/outputs/flutter-apk/app-debug.apk 

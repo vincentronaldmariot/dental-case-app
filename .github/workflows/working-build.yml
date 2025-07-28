@@ -1,8 +1,6 @@
-name: Robust APK Build
+name: Working APK Build
 
 on:
-  # push:
-  #   branches: [ main ]
   workflow_dispatch:
 
 jobs:
@@ -15,16 +13,10 @@ jobs:
       with:
         fetch-depth: 1
         
-    - name: Configure Git
-      run: |
-        git config --global user.email "action@github.com"
-        git config --global user.name "GitHub Action"
-        
     - name: Setup Flutter
       uses: subosito/flutter-action@v2
       with:
         flutter-version: '3.32.7'
-        channel: 'stable'
         
     - name: Setup Java
       uses: actions/setup-java@v4
@@ -41,14 +33,11 @@ jobs:
     - name: Get dependencies
       run: flutter pub get
       
-    - name: Clean build
-      run: flutter clean
-      
     - name: Build APK
       run: flutter build apk --debug
       
     - name: Upload APK artifact
       uses: actions/upload-artifact@v4
       with:
-        name: dental-case-app-debug
+        name: dental-case-app-working
         path: build/app/outputs/flutter-apk/app-debug.apk 

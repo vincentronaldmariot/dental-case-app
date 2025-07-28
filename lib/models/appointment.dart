@@ -86,7 +86,8 @@ class Appointment {
 
   // Helper method to parse status string to AppointmentStatus enum
   static AppointmentStatus _parseStatusFromString(String status) {
-    switch (status.toLowerCase()) {
+    final lowerStatus = status.toLowerCase();
+    switch (lowerStatus) {
       case 'pending':
         return AppointmentStatus.pending;
       case 'scheduled':
@@ -102,7 +103,10 @@ class Appointment {
       case 'rescheduled':
         return AppointmentStatus.rescheduled;
       default:
-        return AppointmentStatus.pending;
+        print(
+            '⚠️ Unknown appointment status: "$status", defaulting to scheduled');
+        return AppointmentStatus
+            .scheduled; // Default to scheduled instead of pending
     }
   }
 

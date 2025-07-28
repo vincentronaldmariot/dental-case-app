@@ -31,6 +31,10 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen>
   bool _isLoading = false;
   bool _isLoadingSurvey = false;
   Map<String, dynamic>? _surveyData;
+  List<dynamic> _existingAppointments = [];
+  bool _hasExistingAppointments = false;
+  late AnimationController _warningController;
+  late Animation<double> _warningAnimation;
 
   final List<String> services = [
     'General Checkup',
@@ -54,7 +58,25 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen>
     _shakeAnimation = Tween<double>(begin: 0, end: 1).animate(
       CurvedAnimation(parent: _shakeController, curve: Curves.elasticIn),
     );
+
+    // Warning animation controller
+    _warningController = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+    _warningAnimation = Tween<double>(begin: 0, end: 1).animate(
+      CurvedAnimation(parent: _warningController, curve: Curves.elasticOut),
+    );
+
     _loadSurveyData();
+    _checkExistingAppointments();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Refresh existing appointments check when screen becomes active
+    _checkExistingAppointments();
   }
 
   void _loadSurveyData() async {
@@ -116,10 +138,10 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen>
       print('Database may not be properly initialized or survey not saved');
       // Show error message to user
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Failed to load survey data. Please try again.'),
+        const SnackBar(
+          content: Text('Failed to load survey data. Please try again.'),
           backgroundColor: Colors.red,
-          duration: const Duration(seconds: 3),
+          duration: Duration(seconds: 3),
         ),
       );
       // Set survey data to null if there's an error
@@ -133,9 +155,58 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen>
     }
   }
 
+  void _checkExistingAppointments() async {
+    try {
+      final patientId = UserStateManager().currentPatientId;
+      if (patientId == null || patientId.isEmpty) {
+        return;
+      }
+
+      // Get existing appointments for the patient
+      final appointments = await ApiService.getAppointments(patientId);
+
+      // Filter for pending, approved, or scheduled appointments
+      final activeAppointments = appointments.where((apt) {
+        final status = apt['status']?.toString().toLowerCase();
+        print(
+            'Checking appointment status: $status for appointment ${apt['id']}');
+        // Check for pending, approved, or scheduled appointments
+        return status == 'pending' ||
+            status == 'approved' ||
+            status == 'scheduled';
+      }).toList();
+
+      // Also check for completed appointments to show history
+      final completedAppointments = appointments.where((apt) {
+        final status = apt['status']?.toString().toLowerCase();
+        return status == 'completed' || status == 'cancelled';
+      }).toList();
+
+      setState(() {
+        _existingAppointments = activeAppointments;
+        _hasExistingAppointments = activeAppointments.isNotEmpty;
+      });
+
+      print(
+          'Found ${activeAppointments.length} active appointments for patient $patientId');
+      print(
+          'Found ${completedAppointments.length} completed appointments for patient $patientId');
+      print('_hasExistingAppointments set to: $_hasExistingAppointments');
+      print('_existingAppointments length: ${_existingAppointments.length}');
+
+      // Trigger warning animation if appointments found
+      if (activeAppointments.isNotEmpty) {
+        _warningController.forward();
+      }
+    } catch (e) {
+      print('Error checking existing appointments: $e');
+    }
+  }
+
   @override
   void dispose() {
     _shakeController.dispose();
+    _warningController.dispose();
     super.dispose();
   }
 
@@ -150,6 +221,13 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen>
         backgroundColor: const Color(0xFF0029B2),
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
+        actions: [
+          IconButton(
+            onPressed: _checkExistingAppointments,
+            icon: const Icon(Icons.refresh, color: Colors.white),
+            tooltip: 'Refresh appointment status',
+          ),
+        ],
       ),
       body: Container(
         decoration: BoxDecoration(
@@ -170,6 +248,17 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen>
               if (_surveyData == null && !_isLoadingSurvey)
                 _buildSurveyWarning(),
 
+              // Show existing appointments warning if needed
+              if (_hasExistingAppointments) ...[
+                Builder(
+                  builder: (context) {
+                    print(
+                        'Building existing appointments warning - has appointments: $_hasExistingAppointments');
+                    return _buildExistingAppointmentsWarning();
+                  },
+                ),
+              ],
+
               // Show loading indicator while survey is being loaded
               if (_isLoadingSurvey) _buildSurveyLoading(),
 
@@ -182,9 +271,6 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen>
               const SizedBox(height: 15),
               _buildDateSelection(),
               const SizedBox(height: 20),
-
-              // Show availability information
-              _buildAvailabilityInfo(),
 
               const SizedBox(height: 40),
 
@@ -205,9 +291,9 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen>
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: Colors.blue.shade200),
       ),
-      child: Row(
+      child: const Row(
         children: [
-          const SizedBox(
+          SizedBox(
             width: 24,
             height: 24,
             child: CircularProgressIndicator(
@@ -215,8 +301,8 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen>
               valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
             ),
           ),
-          const SizedBox(width: 12),
-          const Text(
+          SizedBox(width: 12),
+          Text(
             'Loading survey data...',
             style: TextStyle(
               fontSize: 14,
@@ -284,6 +370,140 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen>
     );
   }
 
+  Widget _buildExistingAppointmentsWarning() {
+    return AnimatedBuilder(
+      animation: _warningAnimation,
+      builder: (context, child) {
+        return Transform.scale(
+          scale: _warningAnimation.value,
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 20),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.red.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.red.shade200),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.red.withOpacity(0.2 * _warningAnimation.value),
+                  blurRadius: 10 * _warningAnimation.value,
+                  offset: Offset(0, 4 * _warningAnimation.value),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.block, color: Colors.red.shade700, size: 24),
+                    const SizedBox(width: 12),
+                    const Text(
+                      'Existing Appointments Found',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: Colors.red,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'You have ${_existingAppointments.length} pending, approved, or scheduled appointment(s) that need to be completed before booking a new one.',
+                  style: const TextStyle(fontSize: 14, color: Colors.black87),
+                ),
+                const SizedBox(height: 12),
+                if (_existingAppointments.isNotEmpty) ...[
+                  const Text(
+                    'Your active appointments:',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  GestureDetector(
+                    onTap: _showExistingAppointmentsDetails,
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.red.shade100,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: Colors.red.shade300),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.info_outline,
+                              color: Colors.red.shade700, size: 16),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Tap to view details (${_existingAppointments.length} appointment(s))',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.red.shade700,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const Spacer(),
+                          Icon(Icons.arrow_forward_ios,
+                              color: Colors.red.shade700, size: 12),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  ..._existingAppointments
+                      .map((apt) => Container(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.grey.shade300),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  apt['service'] ?? 'Unknown Service',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Date: ${_formatDate(apt['appointment_date'])}',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                ),
+                                Text(
+                                  'Status: ${(apt['status'] ?? 'Unknown').toString().toUpperCase()}',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: apt['status'] == 'pending'
+                                        ? Colors.orange
+                                        : Colors.blue,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ))
+                      .toList(),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildSectionTitle(String title) {
     return Text(
       title,
@@ -291,86 +511,6 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen>
         fontSize: MediaQuery.of(context).size.width < 600 ? 18 : 20,
         fontWeight: FontWeight.bold,
         color: const Color(0xFF000074),
-      ),
-    );
-  }
-
-  Widget _buildAvailabilityInfo() {
-    final dailyLimit = _patientLimitService.getDailyLimit(selectedDate);
-    final appointmentCount = _appointmentService.getAppointmentCountForDate(
-      selectedDate,
-    );
-
-    Color statusColor;
-    String statusText;
-    IconData statusIcon;
-
-    if (dailyLimit.isAtLimit) {
-      statusColor = Colors.red;
-      statusText = 'FULLY BOOKED';
-      statusIcon = Icons.error;
-    } else if (dailyLimit.isNearLimit) {
-      statusColor = Colors.orange;
-      statusText = 'LIMITED AVAILABILITY';
-      statusIcon = Icons.warning;
-    } else {
-      statusColor = Colors.green;
-      statusText = 'AVAILABLE';
-      statusIcon = Icons.check_circle;
-    }
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: statusColor.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: statusColor.withOpacity(0.3)),
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Icon(statusIcon, color: statusColor, size: 24),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      statusText,
-                      style: TextStyle(
-                        color: statusColor,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                    Text(
-                      '${appointmentCount}/100 appointments booked',
-                      style: TextStyle(
-                        color: statusColor.withOpacity(0.8),
-                        fontSize: 14,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Text(
-                '${100 - appointmentCount} slots left',
-                style: TextStyle(
-                  color: statusColor,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          LinearProgressIndicator(
-            value: appointmentCount / 100,
-            backgroundColor: Colors.grey.shade200,
-            valueColor: AlwaysStoppedAnimation<Color>(statusColor),
-          ),
-        ],
       ),
     );
   }
@@ -685,16 +825,24 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen>
 
   Widget _buildBookButton() {
     final isFormComplete = selectedService != null;
-
     final dailyLimit = _patientLimitService.getDailyLimit(selectedDate);
+    final canBook = isFormComplete &&
+        !dailyLimit.isAtLimit &&
+        !_isLoading &&
+        !_hasExistingAppointments;
+
+    print('Book button debug:');
+    print('  isFormComplete: $isFormComplete');
+    print('  dailyLimit.isAtLimit: ${dailyLimit.isAtLimit}');
+    print('  _isLoading: $_isLoading');
+    print('  _hasExistingAppointments: $_hasExistingAppointments');
+    print('  canBook: $canBook');
 
     return SizedBox(
       width: double.infinity,
       height: MediaQuery.of(context).size.width < 600 ? 48 : 55,
       child: ElevatedButton(
-        onPressed: (isFormComplete && !dailyLimit.isAtLimit && !_isLoading)
-            ? _bookAppointment
-            : null,
+        onPressed: canBook ? _bookAppointment : null,
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFF0029B2),
           foregroundColor: Colors.white,
@@ -714,7 +862,11 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen>
                 ),
               )
             : Text(
-                dailyLimit.isAtLimit ? 'Fully Booked' : 'Book Appointment',
+                _hasExistingAppointments
+                    ? 'Complete Existing Appointments First'
+                    : dailyLimit.isAtLimit
+                        ? 'Fully Booked'
+                        : 'Book Appointment',
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -783,6 +935,43 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen>
             ),
             content: const Text(
               'Please complete the dental self-assessment survey before booking an appointment.',
+              style: TextStyle(fontSize: 16),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text(
+                  'OK',
+                  style: TextStyle(
+                    color: Color(0xFF0029B2),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+        return;
+      }
+
+      // Check if patient has existing appointments
+      if (_hasExistingAppointments) {
+        setState(() => _isLoading = false);
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(15),
+            ),
+            title: const Row(
+              children: [
+                Icon(Icons.block, color: Colors.red, size: 30),
+                SizedBox(width: 10),
+                Text('Existing Appointments'),
+              ],
+            ),
+            content: const Text(
+              'You have pending, approved, or scheduled appointments that need to be completed before booking a new one. Please complete your existing appointments first.',
               style: TextStyle(fontSize: 16),
             ),
             actions: [
@@ -981,12 +1170,15 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen>
 
     // Tooth conditions
     final toothConditions = surveyData['tooth_conditions'] ?? {};
-    if (toothConditions['decayed_tooth'] == true)
+    if (toothConditions['decayed_tooth'] == true) {
       conditions.add('Decayed tooth');
-    if (toothConditions['worn_down_tooth'] == true)
+    }
+    if (toothConditions['worn_down_tooth'] == true) {
       conditions.add('Worn down tooth');
-    if (toothConditions['impacted_tooth'] == true)
+    }
+    if (toothConditions['impacted_tooth'] == true) {
       conditions.add('Impacted wisdom tooth');
+    }
 
     // Tartar level
     final tartarLevel = surveyData['tartar_level'];
@@ -995,23 +1187,179 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen>
     }
 
     // Tooth sensitivity
-    if (surveyData['tooth_sensitive'] == true)
+    if (surveyData['tooth_sensitive'] == true) {
       conditions.add('Tooth sensitivity');
+    }
 
     // Damaged fillings
     final damagedFillings = surveyData['damaged_fillings'] ?? {};
-    if (damagedFillings['broken_tooth'] == true)
+    if (damagedFillings['broken_tooth'] == true) {
       conditions.add('Broken tooth filling');
-    if (damagedFillings['broken_pasta'] == true)
+    }
+    if (damagedFillings['broken_pasta'] == true) {
       conditions.add('Broken pasta filling');
+    }
 
     // Dentures and missing teeth
     if (surveyData['need_dentures'] == true) conditions.add('Needs dentures');
-    if (surveyData['has_missing_teeth'] == true)
+    if (surveyData['has_missing_teeth'] == true) {
       conditions.add('Has missing teeth');
+    }
 
     return conditions.isEmpty
         ? 'No specific conditions reported'
         : conditions.join(', ');
+  }
+
+  String _formatDate(dynamic date) {
+    if (date == null) return 'N/A';
+    try {
+      final dateTime = DateTime.parse(date.toString());
+      return '${dateTime.day}/${dateTime.month}/${dateTime.year}';
+    } catch (e) {
+      return 'Invalid date';
+    }
+  }
+
+  void _showExistingAppointmentsDetails() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(15),
+        ),
+        title: const Row(
+          children: [
+            Icon(Icons.schedule, color: Colors.red, size: 30),
+            SizedBox(width: 10),
+            Text('Active Appointments'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'You have the following active appointments that need to be completed:',
+              style: TextStyle(fontSize: 16),
+            ),
+            const SizedBox(height: 16),
+            ...(_existingAppointments
+                .map((apt) => Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                _getStatusIcon(apt['status']),
+                                color: _getStatusColor(apt['status']),
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Status: ${_getStatusText(apt['status'])}',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: _getStatusColor(apt['status']),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Service: ${apt['service'] ?? 'N/A'}',
+                            style: const TextStyle(fontWeight: FontWeight.w500),
+                          ),
+                          Text(
+                            'Date: ${_formatDate(apt['date'])}',
+                            style: const TextStyle(fontWeight: FontWeight.w500),
+                          ),
+                          if (apt['timeSlot'] != null &&
+                              apt['timeSlot'].toString().isNotEmpty)
+                            Text(
+                              'Time: ${apt['timeSlot']}',
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.w500),
+                            ),
+                        ],
+                      ),
+                    ))
+                .toList()),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange.shade200),
+              ),
+              child: const Text(
+                'Please complete these appointments before booking a new one. Contact the clinic if you need to reschedule.',
+                style: TextStyle(fontSize: 14, color: Colors.black87),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text(
+              'OK',
+              style: TextStyle(
+                color: Color(0xFF0029B2),
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  IconData _getStatusIcon(String? status) {
+    switch (status?.toLowerCase()) {
+      case 'pending':
+        return Icons.schedule;
+      case 'approved':
+        return Icons.check_circle;
+      case 'scheduled':
+        return Icons.event;
+      default:
+        return Icons.info;
+    }
+  }
+
+  Color _getStatusColor(String? status) {
+    switch (status?.toLowerCase()) {
+      case 'pending':
+        return Colors.orange;
+      case 'approved':
+        return Colors.green;
+      case 'scheduled':
+        return Colors.blue;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  String _getStatusText(String? status) {
+    switch (status?.toLowerCase()) {
+      case 'pending':
+        return 'Pending Review';
+      case 'approved':
+        return 'Approved';
+      case 'scheduled':
+        return 'Scheduled';
+      default:
+        return 'Unknown';
+    }
   }
 }

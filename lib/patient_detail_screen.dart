@@ -129,30 +129,6 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
                         ),
                       ),
                       const SizedBox(height: 16),
-                      // Activity Summary
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          _buildActivityCard(
-                            'Appointments',
-                            stats['totalAppointments'] ?? 0,
-                            Icons.calendar_today,
-                            Colors.blue,
-                          ),
-                          _buildActivityCard(
-                            'Emergencies',
-                            stats['totalEmergencyRecords'] ?? 0,
-                            Icons.emergency,
-                            Colors.red,
-                          ),
-                          _buildActivityCard(
-                            'Treatments',
-                            stats['totalTreatments'] ?? 0,
-                            Icons.medical_services,
-                            Colors.green,
-                          ),
-                        ],
-                      ),
                     ],
                   ),
                 ),
@@ -198,35 +174,6 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
                                 patient['otherClassification']),
                           _buildInfoRow('Unit Assignment',
                               patient['unitAssignment'] ?? 'N/A'),
-                        ],
-                      ),
-
-                      const SizedBox(height: 20),
-
-                      // Emergency Contact Section
-                      _buildSectionCard(
-                        'Emergency Contact',
-                        Icons.emergency,
-                        [
-                          _buildInfoRow('Emergency Contact',
-                              patient['emergencyContact'] ?? 'Not provided'),
-                          _buildInfoRow('Emergency Phone',
-                              patient['emergencyPhone'] ?? 'Not provided'),
-                        ],
-                      ),
-
-                      const SizedBox(height: 20),
-
-                      // Medical Information Section
-                      _buildSectionCard(
-                        'Medical Information',
-                        Icons.medical_services,
-                        [
-                          if (patient['medicalHistory']?.isNotEmpty == true)
-                            _buildInfoRow(
-                                'Medical History', patient['medicalHistory']),
-                          if (patient['allergies']?.isNotEmpty == true)
-                            _buildInfoRow('Allergies', patient['allergies']),
                         ],
                       ),
 
@@ -300,45 +247,6 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
                   ),
                 ),
               ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActivityCard(
-      String label, int count, IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 5,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: color, size: 24),
-          const SizedBox(height: 8),
-          Text(
-            count.toString(),
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: color,
-            ),
-          ),
-          Text(
-            label,
-            style: const TextStyle(
-              fontSize: 12,
-              color: Colors.grey,
             ),
           ),
         ],
@@ -470,7 +378,6 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
           const SizedBox(height: 8),
           Text('Date: ${_formatHistoryDate(appointment['appointmentDate'])}'),
           Text('Time: ${appointment['timeSlot'] ?? 'N/A'}'),
-
           if (appointment['notes']?.isNotEmpty == true)
             Text('Notes: ${appointment['notes']}'),
         ],
@@ -597,7 +504,6 @@ class _PatientDetailScreenState extends State<PatientDetailScreen> {
           const SizedBox(height: 8),
           Text('Description: ${treatment['description'] ?? 'N/A'}'),
           Text('Date: ${_formatHistoryDate(treatment['datePerformed'])}'),
-
           if (treatment['notes']?.isNotEmpty == true)
             Text('Notes: ${treatment['notes']}'),
         ],

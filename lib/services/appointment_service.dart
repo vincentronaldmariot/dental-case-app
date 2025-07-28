@@ -211,8 +211,6 @@ class AppointmentService {
     return services[index % services.length];
   }
 
-
-
   // Book a new appointment
   Future<AppointmentBookingResult> bookAppointment({
     required String service,
@@ -357,6 +355,31 @@ class AppointmentService {
     String? patientId,
   }) async {
     try {
+      // Check if patient has existing pending, approved, or scheduled appointments
+      if (patientId != null && patientId.isNotEmpty) {
+        try {
+          final existingAppointments =
+              await ApiService.getAppointments(patientId);
+          final activeAppointments = existingAppointments.where((apt) {
+            final status = apt['status']?.toString().toLowerCase();
+            return status == 'pending' ||
+                status == 'approved' ||
+                status == 'scheduled';
+          }).toList();
+
+          if (activeAppointments.isNotEmpty) {
+            return AppointmentBookingResult(
+              success: false,
+              message:
+                  'You have ${activeAppointments.length} active appointment(s) that need to be completed before booking a new one. Please complete your existing appointments first.',
+            );
+          }
+        } catch (e) {
+          print('Warning: Could not check existing appointments: $e');
+          // Continue with booking if we can't check existing appointments
+        }
+      }
+
       // Check if date is within booking window
       final now = DateTime.now();
       final maxBookingDate = now.add(const Duration(days: 5));

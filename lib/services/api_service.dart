@@ -646,22 +646,9 @@ class ApiService {
       String patientId) async {
     print('🌐 ApiService.getAppointments called - Offline mode: $_offlineMode');
     if (_offlineMode) {
-      // Offline mode - return mock appointments
-      print('📱 Returning mock appointment for offline mode');
-      return [
-        {
-          'id': 'offline_apt_1',
-          'patient_id': patientId,
-          'service': 'General Checkup',
-          'appointment_date':
-              DateTime.now().add(const Duration(days: 7)).toIso8601String(),
-          'time_slot': '10:00 AM',
-          'doctor_name': 'Dr. Demo',
-          'status': 'pending',
-          'notes': 'Regular checkup',
-          'created_at': DateTime.now().toIso8601String(),
-        }
-      ];
+      // Offline mode - return empty list instead of mock data
+      print('📱 Offline mode: returning empty appointment list');
+      return [];
     }
 
     try {

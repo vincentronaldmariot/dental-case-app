@@ -151,7 +151,7 @@ class HistoryService {
     print(
         '📈 Total appointments in HistoryService before loading: ${_appointments.length}');
 
-    // Clear existing appointments for this patient if specified
+    // Always clear existing appointments for this patient to ensure fresh data
     if (patientId != null) {
       final beforeCount = _appointments.length;
       final patientAppointmentsBefore =
@@ -166,6 +166,12 @@ class HistoryService {
       final afterCount = _appointments.length;
       print(
           '🗑️ Cleared ${beforeCount - afterCount} existing appointments for patient $patientId');
+    } else {
+      // If no patientId specified, clear all appointments to ensure fresh data
+      final beforeCount = _appointments.length;
+      _appointments.clear();
+      print(
+          '🗑️ Cleared all $beforeCount appointments (no patientId specified)');
     }
 
     // Convert backend data to Appointment objects and add them
@@ -227,9 +233,34 @@ class HistoryService {
     print('🗑️ Cleared all $count appointments from HistoryService');
   }
 
+  // Clear all data (appointments and treatment records)
+  void clearAllData() {
+    final appointmentCount = _appointments.length;
+    final treatmentCount = _treatmentRecords.length;
+    _appointments.clear();
+    _treatmentRecords.clear();
+    print('🗑️ Cleared all data from HistoryService:');
+    print('   - $appointmentCount appointments');
+    print('   - $treatmentCount treatment records');
+  }
+
+  // Clear all pending appointments (for debugging the pending tab issue)
+  void clearAllPendingAppointments() {
+    final beforeCount = _appointments.length;
+    final pendingCount = _appointments
+        .where((apt) => apt.status == AppointmentStatus.pending)
+        .length;
+    _appointments.removeWhere((apt) => apt.status == AppointmentStatus.pending);
+    final afterCount = _appointments.length;
+    print('🗑️ Cleared all pending appointments:');
+    print('   - Removed $pendingCount pending appointments');
+    print('   - Total appointments: $beforeCount → $afterCount');
+  }
+
   // Parse status string to AppointmentStatus enum
   AppointmentStatus _parseStatus(String status) {
-    switch (status.toLowerCase()) {
+    final lowerStatus = status.toLowerCase();
+    switch (lowerStatus) {
       case 'pending':
         return AppointmentStatus.pending;
       case 'scheduled':
@@ -245,7 +276,10 @@ class HistoryService {
       case 'rescheduled':
         return AppointmentStatus.rescheduled;
       default:
-        return AppointmentStatus.pending;
+        print(
+            '⚠️ Unknown appointment status: "$status", defaulting to scheduled');
+        return AppointmentStatus
+            .scheduled; // Default to scheduled instead of pending
     }
   }
 

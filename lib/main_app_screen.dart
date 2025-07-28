@@ -1735,6 +1735,143 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
   String _selectedTab = 'All';
   bool _isLoading = false;
 
+  // Debug method to show current appointment state
+  void _debugAppointmentState() {
+    final patientId = UserStateManager().currentPatientId;
+    print('🔍 === DEBUG APPOINTMENT STATE ===');
+    print('Patient ID: $patientId');
+    print('Selected Tab: $_selectedTab');
+    print('Is Loading: $_isLoading');
+
+    final allAppointments =
+        _historyService.getAppointments(patientId: patientId);
+    print('Total appointments in HistoryService: ${allAppointments.length}');
+
+    for (int i = 0; i < allAppointments.length; i++) {
+      final apt = allAppointments[i];
+      print(
+          '   $i: ID=${apt.id}, Service=${apt.service}, Status=${apt.status}, Date=${apt.date}');
+    }
+
+    final pendingAppointments = _historyService.getAppointmentsByStatus(
+      AppointmentStatus.pending,
+      patientId: patientId,
+    );
+    print('Pending appointments: ${pendingAppointments.length}');
+
+    // Additional detailed debugging
+    print('🔍 === DETAILED STATUS ANALYSIS ===');
+    final statusCounts = <String, int>{};
+    for (final apt in allAppointments) {
+      final statusName = apt.status.name;
+      statusCounts[statusName] = (statusCounts[statusName] ?? 0) + 1;
+    }
+    statusCounts.forEach((status, count) {
+      print('   Status "$status": $count appointments');
+    });
+
+    // Check if there are any appointments with unexpected status values
+    final unexpectedStatuses = allAppointments.where((apt) {
+      return apt.status == AppointmentStatus.pending &&
+          apt.service.isEmpty &&
+          apt.id.isEmpty;
+    }).toList();
+
+    if (unexpectedStatuses.isNotEmpty) {
+      print(
+          '⚠️ Found ${unexpectedStatuses.length} appointments with unexpected pending status:');
+      for (final apt in unexpectedStatuses) {
+        print(
+            '   - ID: "${apt.id}", Service: "${apt.service}", Status: ${apt.status}');
+      }
+    }
+
+    // Check for any appointments with empty or null values that might be causing issues
+    final problematicAppointments = allAppointments.where((apt) {
+      return apt.id.isEmpty || apt.service.isEmpty || apt.patientId.isEmpty;
+    }).toList();
+
+    if (problematicAppointments.isNotEmpty) {
+      print(
+          '⚠️ Found ${problematicAppointments.length} appointments with empty values:');
+      for (final apt in problematicAppointments) {
+        print(
+            '   - ID: "${apt.id}", PatientID: "${apt.patientId}", Service: "${apt.service}", Status: ${apt.status}');
+      }
+    }
+
+    // Check if there are any appointments that don't belong to the current patient
+    final wrongPatientAppointments = allAppointments.where((apt) {
+      return apt.patientId != patientId;
+    }).toList();
+
+    if (wrongPatientAppointments.isNotEmpty) {
+      print(
+          '⚠️ Found ${wrongPatientAppointments.length} appointments for wrong patient:');
+      for (final apt in wrongPatientAppointments) {
+        print(
+            '   - ID: "${apt.id}", PatientID: "${apt.patientId}", Service: "${apt.service}", Status: ${apt.status}');
+      }
+    }
+
+    print('=== END DEBUG ===');
+  }
+
+  // Debug method to clear potentially corrupted data
+  void _clearCorruptedData() {
+    final patientId = UserStateManager().currentPatientId;
+    print('🧹 === CLEARING POTENTIALLY CORRUPTED DATA ===');
+
+    final allAppointments =
+        _historyService.getAppointments(patientId: patientId);
+    final corruptedAppointments = allAppointments.where((apt) {
+      return apt.id.isEmpty ||
+          apt.service.isEmpty ||
+          (apt.status == AppointmentStatus.pending && apt.id.isEmpty);
+    }).toList();
+
+    if (corruptedAppointments.isNotEmpty) {
+      print(
+          '🗑️ Found ${corruptedAppointments.length} potentially corrupted appointments:');
+      for (final apt in corruptedAppointments) {
+        print(
+            '   - ID: "${apt.id}", Service: "${apt.service}", Status: ${apt.status}');
+      }
+
+      // Clear all appointments for this patient and reload from backend
+      _historyService.clearAppointmentsForPatient(patientId);
+      print('✅ Cleared all appointments for patient $patientId');
+
+      // Reload from backend
+      _loadAppointmentsFromBackend();
+    } else {
+      print('✅ No corrupted appointments found');
+    }
+
+    print('=== END CLEARING ===');
+  }
+
+  // Debug method to force refresh and clear all data
+  void _forceRefreshAppointments() {
+    final patientId = UserStateManager().currentPatientId;
+    print('🔄 === FORCE REFRESH APPOINTMENTS ===');
+    print('Patient ID: $patientId');
+
+    // Clear all appointments for this patient
+    _historyService.clearAppointmentsForPatient(patientId);
+    print('✅ Cleared all appointments for patient $patientId');
+
+    // Force reload from backend
+    _loadAppointmentsFromBackend();
+
+    // Force UI refresh
+    setState(() {
+      _selectedTab = 'All'; // Reset to All tab
+    });
+
+    print('=== END FORCE REFRESH ===');
+  }
+
   @override
   void initState() {
     super.initState();
@@ -1751,9 +1888,42 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
       if (patientId != 'guest') {
         print('Loading appointments from backend for patient: $patientId');
         final backendAppointments = await ApiService.getAppointments(patientId);
-        _historyService.loadAppointmentsFromBackend(backendAppointments,
-            patientId: patientId);
+
+        if (backendAppointments.isEmpty) {
+          print(
+              '📭 No appointments returned from backend, clearing existing appointments for patient $patientId');
+          _historyService.clearAppointmentsForPatient(patientId);
+        } else {
+          _historyService.loadAppointmentsFromBackend(backendAppointments,
+              patientId: patientId);
+        }
+
         print('Loaded ${backendAppointments.length} appointments from backend');
+
+        // Debug: Check what appointments we have after loading
+        final allAppointments =
+            _historyService.getAppointments(patientId: patientId);
+        final pendingAppointments = _historyService.getAppointmentsByStatus(
+          AppointmentStatus.pending,
+          patientId: patientId,
+        );
+        print(
+            '🔍 After loading - Total appointments: ${allAppointments.length}');
+        print(
+            '🔍 After loading - Pending appointments: ${pendingAppointments.length}');
+
+        // Auto-select pending tab if there are pending appointments and no tab is selected
+        if (pendingAppointments.isNotEmpty && _selectedTab == 'All') {
+          print('🔍 Auto-selecting Pending tab due to pending appointments');
+          _selectedTab = 'Pending';
+        }
+
+        // Force UI refresh after loading appointments
+        print('🔄 Triggering setState to refresh UI...');
+        setState(() {
+          // This will trigger a rebuild of the tabs and appointment list
+        });
+        print('✅ setState completed');
       } else {
         print('No valid patient ID, skipping backend load');
       }
@@ -1919,6 +2089,88 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                         color: Colors.white, size: 24),
                     tooltip: 'Clear all appointments (debug)',
                   ),
+                  // Debug button to clear all data
+                  IconButton(
+                    onPressed: () {
+                      _historyService.clearAllData();
+                      setState(() {});
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('🗑️ All data cleared for debugging'),
+                          backgroundColor: Colors.red,
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.delete_forever,
+                        color: Colors.white, size: 24),
+                    tooltip: 'Clear all data (debug)',
+                  ),
+                  // Debug button to show appointment state
+                  IconButton(
+                    onPressed: () {
+                      _debugAppointmentState();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('🔍 Check console for debug info'),
+                          backgroundColor: Colors.blue,
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.bug_report,
+                        color: Colors.white, size: 24),
+                    tooltip: 'Debug appointment state',
+                  ),
+                  // Debug button to clear corrupted data
+                  IconButton(
+                    onPressed: () {
+                      _clearCorruptedData();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('🧹 Clearing corrupted data...'),
+                          backgroundColor: Colors.orange,
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.cleaning_services,
+                        color: Colors.white, size: 24),
+                    tooltip: 'Clear corrupted data',
+                  ),
+                  // Debug button to clear all pending appointments
+                  IconButton(
+                    onPressed: () {
+                      _historyService.clearAllPendingAppointments();
+                      setState(() {});
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('⏳ All pending appointments cleared'),
+                          backgroundColor: Colors.purple,
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.pending_actions,
+                        color: Colors.white, size: 24),
+                    tooltip: 'Clear all pending appointments',
+                  ),
+                  // Debug button to force refresh appointments
+                  IconButton(
+                    onPressed: () {
+                      _forceRefreshAppointments();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('🔄 Force refreshing appointments...'),
+                          backgroundColor: Colors.purple,
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.refresh,
+                        color: Colors.white, size: 24),
+                    tooltip: 'Force refresh appointments',
+                  ),
                   IconButton(
                     onPressed: () async {
                       await Navigator.push(
@@ -1930,6 +2182,8 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
                       );
                       // Refresh appointments after booking
                       await _refreshAppointments();
+                      // Force UI refresh to show new tabs if needed
+                      setState(() {});
                     },
                     icon: const Icon(Icons.add, color: Colors.white, size: 28),
                   ),
@@ -1952,12 +2206,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
               ),
             ),
             child: Row(
-              children: [
-                _buildTab('All'),
-                _buildTab('Pending'),
-                _buildTab('Completed'),
-                _buildTab('Cancelled'),
-              ],
+              children: _buildConditionalTabs(),
             ),
           ),
 
@@ -1994,11 +2243,101 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
     );
   }
 
+  List<Widget> _buildConditionalTabs() {
+    // Debug the current state when building tabs
+    print('🕐 === BUILDING TABS AT ${DateTime.now()} ===');
+    _debugAppointmentState();
+
+    final patientId = UserStateManager().currentPatientId;
+    final allAppointments =
+        _historyService.getAppointments(patientId: patientId);
+    final pendingAppointments = _historyService.getAppointmentsByStatus(
+      AppointmentStatus.pending,
+      patientId: patientId,
+    );
+    final scheduledAppointments = _historyService.getAppointmentsByStatus(
+      AppointmentStatus.scheduled,
+      patientId: patientId,
+    );
+    final completedAppointments = _historyService.getAppointmentsByStatus(
+      AppointmentStatus.completed,
+      patientId: patientId,
+    );
+    final cancelledAppointments = _historyService.getAppointmentsByStatus(
+      AppointmentStatus.cancelled,
+      patientId: patientId,
+    );
+
+    print('🔍 Building tabs:');
+    print('   All appointments: ${allAppointments.length}');
+    print('   Pending appointments: ${pendingAppointments.length}');
+    print('   Scheduled appointments: ${scheduledAppointments.length}');
+    print('   Completed appointments: ${completedAppointments.length}');
+    print('   Cancelled appointments: ${cancelledAppointments.length}');
+
+    // Debug: Show details of pending appointments
+    if (pendingAppointments.isNotEmpty) {
+      print('   📋 Pending appointment details:');
+      for (int i = 0; i < pendingAppointments.length; i++) {
+        final apt = pendingAppointments[i];
+        print(
+            '      $i: ID=${apt.id}, Service=${apt.service}, Status=${apt.status}, Date=${apt.date}');
+      }
+    }
+
+    List<Widget> tabs = [];
+
+    // Always show "All" tab
+    tabs.add(_buildTab('All'));
+
+    // Show "Pending" tab if there are pending appointments
+    if (pendingAppointments.isNotEmpty) {
+      tabs.add(_buildTab('Pending'));
+      print(
+          '   ✅ Added Pending tab (${pendingAppointments.length} pending appointments)');
+      // Additional debug: show details of pending appointments
+      for (int i = 0; i < pendingAppointments.length; i++) {
+        final apt = pendingAppointments[i];
+        print(
+            '      Pending $i: ID="${apt.id}", Service="${apt.service}", Status=${apt.status}');
+      }
+    } else {
+      print('   ❌ No pending appointments, skipping Pending tab');
+      print(
+          '   🔍 pendingAppointments.isNotEmpty = ${pendingAppointments.isNotEmpty}');
+      print('   🔍 pendingAppointments.length = ${pendingAppointments.length}');
+    }
+
+    // Show "Scheduled" tab if there are scheduled appointments
+    if (scheduledAppointments.isNotEmpty) {
+      tabs.add(_buildTab('Scheduled'));
+      print('   ✅ Added Scheduled tab');
+    }
+
+    // Show "Completed" tab if there are completed appointments
+    if (completedAppointments.isNotEmpty) {
+      tabs.add(_buildTab('Completed'));
+      print('   ✅ Added Completed tab');
+    }
+
+    // Show "Cancelled" tab if there are cancelled appointments
+    if (cancelledAppointments.isNotEmpty) {
+      tabs.add(_buildTab('Cancelled'));
+      print('   ✅ Added Cancelled tab');
+    }
+
+    print('   📊 Total tabs built: ${tabs.length}');
+    return tabs;
+  }
+
   Widget _buildTab(String title) {
     final isSelected = _selectedTab == title;
     return Expanded(
       child: GestureDetector(
-        onTap: () => setState(() => _selectedTab = title),
+        onTap: () {
+          print('🔍 Tab "$title" selected');
+          setState(() => _selectedTab = title);
+        },
         child: Container(
           margin: const EdgeInsets.symmetric(horizontal: 4),
           padding: const EdgeInsets.symmetric(vertical: 8),
@@ -2032,8 +2371,14 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
         );
         print(
             'Found ${appointments.length} pending appointments for patient $patientId');
-        // Debug: show all appointments to understand the discrepancy
-        _historyService.debugShowAllAppointments();
+        break;
+      case 'Scheduled':
+        appointments = _historyService.getAppointmentsByStatus(
+          AppointmentStatus.scheduled,
+          patientId: patientId,
+        );
+        print(
+            'Found ${appointments.length} scheduled appointments for patient $patientId');
         break;
       case 'Completed':
         appointments = _historyService.getAppointmentsByStatus(
@@ -2367,7 +2712,6 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   Map<String, dynamic>? _surveyData;
   bool _isLoadingSurvey = false;
-  // Database service is now handled by ApiService static methods
 
   @override
   void initState() {
@@ -2380,10 +2724,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       final surveyData = await ApiService.getDentalSurvey(
         UserStateManager().currentPatientId,
-      ); // Use authenticated patient ID
+      );
       setState(() {
         _surveyData = surveyData;
-        // Update UserStateManager to reflect current survey status
         UserStateManager().updateSurveyStatus(surveyData != null);
       });
     } catch (e) {
@@ -2445,68 +2788,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Survey Status Card
           _buildSurveyStatusCard(),
           const SizedBox(height: 20),
-
-          // Account Actions
           _buildAccountActionsCard(),
         ],
-      ),
-    );
-  }
-
-  Widget _buildPatientInfoCard(Patient patient) {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                CircleAvatar(
-                  radius: 30,
-                  backgroundColor: const Color(0xFF0029B2).withOpacity(0.1),
-                  child: Text(
-                    '${patient.firstName[0]}${patient.lastName[0]}',
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF0029B2),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 15),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '${patient.firstName} ${patient.lastName}',
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
-                        ),
-                      ),
-                      Text(
-                        patient.email,
-                        style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                      ),
-                      Text(
-                        patient.phone,
-                        style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -2542,7 +2827,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             if (_isLoadingSurvey)
               const Center(child: CircularProgressIndicator())
             else if (_surveyData != null) ...[
-              // Survey completed
               Container(
                 padding: const EdgeInsets.all(15),
                 decoration: BoxDecoration(
@@ -2594,7 +2878,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
             ] else ...[
-              // Survey not completed
               Container(
                 padding: const EdgeInsets.all(15),
                 decoration: BoxDecoration(
@@ -2818,40 +3101,5 @@ class _ProfileScreenState extends State<ProfileScreen> {
     } catch (e) {
       return 'Unknown';
     }
-  }
-}
-
-class MoreScreen extends StatelessWidget {
-  const MoreScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(
-        child: Text(
-          'More Screen\n(Coming Soon)',
-          style: TextStyle(fontSize: 18),
-          textAlign: TextAlign.center,
-        ),
-      ),
-    );
-  }
-}
-
-class AppointmentHistoryScreen extends StatelessWidget {
-  const AppointmentHistoryScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Appointment History'),
-        backgroundColor: const Color(0xFF0029B2),
-        foregroundColor: Colors.white,
-      ),
-      body: const Center(
-        child: Text('Appointment history will be shown here.'),
-      ),
-    );
   }
 }

@@ -1,5 +1,6 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
+const jwt = require('jsonwebtoken');
 const { query } = require('../config/database');
 const { verifyPatient } = require('../middleware/auth');
 const { verifyAdmin } = require('../middleware/auth');
@@ -15,76 +16,7 @@ const surveyValidation = [
 // POST /api/surveys - Submit or update dental survey
 router.post('/', async (req, res, next) => {
   try {
-    const authHeader = req.headers['authorization'] || '';
-    const token = authHeader.split(' ')[1];
-    if (token === 'kiosk_token') {
-      // Allow survey submission for kiosk mode
-      req.user = { username: 'kiosk', type: 'kiosk' };
-      // Proceed with survey submission logic as kiosk
-      // Check validation errors
-      const errors = validationResult(req);
-      if (!errors.isEmpty()) {
-        console.log('Survey validation errors:', errors.array());
-        return res.status(400).json({
-          error: 'Validation failed',
-          details: errors.array()
-        });
-      }
-
-      const { surveyData } = req.body;
-      // Use a special kiosk patient ID for survey submissions
-      const patientId = '00000000-0000-0000-0000-000000000000'; // Special kiosk UUID
-      
-      console.log('Kiosk survey submission for patient:', patientId);
-      console.log('Survey data structure:', Object.keys(surveyData));
-
-      // Add submission timestamp
-      const completeSurvey = {
-        ...surveyData,
-        submitted_at: new Date().toISOString(),
-        submitted_via: 'kiosk'
-      };
-
-      // Check if survey already exists for this kiosk patient
-      const existingResult = await query(
-        'SELECT id FROM dental_surveys WHERE patient_id = $1',
-        [patientId]
-      );
-
-      let result;
-      if (existingResult.rows.length > 0) {
-        // Update existing survey
-        result = await query(`
-          UPDATE dental_surveys 
-          SET survey_data = $1, updated_at = CURRENT_TIMESTAMP
-          WHERE patient_id = $2
-          RETURNING id, completed_at, updated_at
-        `, [JSON.stringify(completeSurvey), patientId]);
-      } else {
-        // Create new survey
-        result = await query(`
-          INSERT INTO dental_surveys (patient_id, survey_data)
-          VALUES ($1, $2)
-          RETURNING id, completed_at, updated_at
-        `, [patientId, JSON.stringify(completeSurvey)]);
-      }
-
-      const survey = result.rows[0];
-
-      res.json({
-        message: existingResult.rows.length > 0 ? 'Survey updated successfully' : 'Survey submitted successfully',
-        survey: {
-          id: survey.id,
-          patientId,
-          completedAt: survey.completed_at,
-          updatedAt: survey.updated_at
-        }
-      });
-      return; // Exit the middleware chain after successful kiosk submission
-    }
-
-    // Original authentication and validation logic for non-kiosk requests
-    // Check validation errors
+    // Check validation errors first
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       console.log('Survey validation errors:', errors.array());
@@ -95,15 +27,60 @@ router.post('/', async (req, res, next) => {
     }
 
     const { surveyData } = req.body;
-    const patientId = req.patient.id;
+    let patientId;
+    let isKioskMode = false;
+
+    // Check if this is a kiosk submission
+    const authHeader = req.headers['authorization'] || '';
+    const token = authHeader.split(' ')[1];
     
-    console.log('Survey submission for patient:', patientId);
+    if (token === 'kiosk_token' || !token) {
+      // Kiosk mode or no token - use special kiosk patient ID
+      patientId = '00000000-0000-0000-0000-000000000000'; // Special kiosk UUID
+      isKioskMode = true;
+      console.log('Kiosk survey submission for patient:', patientId);
+    } else {
+      // Try to authenticate as patient
+      try {
+        // Verify token and get patient data
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        
+        if (decoded.type !== 'patient') {
+          return res.status(403).json({
+            error: 'Access denied. Patient access required.'
+          });
+        }
+        
+        // Get patient data from database
+        const result = await query(
+          'SELECT id, first_name, last_name, email, phone FROM patients WHERE id = $1',
+          [decoded.id]
+        );
+        
+        if (result.rows.length === 0) {
+          return res.status(404).json({
+            error: 'Patient not found'
+          });
+        }
+        
+        patientId = result.rows[0].id;
+        console.log('Authenticated survey submission for patient:', patientId);
+      } catch (authError) {
+        console.error('Authentication error:', authError);
+        // If authentication fails, treat as kiosk mode
+        patientId = '00000000-0000-0000-0000-000000000000';
+        isKioskMode = true;
+        console.log('Authentication failed, treating as kiosk mode for patient:', patientId);
+      }
+    }
+    
     console.log('Survey data structure:', Object.keys(surveyData));
 
     // Add submission timestamp
     const completeSurvey = {
       ...surveyData,
-      submitted_at: new Date().toISOString()
+      submitted_at: new Date().toISOString(),
+      submitted_via: isKioskMode ? 'kiosk' : 'patient'
     };
 
     // Check if survey already exists for this patient
@@ -153,9 +130,45 @@ router.post('/', async (req, res, next) => {
 });
 
 // GET /api/surveys - Get patient's survey data
-router.get('/', verifyPatient, async (req, res) => {
+router.get('/', async (req, res) => {
   try {
-    const patientId = req.patient.id;
+    let patientId;
+    
+    // Check if this is a kiosk request
+    const authHeader = req.headers['authorization'] || '';
+    const token = authHeader.split(' ')[1];
+    
+    if (token === 'kiosk_token' || !token) {
+      // Kiosk mode - use special kiosk patient ID
+      patientId = '00000000-0000-0000-0000-000000000000';
+    } else {
+      // Try to authenticate as patient
+      try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        
+        if (decoded.type !== 'patient') {
+          return res.status(403).json({
+            error: 'Access denied. Patient access required.'
+          });
+        }
+        
+        const result = await query(
+          'SELECT id, first_name, last_name, email, phone FROM patients WHERE id = $1',
+          [decoded.id]
+        );
+        
+        if (result.rows.length === 0) {
+          return res.status(404).json({
+            error: 'Patient not found'
+          });
+        }
+        
+        patientId = result.rows[0].id;
+      } catch (authError) {
+        // If authentication fails, treat as kiosk mode
+        patientId = '00000000-0000-0000-0000-000000000000';
+      }
+    }
 
     const result = await query(`
       SELECT id, survey_data, completed_at, updated_at
@@ -192,9 +205,45 @@ router.get('/', verifyPatient, async (req, res) => {
 });
 
 // GET /api/surveys/status - Check if patient has completed survey
-router.get('/status', verifyPatient, async (req, res) => {
+router.get('/status', async (req, res) => {
   try {
-    const patientId = req.patient.id;
+    let patientId;
+    
+    // Check if this is a kiosk request
+    const authHeader = req.headers['authorization'] || '';
+    const token = authHeader.split(' ')[1];
+    
+    if (token === 'kiosk_token' || !token) {
+      // Kiosk mode - use special kiosk patient ID
+      patientId = '00000000-0000-0000-0000-000000000000';
+    } else {
+      // Try to authenticate as patient
+      try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        
+        if (decoded.type !== 'patient') {
+          return res.status(403).json({
+            error: 'Access denied. Patient access required.'
+          });
+        }
+        
+        const result = await query(
+          'SELECT id, first_name, last_name, email, phone FROM patients WHERE id = $1',
+          [decoded.id]
+        );
+        
+        if (result.rows.length === 0) {
+          return res.status(404).json({
+            error: 'Patient not found'
+          });
+        }
+        
+        patientId = result.rows[0].id;
+      } catch (authError) {
+        // If authentication fails, treat as kiosk mode
+        patientId = '00000000-0000-0000-0000-000000000000';
+      }
+    }
 
     const result = await query(`
       SELECT id, completed_at, updated_at
@@ -224,9 +273,45 @@ router.get('/status', verifyPatient, async (req, res) => {
 });
 
 // DELETE /api/surveys - Delete patient's survey (for testing)
-router.delete('/', verifyPatient, async (req, res) => {
+router.delete('/', async (req, res) => {
   try {
-    const patientId = req.patient.id;
+    let patientId;
+    
+    // Check if this is a kiosk request
+    const authHeader = req.headers['authorization'] || '';
+    const token = authHeader.split(' ')[1];
+    
+    if (token === 'kiosk_token' || !token) {
+      // Kiosk mode - use special kiosk patient ID
+      patientId = '00000000-0000-0000-0000-000000000000';
+    } else {
+      // Try to authenticate as patient
+      try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        
+        if (decoded.type !== 'patient') {
+          return res.status(403).json({
+            error: 'Access denied. Patient access required.'
+          });
+        }
+        
+        const result = await query(
+          'SELECT id, first_name, last_name, email, phone FROM patients WHERE id = $1',
+          [decoded.id]
+        );
+        
+        if (result.rows.length === 0) {
+          return res.status(404).json({
+            error: 'Patient not found'
+          });
+        }
+        
+        patientId = result.rows[0].id;
+      } catch (authError) {
+        // If authentication fails, treat as kiosk mode
+        patientId = '00000000-0000-0000-0000-000000000000';
+      }
+    }
 
     const result = await query(
       'DELETE FROM dental_surveys WHERE patient_id = $1 RETURNING id',

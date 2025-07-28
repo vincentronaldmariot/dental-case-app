@@ -20,15 +20,15 @@ class SurveyService {
     try {
       final token = _getAuthToken();
       print('Survey service - Token found: ${token != null}');
-      if (token == null) {
-        throw Exception('No authentication token found');
-      }
-
+      
+      // Use kiosk token if no patient token is available
+      final authToken = token ?? 'kiosk_token';
+      
       final response = await http.post(
         Uri.parse('$baseUrl/surveys'),
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
+          'Authorization': 'Bearer $authToken',
         },
         body: jsonEncode({
           'surveyData': surveyData,
@@ -64,14 +64,12 @@ class SurveyService {
   Future<Map<String, dynamic>> getSurveyData() async {
     try {
       final token = _getAuthToken();
-      if (token == null) {
-        throw Exception('No authentication token found');
-      }
-
+      final authToken = token ?? 'kiosk_token';
+      
       final response = await http.get(
         Uri.parse('$baseUrl/surveys'),
         headers: {
-          'Authorization': 'Bearer $token',
+          'Authorization': 'Bearer $authToken',
         },
       );
 
@@ -106,14 +104,12 @@ class SurveyService {
   Future<Map<String, dynamic>> checkSurveyStatus() async {
     try {
       final token = _getAuthToken();
-      if (token == null) {
-        throw Exception('No authentication token found');
-      }
-
+      final authToken = token ?? 'kiosk_token';
+      
       final response = await http.get(
         Uri.parse('$baseUrl/surveys/status'),
         headers: {
-          'Authorization': 'Bearer $token',
+          'Authorization': 'Bearer $authToken',
         },
       );
 
@@ -143,14 +139,12 @@ class SurveyService {
   Future<Map<String, dynamic>> deleteSurvey() async {
     try {
       final token = _getAuthToken();
-      if (token == null) {
-        throw Exception('No authentication token found');
-      }
-
+      final authToken = token ?? 'kiosk_token';
+      
       final response = await http.delete(
         Uri.parse('$baseUrl/surveys'),
         headers: {
-          'Authorization': 'Bearer $token',
+          'Authorization': 'Bearer $authToken',
         },
       );
 

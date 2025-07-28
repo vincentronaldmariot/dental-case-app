@@ -496,10 +496,9 @@ class KioskReceiptScreen extends StatelessWidget {
                                     );
 
                                     // Call the thermal print service
-                                    await ThermalPrintService.printReceipt(
-                                      surveyData: surveyData,
-                                      receiptNumber: receiptNumber,
-                                      context: context,
+                                    await ThermalPrintService.showPrintDialog(
+                                      context,
+                                      surveyData,
                                     );
 
                                     // Show success message

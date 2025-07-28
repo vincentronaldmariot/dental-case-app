@@ -38,10 +38,10 @@ dependencies:
   intl: ^0.19.0
   crypto: ^3.0.6
   qr_flutter: ^4.1.0
-  qr_code_scanner: ^1.0.1
+  # qr_code_scanner: ^1.0.1  # Temporarily commented out due to compatibility issues
   printing: ^5.11.1
   pdf: ^3.10.7
-  blue_thermal_printer: ^1.1.5
+  # blue_thermal_printer: ^1.1.5  # Temporarily commented out due to compatibility issues
 
 dev_dependencies:
   flutter_test:

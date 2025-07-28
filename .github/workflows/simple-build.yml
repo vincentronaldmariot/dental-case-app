@@ -1,3 +1,4 @@
+# Simple workflow for manual APK building
 name: Simple APK Build
 
 on:

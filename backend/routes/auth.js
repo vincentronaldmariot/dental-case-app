@@ -173,8 +173,15 @@ router.post('/login', loginValidation, async (req, res) => {
     console.log('  Password hash field:', patient.password_hash);
     console.log('  Attempting to verify password...');
 
+    // Check if password hash is stored in phone field (temporary fix)
+    let storedPasswordHash = patient.password_hash;
+    if (!storedPasswordHash && patient.phone && patient.phone.startsWith('$2a$')) {
+      console.log('  ⚠️  Password hash found in phone field, using it for verification');
+      storedPasswordHash = patient.phone;
+    }
+
     // Verify password
-    const isValidPassword = await bcrypt.compare(password, patient.password_hash);
+    const isValidPassword = await bcrypt.compare(password, storedPasswordHash);
 
     console.log('  Password verification result:', isValidPassword);
 

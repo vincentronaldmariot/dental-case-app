@@ -2205,4 +2205,174 @@ router.put('/emergency/:id/status', verifyAdmin, [
   }
 });
 
+// POST /api/admin/fix-kiosk-patient - Create kiosk patient automatically
+router.post('/fix-kiosk-patient', verifyAdmin, async (req, res) => {
+  try {
+    console.log('🔧 Creating kiosk patient automatically...');
+    
+    // Check if kiosk patient already exists
+    const existingPatient = await query(
+      'SELECT id FROM patients WHERE id = $1',
+      ['00000000-0000-0000-0000-000000000000']
+    );
+    
+    if (existingPatient.rows.length > 0) {
+      console.log('✅ Kiosk patient already exists');
+      return res.json({
+        message: 'Kiosk patient already exists',
+        patientId: '00000000-0000-0000-0000-000000000000'
+      });
+    }
+    
+    // Create kiosk patient
+    const result = await query(`
+      INSERT INTO patients (
+        id, first_name, last_name, email, phone, password_hash, 
+        date_of_birth, address, emergency_contact, emergency_phone,
+        created_at, updated_at
+      ) VALUES (
+        '00000000-0000-0000-0000-000000000000',
+        'Kiosk',
+        'User',
+        'kiosk@dental.app',
+        '00000000000',
+        'kiosk_hash',
+        '2000-01-01',
+        'Kiosk Location',
+        'Kiosk Emergency',
+        '00000000000',
+        CURRENT_TIMESTAMP,
+        CURRENT_TIMESTAMP
+      ) RETURNING id, first_name, last_name, email
+    `);
+    
+    console.log('✅ Kiosk patient created successfully');
+    
+    res.json({
+      message: 'Kiosk patient created successfully',
+      patient: result.rows[0]
+    });
+    
+  } catch (error) {
+    console.error('❌ Error creating kiosk patient:', error);
+    res.status(500).json({
+      error: 'Failed to create kiosk patient',
+      details: error.message
+    });
+  }
+});
+
+// POST /api/admin/fix-survey-issue - Complete fix for survey submission
+router.post('/fix-survey-issue', verifyAdmin, async (req, res) => {
+  try {
+    console.log('🔧 Running complete survey fix...');
+    
+    const results = {
+      kioskPatient: false,
+      dentalSurveysTable: false,
+      surveyTest: false
+    };
+    
+    // Step 1: Create kiosk patient
+    try {
+      const existingPatient = await query(
+        'SELECT id FROM patients WHERE id = $1',
+        ['00000000-0000-0000-0000-000000000000']
+      );
+      
+      if (existingPatient.rows.length === 0) {
+        await query(`
+          INSERT INTO patients (
+            id, first_name, last_name, email, phone, password_hash, 
+            date_of_birth, address, emergency_contact, emergency_phone,
+            created_at, updated_at
+          ) VALUES (
+            '00000000-0000-0000-0000-000000000000',
+            'Kiosk',
+            'User',
+            'kiosk@dental.app',
+            '00000000000',
+            'kiosk_hash',
+            '2000-01-01',
+            'Kiosk Location',
+            'Kiosk Emergency',
+            '00000000000',
+            CURRENT_TIMESTAMP,
+            CURRENT_TIMESTAMP
+          )
+        `);
+        console.log('✅ Kiosk patient created');
+      } else {
+        console.log('✅ Kiosk patient already exists');
+      }
+      results.kioskPatient = true;
+    } catch (error) {
+      console.error('❌ Failed to create kiosk patient:', error.message);
+    }
+    
+    // Step 2: Ensure dental_surveys table exists
+    try {
+      await query(`
+        CREATE TABLE IF NOT EXISTS dental_surveys (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          patient_id UUID NOT NULL UNIQUE,
+          survey_data JSONB NOT NULL,
+          completed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      
+      await query(`
+        CREATE INDEX IF NOT EXISTS idx_dental_surveys_patient_id 
+        ON dental_surveys(patient_id)
+      `);
+      
+      console.log('✅ dental_surveys table ensured');
+      results.dentalSurveysTable = true;
+    } catch (error) {
+      console.error('❌ Failed to create dental_surveys table:', error.message);
+    }
+    
+    // Step 3: Test survey submission
+    try {
+      const testSurvey = {
+        patient_info: {
+          name: 'Test Fix',
+          email: 'test@fix.com'
+        },
+        submitted_at: new Date().toISOString(),
+        submitted_via: 'kiosk'
+      };
+      
+      const testResult = await query(`
+        INSERT INTO dental_surveys (patient_id, survey_data)
+        VALUES ('00000000-0000-0000-0000-000000000000', $1)
+        ON CONFLICT (patient_id) DO UPDATE SET
+          survey_data = EXCLUDED.survey_data,
+          updated_at = CURRENT_TIMESTAMP
+        RETURNING id
+      `, [JSON.stringify(testSurvey)]);
+      
+      console.log('✅ Survey test successful');
+      results.surveyTest = true;
+    } catch (error) {
+      console.error('❌ Survey test failed:', error.message);
+    }
+    
+    res.json({
+      message: 'Survey fix completed',
+      results: results,
+      success: results.kioskPatient && results.dentalSurveysTable && results.surveyTest
+    });
+    
+  } catch (error) {
+    console.error('❌ Error running survey fix:', error);
+    res.status(500).json({
+      error: 'Failed to run survey fix',
+      details: error.message
+    });
+  }
+});
+
 module.exports = router; 

@@ -5,23 +5,25 @@ let pool = null;
 
 // Enhanced SSL configuration for Railway
 const getSSLConfig = () => {
-  if (process.env.NODE_ENV !== 'production') {
-    return false;
-  }
-  
-  // For Railway, use a simpler SSL configuration
-  return {
-    rejectUnauthorized: false
-  };
+  // Disable SSL completely for Railway to avoid connection issues
+  return false;
 };
 
-// Use DATABASE_PUBLIC_URL if available (for external connections), otherwise use DATABASE_URL
-const dbConfig = (process.env.DATABASE_PUBLIC_URL || process.env.DATABASE_URL) ? {
-  connectionString: process.env.DATABASE_PUBLIC_URL || process.env.DATABASE_URL,
+// Use DATABASE_PUBLIC_URL for Railway with enhanced SSL handling
+const dbConfig = process.env.DATABASE_PUBLIC_URL ? {
+  connectionString: process.env.DATABASE_PUBLIC_URL,
   ssl: getSSLConfig(),
   max: 20,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 30000, // Increased timeout for SSL
+  connectionTimeoutMillis: 60000,
+  query_timeout: 30000,
+  statement_timeout: 30000
+} : process.env.DATABASE_URL ? {
+  connectionString: process.env.DATABASE_URL,
+  ssl: getSSLConfig(),
+  max: 20,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 60000,
   query_timeout: 30000,
   statement_timeout: 30000
 } : {
@@ -32,7 +34,7 @@ const dbConfig = (process.env.DATABASE_PUBLIC_URL || process.env.DATABASE_URL) ?
   password: process.env.PGPASSWORD || process.env.DB_PASSWORD || 'dental_password',
   max: 20,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 30000, // Increased timeout for SSL
+  connectionTimeoutMillis: 60000,
   ssl: getSSLConfig(),
 };
 
@@ -43,8 +45,12 @@ console.log('🗄️ Database config:', {
   user: dbConfig.user || 'DATABASE_URL',
   ssl: dbConfig.ssl ? 'enabled' : 'disabled',
   connectionTimeoutMillis: dbConfig.connectionTimeoutMillis,
-  hasDatabaseUrl: !!(process.env.DATABASE_PUBLIC_URL || process.env.DATABASE_URL),
-  usingPublicUrl: !!process.env.DATABASE_PUBLIC_URL
+  nodeEnv: process.env.NODE_ENV,
+  hasDatabaseUrl: !!process.env.DATABASE_URL,
+  hasDatabasePublicUrl: !!process.env.DATABASE_PUBLIC_URL,
+  hasPgHost: !!process.env.PGHOST,
+  hasPgDatabase: !!process.env.PGDATABASE,
+  hasPgUser: !!process.env.PGUSER
 });
 
 // Try to create PostgreSQL pool
@@ -72,6 +78,13 @@ async function testConnection() {
     return true;
   } catch (error) {
     console.error('❌ PostgreSQL connection failed, switching to in-memory database:', error.message);
+    console.error('❌ Connection details:', {
+      hasDatabaseUrl: !!process.env.DATABASE_URL,
+      hasDatabasePublicUrl: !!process.env.DATABASE_PUBLIC_URL,
+      hasPgHost: !!process.env.PGHOST,
+      nodeEnv: process.env.NODE_ENV,
+      sslConfig: getSSLConfig()
+    });
     useMemoryDB = true;
     const memoryDB = require('./memory_db');
     return await memoryDB.testConnection();

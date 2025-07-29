@@ -83,34 +83,65 @@ router.post('/', async (req, res, next) => {
       submitted_via: isKioskMode ? 'kiosk' : 'patient'
     };
 
-    // Check if survey already exists for this patient
-    const existingResult = await query(
-      'SELECT id FROM dental_surveys WHERE patient_id = $1',
-      [patientId]
-    );
+    console.log('Attempting to save survey for patient:', patientId);
+    console.log('Survey data to save:', JSON.stringify(completeSurvey, null, 2));
 
+    // First, try to create the table if it doesn't exist
+    try {
+      await query(`
+        CREATE TABLE IF NOT EXISTS dental_surveys (
+          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+          patient_id UUID NOT NULL UNIQUE,
+          survey_data JSONB NOT NULL,
+          completed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+      console.log('✅ dental_surveys table ensured to exist');
+    } catch (tableError) {
+      console.error('❌ Failed to create table:', tableError);
+    }
+
+    // Use UPSERT to handle both insert and update
     let result;
-    if (existingResult.rows.length > 0) {
-      // Update existing survey
-      result = await query(`
-        UPDATE dental_surveys 
-        SET survey_data = $1, updated_at = CURRENT_TIMESTAMP
-        WHERE patient_id = $2
-        RETURNING id, completed_at, updated_at
-      `, [JSON.stringify(completeSurvey), patientId]);
-    } else {
-      // Create new survey
+    try {
       result = await query(`
         INSERT INTO dental_surveys (patient_id, survey_data)
         VALUES ($1, $2)
+        ON CONFLICT (patient_id) DO UPDATE SET
+          survey_data = EXCLUDED.survey_data,
+          updated_at = CURRENT_TIMESTAMP
         RETURNING id, completed_at, updated_at
       `, [patientId, JSON.stringify(completeSurvey)]);
+      
+      console.log('✅ Database query executed successfully');
+      console.log('Query result:', result);
+      console.log('Result rows:', result.rows);
+      console.log('Result row count:', result.rowCount);
+    } catch (queryError) {
+      console.error('❌ Database query failed:', queryError);
+      return res.status(500).json({
+        error: 'Database operation failed',
+        details: queryError.message
+      });
+    }
+
+    // Check if the query was successful
+    if (!result || !result.rows || result.rows.length === 0) {
+      console.error('Database query failed - no rows returned');
+      console.error('Query result:', result);
+      return res.status(500).json({
+        error: 'Failed to save survey to database. Please try again.',
+        details: 'Database operation did not return expected data'
+      });
     }
 
     const survey = result.rows[0];
+    console.log('✅ Survey saved successfully:', survey);
 
     res.json({
-      message: existingResult.rows.length > 0 ? 'Survey updated successfully' : 'Survey submitted successfully',
+      message: 'Survey submitted successfully',
       survey: {
         id: survey.id,
         patientId,
@@ -122,6 +153,7 @@ router.post('/', async (req, res, next) => {
   } catch (error) {
     console.error('Survey submission error:', error);
     console.error('Error details:', error.message);
+    console.error('Error stack:', error.stack);
     res.status(500).json({
       error: 'Failed to submit survey. Please try again.',
       details: error.message

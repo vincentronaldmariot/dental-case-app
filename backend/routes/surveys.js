@@ -103,6 +103,43 @@ router.post('/', async (req, res, next) => {
       console.error('❌ Failed to create table:', tableError);
     }
 
+    // Auto-create kiosk patient if it doesn't exist
+    try {
+      const existingPatient = await query(
+        'SELECT id FROM patients WHERE id = $1',
+        ['00000000-0000-0000-0000-000000000000']
+      );
+      
+      if (existingPatient.rows.length === 0) {
+        console.log('🔧 Auto-creating kiosk patient...');
+        await query(`
+          INSERT INTO patients (
+            id, first_name, last_name, email, phone, password_hash, 
+            date_of_birth, address, emergency_contact, emergency_phone,
+            created_at, updated_at
+          ) VALUES (
+            '00000000-0000-0000-0000-000000000000',
+            'Kiosk',
+            'User',
+            'kiosk@dental.app',
+            '00000000000',
+            'kiosk_hash',
+            '2000-01-01',
+            'Kiosk Location',
+            'Kiosk Emergency',
+            '00000000000',
+            CURRENT_TIMESTAMP,
+            CURRENT_TIMESTAMP
+          )
+        `);
+        console.log('✅ Kiosk patient auto-created');
+      } else {
+        console.log('✅ Kiosk patient already exists');
+      }
+    } catch (patientError) {
+      console.error('❌ Failed to create kiosk patient:', patientError);
+    }
+
     // Use UPSERT to handle both insert and update
     let result;
     try {

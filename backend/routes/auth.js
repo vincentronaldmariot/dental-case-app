@@ -91,22 +91,23 @@ router.post('/register', registerValidation, async (req, res) => {
     const saltRounds = parseInt(process.env.BCRYPT_ROUNDS) || 12;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-    // Insert new patient
+    // Insert new patient with correct schema mapping (migrate.js schema)
     const result = await query(`
       INSERT INTO patients (
-        first_name, last_name, email, password_hash, phone, date_of_birth,
+        first_name, last_name, email, phone, password_hash, date_of_birth,
         address, emergency_contact, emergency_phone, medical_history, allergies,
         serial_number, unit_assignment, classification, other_classification
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
       RETURNING id, first_name, last_name, email, phone, created_at
     `, [
-      firstName, lastName, email, hashedPassword, phone, dateOfBirth,
-      address, emergencyContact, emergencyPhone, medicalHistory, allergies,
-      serialNumber, unitAssignment, classification, otherClassification
+      firstName, lastName, email, phone, hashedPassword, dateOfBirth,
+      address || '', emergencyContact || '', emergencyPhone || '', 
+      medicalHistory || '', allergies || '',
+      serialNumber || '', unitAssignment || '', classification, otherClassification || ''
     ]);
 
     const patient = result.rows[0];
-
+    
     // Generate JWT token
     const token = generateToken({
       id: patient.id,
@@ -165,14 +166,26 @@ router.post('/login', loginValidation, async (req, res) => {
 
     const patient = result.rows[0];
 
+    console.log('🔍 Login Debug:');
+    console.log('  Patient found:', patient.id);
+    console.log('  Email:', patient.email);
+    console.log('  Phone field:', patient.phone);
+    console.log('  Password hash field:', patient.password_hash);
+    console.log('  Attempting to verify password...');
+
     // Verify password
     const isValidPassword = await bcrypt.compare(password, patient.password_hash);
 
+    console.log('  Password verification result:', isValidPassword);
+
     if (!isValidPassword) {
+      console.log('  ❌ Password verification failed');
       return res.status(401).json({
         error: 'Invalid email or password'
       });
     }
+
+    console.log('  ✅ Password verification successful');
 
     // Generate JWT token
     const token = generateToken({

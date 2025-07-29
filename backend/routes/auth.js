@@ -91,19 +91,19 @@ router.post('/register', registerValidation, async (req, res) => {
     const saltRounds = parseInt(process.env.BCRYPT_ROUNDS) || 12;
     const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-    // Insert new patient with correct schema mapping (migrate.js schema)
+    // Insert new patient with correct schema mapping (setup_railway_db.js schema)
     const result = await query(`
       INSERT INTO patients (
         first_name, last_name, email, phone, password_hash, date_of_birth,
-        address, emergency_contact, emergency_phone, medical_history, allergies,
-        serial_number, unit_assignment, classification, other_classification
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+        address, emergency_contact_name, emergency_contact_phone, medical_history, allergies,
+        classification, serial_number, unit_assignment
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
       RETURNING id, first_name, last_name, email, phone, created_at
     `, [
       firstName, lastName, email, phone, hashedPassword, dateOfBirth,
       address || '', emergencyContact || '', emergencyPhone || '', 
       medicalHistory || '', allergies || '',
-      serialNumber || '', unitAssignment || '', classification, otherClassification || ''
+      classification, serialNumber || '', unitAssignment || ''
     ]);
 
     const patient = result.rows[0];
@@ -173,15 +173,8 @@ router.post('/login', loginValidation, async (req, res) => {
     console.log('  Password hash field:', patient.password_hash);
     console.log('  Attempting to verify password...');
 
-    // Check if password hash is stored in phone field (temporary fix)
-    let storedPasswordHash = patient.password_hash;
-    if (!storedPasswordHash && patient.phone && patient.phone.startsWith('$2a$')) {
-      console.log('  ⚠️  Password hash found in phone field, using it for verification');
-      storedPasswordHash = patient.phone;
-    }
-
     // Verify password
-    const isValidPassword = await bcrypt.compare(password, storedPasswordHash);
+    const isValidPassword = await bcrypt.compare(password, patient.password_hash);
 
     console.log('  Password verification result:', isValidPassword);
 

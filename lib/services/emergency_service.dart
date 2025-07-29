@@ -1,5 +1,6 @@
 import '../models/emergency_record.dart';
 import 'api_service.dart';
+import '../user_state_manager.dart'; // Fixed import path
 
 class EmergencyService {
   static final EmergencyService _instance = EmergencyService._internal();
@@ -150,7 +151,12 @@ class EmergencyService {
 
   Future<void> loadEmergencyRecordsFromAPI() async {
     try {
-      final records = await ApiService.getEmergencyRecords();
+      // Check if user is admin and call appropriate API method
+      final isAdmin = UserStateManager().isAdminLoggedIn;
+      final records = isAdmin 
+          ? await ApiService.getAllEmergencyRecordsAsAdmin()
+          : await ApiService.getEmergencyRecords();
+      
       _emergencyRecords.clear();
       
       for (final record in records) {

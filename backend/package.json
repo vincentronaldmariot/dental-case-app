@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
+    "setup": "node setup_railway_db.js",
     "migrate": "node scripts/migrate.js",
     "seed": "node scripts/seed.js"
   },

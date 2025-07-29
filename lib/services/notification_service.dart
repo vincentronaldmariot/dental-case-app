@@ -1,11 +1,15 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
+import '../config/app_config.dart';
 
 class NotificationService extends ChangeNotifier {
   static final NotificationService _instance = NotificationService._internal();
   factory NotificationService() => _instance;
   NotificationService._internal();
+
+  // Use centralized configuration instead of hardcoded localhost
+  static String get baseUrl => AppConfig.apiBaseUrl;
 
   final List<AppNotification> _notifications = [];
 
@@ -62,53 +66,41 @@ class NotificationService extends ChangeNotifier {
   }
 
   Future<void> fetchNotifications(String patientId, String token) async {
+    if (patientId.isEmpty) {
+      throw Exception('Invalid patient ID: $patientId');
+    }
+
     try {
-      print('🔍 Fetching notifications for patient: "$patientId"');
-      print('🔍 Patient ID length: ${patientId.length}');
-      print('🔍 Patient ID is empty: ${patientId.isEmpty}');
-      print('🔍 Using token: ${token.substring(0, 20)}...');
-
-      if (patientId.isEmpty || patientId == 'guest') {
-        throw Exception('Invalid patient ID: $patientId');
-      }
-
       final response = await http.get(
-        Uri.parse(
-            'http://localhost:3000/api/patients/$patientId/notifications'),
+        Uri.parse('${AppConfig.apiBaseUrl}/patients/$patientId/notifications'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
       );
 
-      print('🔍 Response status code: ${response.statusCode}');
-      print('🔍 Response headers: ${response.headers}');
-      print('🔍 Response body: ${response.body}');
-
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        print('✅ Backend response: $data');
-        print('✅ Notifications count: ${data['notifications']?.length ?? 0}');
+        final notifications = data['notifications'] ?? [];
+
         _notifications.clear();
-        for (var n in data['notifications']) {
+        for (var n in notifications) {
           _notifications.add(AppNotification(
             id: n['id'].toString(),
             title: n['title'],
             message: n['message'],
-            type: NotificationType
-                .appointment, // You can map backend type if needed
-            isRead: n['isRead'],
-            createdAt: DateTime.parse(n['createdAt']),
+            type: NotificationType.appointment,
+            isRead: n['read'] == true,
+            createdAt: DateTime.parse(n['created_at']),
           ));
         }
         notifyListeners();
       } else {
-        print('❌ Error response: ${response.statusCode} - ${response.body}');
         throw Exception(
-            'Failed to fetch notifications: ${response.statusCode} - ${response.body}');
+          'Failed to fetch notifications: ${response.statusCode} - ${response.body}',
+        );
       }
     } catch (e) {
-      print('❌ Exception in fetchNotifications: $e');
       throw Exception('Failed to fetch notifications: $e');
     }
   }

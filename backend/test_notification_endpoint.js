@@ -1,39 +1,59 @@
 const http = require('http');
 
 async function testNotificationEndpoint() {
-  try {
-    console.log('🔍 Testing notification endpoint...');
-    
-    const patientId = '45f784a4-ecd4-49d1-a8d0-909b25d2b03e';
-    const token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjQ1Zjc4NGE0LWVjZDQtNDlkMS1hOGQwLTkwOWIyNWQyYjAzZSIsImVtYWlsIjoidmluY2VudEBnbWFpbC5jb20iLCJ0eXBlIjoicGF0aWVudCIsImlhdCI6MTc1MzA0Mzc2MSwiZXhwIjoxNzUzNjQ4NTYxfQ.gZ0dbtkj13RHB7d-2KsTPP0BTAbMTamtIuorv-VxWsI';
-    
-    // Test 1: Check if server is running
-    console.log('\n📋 Test 1: Check if server is running');
-    const healthCheck = await makeRequest('GET', '/health');
-    console.log('Health check response:', healthCheck);
-    
-    // Test 2: Test notifications endpoint
-    console.log('\n📋 Test 2: Test notifications endpoint');
-    const notificationsResponse = await makeRequest('GET', `/api/patients/${patientId}/notifications`, {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    });
-    console.log('Notifications response:', notificationsResponse);
-    
-    // Test 3: Test unread count endpoint
-    console.log('\n📋 Test 3: Test unread count endpoint');
-    const unreadCountResponse = await makeRequest('GET', `/api/patients/${patientId}/notifications/unread-count`, {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
-    });
-    console.log('Unread count response:', unreadCountResponse);
-    
-  } catch (error) {
-    console.error('❌ Error testing notification endpoint:', error);
+  console.log('🔍 Testing notification endpoint...\n');
+
+  // First, get a real patient token
+  console.log('📋 Step 1: Getting patient token...');
+  const loginResponse = await makeRequest('POST', '/api/auth/login', {
+    email: 'john.doe@test.com',
+    password: 'password123'
+  });
+
+  if (loginResponse.statusCode !== 200) {
+    console.log('❌ Failed to get patient token');
+    console.log(`Status: ${loginResponse.statusCode}`);
+    console.log(`Response: ${JSON.stringify(loginResponse.data)}`);
+    return;
   }
+
+  const loginData = loginResponse.data; // Already parsed by makeRequest
+  const token = loginData.token;
+  const patientId = loginData.patient.id;
+
+  console.log(`✅ Got token for patient: ${loginData.patient.firstName} ${loginData.patient.lastName}`);
+  console.log(`📊 Patient ID: ${patientId}`);
+
+  // Test notifications endpoint with real token
+  console.log('\n📋 Step 2: Testing notifications endpoint...');
+  const notificationsResponse = await makeRequest(
+    'GET', 
+    `/api/patients/${patientId}/notifications`,
+    null,
+    { 'Authorization': `Bearer ${token}` }
+  );
+
+  console.log('Notifications response:', {
+    statusCode: notificationsResponse.statusCode,
+    data: notificationsResponse.data // Already parsed
+  });
+
+  // Test unread count endpoint
+  console.log('\n📋 Step 3: Testing unread count endpoint...');
+  const unreadResponse = await makeRequest(
+    'GET', 
+    `/api/patients/${patientId}/notifications/unread-count`,
+    null,
+    { 'Authorization': `Bearer ${token}` }
+  );
+
+  console.log('Unread count response:', {
+    statusCode: unreadResponse.statusCode,
+    data: unreadResponse.data // Already parsed
+  });
 }
 
-function makeRequest(method, path, headers = {}) {
+function makeRequest(method, path, body = null, headers = {}) {
   return new Promise((resolve, reject) => {
     const options = {
       hostname: 'localhost',
@@ -46,16 +66,21 @@ function makeRequest(method, path, headers = {}) {
       }
     };
 
+    let dataToSend = '';
+    if (body) {
+      dataToSend = JSON.stringify(body);
+    }
+
     const req = http.request(options, (res) => {
-      let data = '';
+      let responseData = '';
       
       res.on('data', (chunk) => {
-        data += chunk;
+        responseData += chunk;
       });
       
       res.on('end', () => {
         try {
-          const jsonData = JSON.parse(data);
+          const jsonData = JSON.parse(responseData);
           resolve({
             statusCode: res.statusCode,
             headers: res.headers,
@@ -65,7 +90,7 @@ function makeRequest(method, path, headers = {}) {
           resolve({
             statusCode: res.statusCode,
             headers: res.headers,
-            data: data
+            data: responseData
           });
         }
       });
@@ -75,6 +100,9 @@ function makeRequest(method, path, headers = {}) {
       reject(error);
     });
 
+    if (dataToSend) {
+      req.write(dataToSend);
+    }
     req.end();
   });
 }

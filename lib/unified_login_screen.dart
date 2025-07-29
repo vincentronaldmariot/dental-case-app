@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'services/api_service.dart';
 import 'models/patient.dart';
 import 'user_state_manager.dart';
@@ -9,6 +8,7 @@ import './admin_dashboard_screen.dart';
 import './kiosk_mode_screen.dart';
 import 'dart:convert'; // Added for jsonEncode and jsonDecode
 import 'package:http/http.dart' as http; // Added for http.post
+import 'config/app_config.dart';
 
 class UnifiedLoginScreen extends StatefulWidget {
   const UnifiedLoginScreen({super.key});
@@ -103,7 +103,7 @@ class _UnifiedLoginScreenState extends State<UnifiedLoginScreen>
         if (_emailController.text == 'kiosk' &&
             _passwordController.text == 'kiosk123') {
           final response = await http.post(
-            Uri.parse('http://localhost:3000/api/auth/kiosk/login'),
+            Uri.parse('${AppConfig.apiBaseUrl}/auth/kiosk/login'),
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode({
               'username': 'kiosk',

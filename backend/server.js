@@ -127,16 +127,70 @@ console.log('Error handling middleware set up.');
 // Start server
 async function startServer() {
   try {
-    console.log('Testing database connection...');
-    // Test database connection
-    await testConnection();
-    console.log('✅ Database connection verified');
     console.log('Starting Express server...');
     app.listen(PORT, () => {
       console.log(`🚀 Dental Case API server running on port ${PORT}`);
       console.log(`📱 Health check: http://localhost:${PORT}/health`);
       console.log(`🔧 Environment: ${process.env.NODE_ENV || 'development'}`);
     });
+    
+    // Try to connect to database with retries
+    console.log('Testing database connection...');
+    let dbConnected = false;
+    let retries = 0;
+    const maxRetries = 5;
+    
+    while (!dbConnected && retries < maxRetries) {
+      try {
+        await testConnection();
+        console.log('✅ Database connection verified');
+        dbConnected = true;
+        
+        // Auto-create tables if they don't exist
+        console.log('Setting up database tables...');
+        let setupSuccess = false;
+        try {
+          const { setupDatabase } = require('./setup_railway_db');
+          await setupDatabase();
+          console.log('✅ Database tables created/verified');
+          setupSuccess = true;
+        } catch (setupError) {
+          console.log('⚠️ Database setup warning:', setupError.message);
+          // Continue anyway - tables might already exist
+        }
+        
+        // If we're using in-memory database and setup failed, create admin user
+        if (process.env.NODE_ENV === 'production' && !setupSuccess) {
+          console.log('🗄️ Creating admin user in in-memory database...');
+          try {
+            const { query } = require('./config/database');
+            const bcrypt = require('bcrypt');
+            const passwordHash = await bcrypt.hash('admin123', 12);
+            
+            await query(`
+              INSERT INTO admin_users (id, username, password_hash, full_name, role, is_active)
+              VALUES ($1, $2, $3, $4, $5, $6)
+              ON CONFLICT (username) DO NOTHING
+            `, ['1', 'admin', passwordHash, 'System Administrator', 'admin', true]);
+            
+            console.log('✅ Admin user created in in-memory database');
+          } catch (adminError) {
+            console.log('⚠️ Admin user creation warning:', adminError.message);
+          }
+        }
+        
+      } catch (error) {
+        retries++;
+        console.log(`❌ Database connection failed (attempt ${retries}/${maxRetries}):`, error.message);
+        if (retries < maxRetries) {
+          console.log(`🔄 Retrying in 5 seconds...`);
+          await new Promise(resolve => setTimeout(resolve, 5000));
+        } else {
+          console.log('⚠️ Database connection failed after all retries. Server will continue without database.');
+        }
+      }
+    }
+    
   } catch (error) {
     console.error('❌ Failed to start server:', error);
     process.exit(1);

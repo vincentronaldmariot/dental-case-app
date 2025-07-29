@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'patient_notifications_screen.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'config/app_config.dart';
 
 class PatientDashboardWithNotifications extends StatefulWidget {
   final String patientId;
@@ -31,39 +32,28 @@ class _PatientDashboardWithNotificationsState
 
   Future<void> _loadUnreadNotifications() async {
     try {
-      print('🔍 Loading unread notifications for patient: ${widget.patientId}');
-      print('🔍 Using token: ${widget.patientToken.substring(0, 20)}...');
-
       final response = await http.get(
         Uri.parse(
-            'http://localhost:3000/api/patients/${widget.patientId}/notifications/unread-count'),
+            '${AppConfig.apiBaseUrl}/patients/${widget.patientId}/notifications/unread-count'),
         headers: {
           'Authorization': 'Bearer ${widget.patientToken}',
           'Content-Type': 'application/json',
         },
       );
 
-      print('🔍 Unread notifications response status: ${response.statusCode}');
-      print('🔍 Unread notifications response body: ${response.body}');
-
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         setState(() {
           _unreadNotifications = data['unreadCount'] ?? 0;
-          _isLoadingNotifications = false;
         });
-        print('✅ Unread notifications count: $_unreadNotifications');
       } else {
-        print(
-            '❌ Error loading unread notifications: ${response.statusCode} - ${response.body}');
         setState(() {
-          _isLoadingNotifications = false;
+          _unreadNotifications = 0;
         });
       }
     } catch (e) {
-      print('❌ Exception loading unread notifications: $e');
       setState(() {
-        _isLoadingNotifications = false;
+        _unreadNotifications = 0;
       });
     }
   }

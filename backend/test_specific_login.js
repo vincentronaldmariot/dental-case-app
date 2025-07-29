@@ -1,58 +1,91 @@
 const http = require('http');
 
-// Test the specific login that's failing
-function testSpecificLogin() {
-  const testCases = [
-    { email: 'vincent@gmail.com', password: 'flarelight' },  // What user is trying
-    { email: 'vincent@gmail.com', password: 'password123' }, // What it should be
-    { email: 'vincent@gmail.com', password: 'password' },    // Alternative
-  ];
-
-  testCases.forEach((testCase, index) => {
-    console.log(`\n--- Test ${index + 1}: ${testCase.email} with "${testCase.password}" ---`);
-    
-    const postData = JSON.stringify(testCase);
+function makeRequest(method, path, data, headers = {}) {
+  return new Promise((resolve, reject) => {
+    const postData = data ? JSON.stringify(data) : '';
     
     const options = {
       hostname: 'localhost',
       port: 3000,
-      path: '/api/auth/login',
-      method: 'POST',
+      path: path,
+      method: method,
       headers: {
         'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(postData)
+        'Accept': 'application/json',
+        ...headers
       }
     };
 
+    if (postData) {
+      options.headers['Content-Length'] = Buffer.byteLength(postData);
+    }
+
     const req = http.request(options, (res) => {
-      console.log(`Status: ${res.statusCode}`);
-      
-      let data = '';
+      let responseData = '';
       res.on('data', (chunk) => {
-        data += chunk;
+        responseData += chunk;
       });
       
       res.on('end', () => {
-        console.log('Response:', data);
-        if (res.statusCode === 200) {
-          console.log('✅ LOGIN SUCCESSFUL!');
-        } else {
-          console.log('❌ LOGIN FAILED');
-        }
+        resolve({
+          statusCode: res.statusCode,
+          headers: res.headers,
+          body: responseData
+        });
       });
     });
 
     req.on('error', (e) => {
-      console.error(`Error: ${e.message}`);
+      reject(e);
     });
 
-    req.write(postData);
+    if (postData) {
+      req.write(postData);
+    }
     req.end();
-    
-    // Add delay between requests
-    setTimeout(() => {}, 2000);
   });
 }
 
-console.log('Testing specific login credentials...');
+async function testSpecificLogin() {
+  console.log('Testing specific login credentials...\n');
+
+  // Test with existing patient from database
+  const testCases = [
+    { email: 'john.doe@test.com', password: 'password123', description: 'John Doe with correct password' },
+    { email: 'jane.smith@test.com', password: 'password123', description: 'Jane Smith with correct password' },
+    { email: 'vip.person@test.com', password: 'password123', description: 'VIP Person with correct password' },
+    { email: 'viperson1@gmail.com', password: 'password123', description: 'VIP Person 1 with correct password' }
+  ];
+
+  for (const testCase of testCases) {
+    console.log(`\n--- ${testCase.description} ---`);
+    
+    try {
+      const response = await makeRequest(
+        'POST',
+        '/api/auth/login',
+        {
+          email: testCase.email,
+          password: testCase.password
+        }
+      );
+      
+      if (response.statusCode === 200) {
+        const data = JSON.parse(response.body);
+        console.log('✅ LOGIN SUCCESSFUL');
+        console.log(`📊 Patient ID: ${data.patient.id}`);
+        console.log(`👤 Name: ${data.patient.firstName} ${data.patient.lastName}`);
+        console.log(`🔑 Token: ${data.token.substring(0, 50)}...`);
+      } else {
+        console.log(`Status: ${response.statusCode}`);
+        console.log(`Response: ${response.body}`);
+        console.log('❌ LOGIN FAILED');
+      }
+    } catch (error) {
+      console.log(`❌ Error: ${error.message}`);
+      console.log(`Error details: ${error}`);
+    }
+  }
+}
+
 testSpecificLogin(); 

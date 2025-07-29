@@ -2,9 +2,12 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/patient.dart';
+import '../config/app_config.dart';
 
 class ApiService {
-  static const String baseUrl = 'http://localhost:3000/api';
+  // Use configuration for server URL
+  static String get baseUrl => AppConfig.apiBaseUrl;
+
   static String? _token;
   static bool _offlineMode = false;
   static final Map<String, dynamic> _localData = {};
@@ -20,21 +23,23 @@ class ApiService {
     print(
         'ApiService initialized with token: ${_token != null ? 'present' : 'none'}');
     print('Offline mode: $_offlineMode');
+    print('Server URL: ${AppConfig.serverUrl}');
   }
 
   // Check backend connection with retry logic
   static Future<void> _checkBackendConnection() async {
     int retryCount = 0;
-    const maxRetries = 3;
+    const maxRetries = AppConfig.maxRetryAttempts;
 
     while (retryCount < maxRetries) {
       try {
         print('🔄 Checking backend connection (attempt ${retryCount + 1})...');
 
+        // Use the health check URL from config
         final response = await http.get(
-          Uri.parse('http://localhost:3000/health'),
+          Uri.parse(AppConfig.healthCheckUrl),
           headers: {'Content-Type': 'application/json'},
-        ).timeout(const Duration(seconds: 5));
+        ).timeout(Duration(seconds: AppConfig.connectionTimeoutSeconds));
 
         if (response.statusCode == 200) {
           _offlineMode = false;
@@ -57,8 +62,8 @@ class ApiService {
 
       retryCount++;
       if (retryCount < maxRetries) {
-        print('⏳ Retrying in 2 seconds...');
-        await Future.delayed(const Duration(seconds: 2));
+        print('⏳ Retrying in ${AppConfig.retryDelaySeconds} seconds...');
+        await Future.delayed(Duration(seconds: AppConfig.retryDelaySeconds));
       }
     }
 
@@ -66,29 +71,36 @@ class ApiService {
         '❌ Backend unavailable after $maxRetries attempts, running in offline mode');
   }
 
-  // Manual connection check and sync
-  static Future<bool> checkConnectionAndSync() async {
-    print('🔄 Manual connection check and sync...');
-
+  static Future<bool> checkConnection() async {
     try {
-      final response = await http.get(
-        Uri.parse('http://localhost:3000/health'),
-        headers: {'Content-Type': 'application/json'},
-      ).timeout(const Duration(seconds: 5));
+      final response = await http
+          .get(
+            Uri.parse(AppConfig.healthCheckUrl),
+          )
+          .timeout(Duration(seconds: AppConfig.connectionTimeoutSeconds));
 
       if (response.statusCode == 200) {
         _offlineMode = false;
-        print('✅ Backend is online, syncing local data...');
-        await syncAllLocalAppointments();
         return true;
       } else {
         _offlineMode = true;
-        print('⚠️ Backend responded with status: ${response.statusCode}');
         return false;
       }
     } catch (e) {
       _offlineMode = true;
-      print('❌ Backend connection failed: $e');
+      return false;
+    }
+  }
+
+  static Future<bool> checkConnectionAndSync() async {
+    try {
+      final isOnline = await checkConnection();
+      if (isOnline) {
+        await syncAllLocalAppointments();
+        return true;
+      }
+      return false;
+    } catch (e) {
       return false;
     }
   }
@@ -578,7 +590,7 @@ class ApiService {
     try {
       // Test if backend is now available
       final healthResponse = await http.get(
-        Uri.parse('http://localhost:3000/health'),
+        Uri.parse(AppConfig.healthCheckUrl),
         headers: {'Content-Type': 'application/json'},
       ).timeout(const Duration(seconds: 5));
 
@@ -699,7 +711,7 @@ class ApiService {
       String patientId) async {
     final response = await http.get(
       Uri.parse(
-          'http://localhost:3000/api/admin/patients/$patientId/appointments'),
+          '${AppConfig.apiBaseUrl}/admin/patients/$patientId/appointments'),
       headers: _headers,
     );
     if (response.statusCode == 200) {

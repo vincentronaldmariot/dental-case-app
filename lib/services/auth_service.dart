@@ -3,7 +3,8 @@ import 'package:http/http.dart' as http;
 import 'api_service.dart';
 
 class AuthService {
-  static const String _baseUrl = ApiService.baseUrl;
+  // Use getter instead of const since ApiService.baseUrl is now a getter
+  static String get _baseUrl => ApiService.baseUrl;
 
   /// Authenticate admin user with backend API
   static Future<Map<String, dynamic>> authenticateAdmin(
@@ -12,7 +13,7 @@ class AuthService {
   ) async {
     try {
       final response = await http.post(
-        Uri.parse('$_baseUrl/api/admin/login'),
+        Uri.parse('$_baseUrl/auth/admin/login'),
         headers: {
           'Content-Type': 'application/json',
         },
@@ -48,7 +49,7 @@ class AuthService {
   static Future<bool> validateToken(String token) async {
     try {
       final response = await http.get(
-        Uri.parse('$_baseUrl/api/admin/validate'),
+        Uri.parse('$_baseUrl/auth/admin/validate'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -65,7 +66,7 @@ class AuthService {
   static Future<bool> logoutAdmin(String token) async {
     try {
       final response = await http.post(
-        Uri.parse('$_baseUrl/api/admin/logout'),
+        Uri.parse('$_baseUrl/auth/admin/logout'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -82,7 +83,7 @@ class AuthService {
   static Future<Map<String, dynamic>> getAdminProfile(String token) async {
     try {
       final response = await http.get(
-        Uri.parse('$_baseUrl/api/admin/profile'),
+        Uri.parse('$_baseUrl/auth/admin/profile'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',

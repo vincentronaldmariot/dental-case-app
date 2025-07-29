@@ -7,6 +7,7 @@ import 'models/appointment.dart';
 import 'services/history_service.dart';
 import 'services/api_service.dart';
 import 'user_state_manager.dart';
+import 'config/app_config.dart';
 
 class PatientDashboardScreen extends StatefulWidget {
   const PatientDashboardScreen({super.key});
@@ -42,15 +43,22 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
     try {
       final patientId = UserStateManager().currentPatientId;
       if (patientId.isNotEmpty && patientId != 'guest') {
-        print('🔄 Refreshing appointment data for patient dashboard...');
         final backendAppointments = await ApiService.getAppointments(patientId);
         _historyService.loadAppointmentsFromBackend(backendAppointments,
             patientId: patientId);
         setState(() {}); // Refresh UI
-        print('✅ Appointment data refreshed for patient dashboard');
       }
     } catch (e) {
-      print('❌ Error refreshing appointment data: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content:
+                const Text('Failed to refresh appointments. Please try again.'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
     }
   }
 
@@ -61,15 +69,11 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
       final patientToken = UserStateManager().patientToken;
 
       if (patientId.isEmpty || patientToken == null || patientId == 'guest') {
-        print('❌ No valid patient ID or token for notification check');
         return;
       }
 
-      print('🔍 Checking for approval notifications in patient dashboard...');
-
       final response = await http.get(
-        Uri.parse(
-            'http://localhost:3000/api/patients/$patientId/notifications'),
+        Uri.parse('${AppConfig.apiBaseUrl}/patients/$patientId/notifications'),
         headers: {
           'Authorization': 'Bearer $patientToken',
           'Content-Type': 'application/json',
@@ -91,15 +95,12 @@ class _PatientDashboardScreenState extends State<PatientDashboardScreen> {
         }).toList();
 
         if (approvalNotifications.isNotEmpty) {
-          print(
-              '✅ Found ${approvalNotifications.length} recent approval notifications, refreshing appointments...');
           await _refreshAppointmentData();
-        } else {
-          print('ℹ️ No recent approval notifications found');
         }
       }
     } catch (e) {
-      print('❌ Error checking for approval notifications: $e');
+      // Silent fail for background notification checks
+      // Don't show error to user for background operations
     }
   }
 

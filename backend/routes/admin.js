@@ -43,8 +43,8 @@ router.get('/dashboard', verifyAdmin, async (req, res) => {
     console.log('🔍 Debug - Today dates:', todayCheck.rows[0]);
     
     const stats = {
-      totalPatients: parseInt(patientsResult.rows[0].count),
-      totalSurveys: parseInt(surveysResult.rows[0].count),
+      totalPatients: parseInt(patientsResult.rows[0]?.count || 0),
+      totalSurveys: parseInt(surveysResult.rows[0]?.count || 0),
       appointments: appointmentsResult.rows.reduce((acc, row) => {
         acc[row.status] = parseInt(row.count);
         return acc;
@@ -53,9 +53,9 @@ router.get('/dashboard', verifyAdmin, async (req, res) => {
         acc[row.status] = parseInt(row.count);
         return acc;
       }, {}),
-      totalEmergencyRecords: parseInt(totalEmergenciesResult.rows[0].count),
+      totalEmergencyRecords: parseInt(totalEmergenciesResult.rows[0]?.count || 0),
       // Add today's appointments count
-      todaysAppointments: parseInt(todaysAppointmentsResult.rows[0].count)
+      todaysAppointments: parseInt(todaysAppointmentsResult.rows[0]?.count || 0)
     };
 
     console.log('📈 Final stats object:', stats);
@@ -109,7 +109,7 @@ router.get('/patients', verifyAdmin, async (req, res) => {
     }
 
     const countResult = await query(countQuery, countParams);
-    const totalCount = parseInt(countResult.rows[0].count);
+    const totalCount = parseInt(countResult.rows[0]?.count || 0);
 
     res.json({
       patients: result.rows.map(patient => ({
@@ -200,7 +200,7 @@ router.get('/appointments', verifyAdmin, async (req, res) => {
     }
 
     const countResult = await query(countQuery, countParams);
-    const totalCount = parseInt(countResult.rows[0].count);
+    const totalCount = parseInt(countResult.rows[0]?.count || 0);
 
     res.json({
       appointments: result.rows.map(appointment => ({
@@ -274,7 +274,7 @@ router.get('/appointments/pending', verifyAdmin, async (req, res) => {
 
     // Get total pending count
     const countResult = await query('SELECT COUNT(*) FROM appointments WHERE status = $1', ['pending']);
-    const totalCount = parseInt(countResult.rows[0].count);
+    const totalCount = parseInt(countResult.rows[0]?.count || 0);
 
     res.json({
       pendingAppointments: result.rows.map(appointment => ({
@@ -348,7 +348,7 @@ router.get('/appointments/approved', verifyAdmin, async (req, res) => {
 
     // Get total approved count
     const countResult = await query("SELECT COUNT(*) FROM appointments WHERE status = 'approved'");
-    const totalCount = parseInt(countResult.rows[0].count);
+    const totalCount = parseInt(countResult.rows[0]?.count || 0);
 
     res.json({
       approvedAppointments: result.rows.map(appointment => {
@@ -431,7 +431,7 @@ router.get('/appointments/completed', verifyAdmin, async (req, res) => {
 
     // Get total completed count
     const countResult = await query("SELECT COUNT(*) FROM appointments WHERE status = 'completed'");
-    const totalCount = parseInt(countResult.rows[0].count);
+    const totalCount = parseInt(countResult.rows[0]?.count || 0);
 
     res.json({
       completedAppointments: result.rows.map(appointment => {
@@ -760,7 +760,7 @@ router.get('/appointments/statistics', verifyAdmin, async (req, res) => {
       FROM appointments 
       WHERE DATE(appointment_date) = CURRENT_DATE
     `);
-    const todayAppointments = parseInt(todayResult.rows[0].count);
+    const todayAppointments = parseInt(todayResult.rows[0]?.count || 0);
 
     // Get today's approved appointments
     const todayApprovedResult = await query(`
@@ -768,7 +768,7 @@ router.get('/appointments/statistics', verifyAdmin, async (req, res) => {
       FROM appointments
       WHERE DATE(appointment_date) = CURRENT_DATE AND status = 'approved'
     `);
-    const todaysApprovedAppointments = parseInt(todayApprovedResult.rows[0].count);
+    const todaysApprovedAppointments = parseInt(todayApprovedResult.rows[0]?.count || 0);
 
     // Get pending appointments count
     const pendingCount = statusStats.pending || 0;
@@ -1026,6 +1026,8 @@ router.post('/appointments/:id/approve', verifyAdmin, [
 // GET /api/admin/pending-appointments - Get all pending appointments with patient and survey data
 router.get('/pending-appointments', verifyAdmin, async (req, res) => {
   try {
+    console.log('🔍 Pending appointments request received');
+    
     const result = await query(`
       SELECT 
         a.id AS appointment_id,
@@ -1045,6 +1047,8 @@ router.get('/pending-appointments', verifyAdmin, async (req, res) => {
       WHERE a.status = 'pending'
       ORDER BY a.appointment_date ASC
     `);
+    
+    console.log(`📊 Found ${result.rows.length} pending appointments`);
     
     // Transform the data to handle missing time slots
     const transformedRows = result.rows.map(row => {
@@ -1077,9 +1081,11 @@ router.get('/pending-appointments', verifyAdmin, async (req, res) => {
       };
     });
     
+    console.log(`✅ Returning ${transformedRows.length} transformed pending appointments`);
     res.json(transformedRows);
   } catch (err) {
-    console.error(err);
+    console.error('❌ Pending appointments error:', err);
+    console.error('Error details:', err.message);
     res.status(500).json({ error: 'Failed to fetch pending appointments' });
   }
 });
@@ -1511,7 +1517,7 @@ router.get('/patients/history', verifyAdmin, async (req, res) => {
     }
 
     const countResult = await query(countQuery, countParams);
-    const totalCount = parseInt(countResult.rows[0].count);
+    const totalCount = parseInt(countResult.rows[0]?.count || 0);
 
     res.json({
       patients: patientsWithHistory,

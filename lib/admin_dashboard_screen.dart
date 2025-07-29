@@ -14,6 +14,7 @@ import 'services/api_service.dart';
 import 'user_state_manager.dart';
 import 'appointment_history_screen.dart';
 import 'qr_scanner_screen.dart';
+import 'config/app_config.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
   final int initialTabIndex;
@@ -137,12 +138,20 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     try {
       final adminToken = await _getAdminToken();
       if (adminToken == null) {
-        print('❌ Admin token not available for loading patients');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Authentication required. Please log in again.'),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
         return;
       }
 
       final response = await http.get(
-        Uri.parse('http://localhost:3000/api/admin/patients'),
+        Uri.parse('${AppConfig.apiBaseUrl}/admin/patients'),
         headers: {
           'Authorization': 'Bearer $adminToken',
           'Content-Type': 'application/json',
@@ -151,28 +160,36 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        // Handle both array and object responses
-        List<dynamic> patients = [];
         if (data is List) {
-          patients = data;
+          setState(() {
+            _patients = data;
+          });
         } else if (data is Map && data.containsKey('patients')) {
-          patients = data['patients'] ?? [];
-        } else {
-          patients = [];
+          setState(() {
+            _patients = data['patients'] ?? [];
+          });
         }
-
-        setState(() {
-          _patients = patients;
-          _patientMap = Map.fromEntries(
-            _patients.map((p) => MapEntry(p['id'], p)),
-          );
-        });
-        print('✅ Loaded ${_patients.length} patients');
       } else {
-        print('❌ Failed to load patients: ${response.statusCode}');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed to load patients: ${response.statusCode}'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
       }
     } catch (e) {
-      print('❌ Error loading patients: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading patients: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
     }
   }
 
@@ -180,12 +197,20 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     try {
       final adminToken = await _getAdminToken();
       if (adminToken == null) {
-        print('❌ Admin token not available for loading appointments');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Authentication required. Please log in again.'),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
         return;
       }
 
       final response = await http.get(
-        Uri.parse('http://localhost:3000/api/admin/appointments'),
+        Uri.parse('${AppConfig.apiBaseUrl}/admin/appointments'),
         headers: {
           'Authorization': 'Bearer $adminToken',
           'Content-Type': 'application/json',
@@ -194,25 +219,37 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        // Handle both array and object responses
-        List<dynamic> appointments = [];
         if (data is List) {
-          appointments = data;
+          setState(() {
+            _appointments = data;
+          });
         } else if (data is Map && data.containsKey('appointments')) {
-          appointments = data['appointments'] ?? [];
-        } else {
-          appointments = [];
+          setState(() {
+            _appointments = data['appointments'] ?? [];
+          });
         }
-
-        setState(() {
-          _appointments = appointments;
-        });
-        print('✅ Loaded ${_appointments.length} total appointments');
       } else {
-        print('❌ Failed to load appointments: ${response.statusCode}');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content:
+                  Text('Failed to load appointments: ${response.statusCode}'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
       }
     } catch (e) {
-      print('❌ Error loading appointments: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading appointments: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
     }
   }
 
@@ -225,7 +262,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       }
 
       final response = await http.get(
-        Uri.parse('http://localhost:3000/api/admin/pending-appointments'),
+        Uri.parse('${AppConfig.apiBaseUrl}/admin/pending-appointments'),
         headers: {
           'Authorization': 'Bearer $adminToken',
           'Content-Type': 'application/json',
@@ -277,7 +314,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
 
       // Load both approved and completed appointments
       final response = await http.get(
-        Uri.parse('http://localhost:3000/api/admin/appointments/approved'),
+        Uri.parse('${AppConfig.apiBaseUrl}/admin/appointments/approved'),
         headers: {
           'Authorization': 'Bearer $adminToken',
           'Content-Type': 'application/json',
@@ -295,7 +332,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
 
         // Also load completed appointments
         final completedResponse = await http.get(
-          Uri.parse('http://localhost:3000/api/admin/appointments/completed'),
+          Uri.parse('${AppConfig.apiBaseUrl}/admin/appointments/completed'),
           headers: {
             'Authorization': 'Bearer $adminToken',
             'Content-Type': 'application/json',
@@ -338,7 +375,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
 
       final response = await http.get(
         Uri.parse(
-            'http://localhost:3000/api/admin/emergency?exclude_resolved=true'),
+            '${AppConfig.apiBaseUrl}/admin/emergency?exclude_resolved=true'),
         headers: {
           'Authorization': 'Bearer $adminToken',
           'Content-Type': 'application/json',
@@ -469,7 +506,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       }
 
       final response = await http.get(
-        Uri.parse('http://localhost:3000/api/admin/dashboard'),
+        Uri.parse('${AppConfig.apiBaseUrl}/admin/dashboard'),
         headers: {
           'Authorization': 'Bearer $adminToken',
           'Content-Type': 'application/json',
@@ -1232,7 +1269,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
 
         final response = await http.post(
           Uri.parse(
-              'http://localhost:3000/api/admin/appointments/${appointment['appointment_id']}/approve'),
+              '${AppConfig.apiBaseUrl}/admin/appointments/${appointment['appointment_id']}/approve'),
           headers: {
             'Authorization': 'Bearer $adminToken',
             'Content-Type': 'application/json',
@@ -1344,7 +1381,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
 
         final response = await http.put(
           Uri.parse(
-              'http://localhost:3000/api/admin/appointments/${appointment['appointmentId']}/status'),
+              '${AppConfig.apiBaseUrl}/admin/appointments/${appointment['appointmentId']}/status'),
           headers: {
             'Authorization': 'Bearer $adminToken',
             'Content-Type': 'application/json',
@@ -1445,7 +1482,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
 
         final response = await http.post(
           Uri.parse(
-              'http://localhost:3000/api/admin/appointments/${appointment['appointmentId']}/cancel'),
+              '${AppConfig.apiBaseUrl}/admin/appointments/${appointment['appointmentId']}/cancel'),
           headers: {
             'Authorization': 'Bearer $adminToken',
             'Content-Type': 'application/json',
@@ -1535,7 +1572,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
 
         final response = await http.post(
           Uri.parse(
-              'http://localhost:3000/api/admin/appointments/${appointment['appointment_id']}/reject'),
+              '${AppConfig.apiBaseUrl}/admin/appointments/${appointment['appointment_id']}/reject'),
           headers: {
             'Authorization': 'Bearer $adminToken',
             'Content-Type': 'application/json',
@@ -1585,7 +1622,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
 
       final response = await http.put(
         Uri.parse(
-            'http://localhost:3000/api/admin/appointments/$appointmentId/update'),
+            '${AppConfig.apiBaseUrl}/admin/appointments/$appointmentId/update'),
         headers: {
           'Authorization': 'Bearer $adminToken',
           'Content-Type': 'application/json',
@@ -3506,7 +3543,7 @@ $allPatientsData
       }
 
       final response = await http.get(
-        Uri.parse('http://localhost:3000/api/admin/patients/$patientId/survey'),
+        Uri.parse('${AppConfig.apiBaseUrl}/admin/patients/$patientId/survey'),
         headers: {
           'Authorization': 'Bearer $adminToken',
           'Content-Type': 'application/json',
@@ -3768,7 +3805,7 @@ $allPatientsData
           // Step 1: Update emergency status to resolved
           final emergencyResponse = await http.put(
             Uri.parse(
-                'http://localhost:3000/api/admin/emergencies/${record.id}/status'),
+                '${AppConfig.apiBaseUrl}/admin/emergencies/${record.id}/status'),
             headers: {
               'Content-Type': 'application/json',
               'Authorization': 'Bearer $adminToken',
@@ -3788,7 +3825,7 @@ $allPatientsData
 
           // Step 1.5: Get the updated emergency record to get the resolved_at date
           final updatedEmergencyResponse = await http.get(
-            Uri.parse('http://localhost:3000/api/admin/emergencies'),
+            Uri.parse('${AppConfig.apiBaseUrl}/admin/emergencies'),
             headers: {
               'Authorization': 'Bearer $adminToken',
             },
@@ -3820,7 +3857,7 @@ $allPatientsData
           final appointmentDate = resolvedDate.toIso8601String().split('T')[0];
 
           final appointmentResponse = await http.post(
-            Uri.parse('http://localhost:3000/api/admin/appointments/rebook'),
+            Uri.parse('${AppConfig.apiBaseUrl}/admin/appointments/rebook'),
             headers: {
               'Content-Type': 'application/json',
               'Authorization': 'Bearer $adminToken',
@@ -3842,7 +3879,7 @@ $allPatientsData
 
             final updateAppointmentResponse = await http.put(
               Uri.parse(
-                  'http://localhost:3000/api/admin/appointments/$appointmentId/status'),
+                  '${AppConfig.apiBaseUrl}/admin/appointments/$appointmentId/status'),
               headers: {
                 'Content-Type': 'application/json',
                 'Authorization': 'Bearer $adminToken',
@@ -3965,7 +4002,7 @@ $allPatientsData
         }
 
         final response = await http.delete(
-          Uri.parse('http://localhost:3000/api/admin/emergencies/${record.id}'),
+          Uri.parse('${AppConfig.apiBaseUrl}/admin/emergencies/${record.id}'),
           headers: {
             'Authorization': 'Bearer $adminToken',
           },
@@ -4027,7 +4064,7 @@ $allPatientsData
 
       final response = await http.post(
         Uri.parse(
-            'http://localhost:3000/api/admin/emergencies/${record.id}/notify'),
+            '${AppConfig.apiBaseUrl}/admin/emergencies/${record.id}/notify'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $adminToken',

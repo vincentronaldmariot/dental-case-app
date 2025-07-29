@@ -1,62 +1,40 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../user_state_manager.dart';
+import '../config/app_config.dart';
 
 class SurveyService {
   static final SurveyService _instance = SurveyService._internal();
   factory SurveyService() => _instance;
   SurveyService._internal();
 
-  static const String baseUrl = 'http://localhost:3000/api';
+  // Use centralized configuration instead of hardcoded localhost
+  static String get baseUrl => AppConfig.apiBaseUrl;
 
   // Get auth token from UserStateManager
   String? _getAuthToken() {
     return UserStateManager().patientToken;
   }
 
-  // Submit or update survey data
-  Future<Map<String, dynamic>> submitSurvey(
-      Map<String, dynamic> surveyData) async {
+  static Future<Map<String, dynamic>> submitSurvey(
+      Map<String, dynamic> surveyData, String token) async {
     try {
-      final token = _getAuthToken();
-      print('Survey service - Token found: ${token != null}');
-      
-      // Use kiosk token if no patient token is available
-      final authToken = token ?? 'kiosk_token';
-      
       final response = await http.post(
         Uri.parse('$baseUrl/surveys'),
         headers: {
+          'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $authToken',
         },
-        body: jsonEncode({
-          'surveyData': surveyData,
-        }),
+        body: jsonEncode(surveyData),
       );
 
-      print('Survey API response status: ${response.statusCode}');
-      print('Survey API response body: ${response.body}');
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return {
-          'success': true,
-          'message': data['message'],
-          'survey': data['survey'],
-        };
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        return jsonDecode(response.body);
       } else {
-        final errorData = jsonDecode(response.body);
-        return {
-          'success': false,
-          'message': errorData['error'] ?? 'Failed to submit survey',
-        };
+        throw Exception('Failed to submit survey: ${response.statusCode}');
       }
     } catch (e) {
-      return {
-        'success': false,
-        'message': 'Network error: ${e.toString()}',
-      };
+      throw Exception('Failed to submit survey: $e');
     }
   }
 
@@ -65,7 +43,7 @@ class SurveyService {
     try {
       final token = _getAuthToken();
       final authToken = token ?? 'kiosk_token';
-      
+
       final response = await http.get(
         Uri.parse('$baseUrl/surveys'),
         headers: {
@@ -105,7 +83,7 @@ class SurveyService {
     try {
       final token = _getAuthToken();
       final authToken = token ?? 'kiosk_token';
-      
+
       final response = await http.get(
         Uri.parse('$baseUrl/surveys/status'),
         headers: {
@@ -140,7 +118,7 @@ class SurveyService {
     try {
       final token = _getAuthToken();
       final authToken = token ?? 'kiosk_token';
-      
+
       final response = await http.delete(
         Uri.parse('$baseUrl/surveys'),
         headers: {

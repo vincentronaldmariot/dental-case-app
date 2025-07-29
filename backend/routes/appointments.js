@@ -124,7 +124,7 @@ router.get('/', verifyPatient, async (req, res) => {
     }
 
     const countResult = await query(countQuery, countParams);
-    const totalCount = parseInt(countResult.rows[0].count);
+    const totalCount = parseInt(countResult.rows[0]?.count || 0);
 
     res.json({
       appointments: result.rows.map(appointment => ({

@@ -16,6 +16,7 @@ import './models/patient.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert'; // Added for jsonDecode
 import 'dart:async'; // Added for Timer
+import 'config/app_config.dart';
 
 class MainAppScreen extends StatefulWidget {
   const MainAppScreen({super.key});
@@ -35,30 +36,6 @@ class _MainAppScreenState extends State<MainAppScreen> {
     _loadInitialNotifications();
   }
 
-  Future<void> _loadInitialNotifications() async {
-    final patientId = UserStateManager().currentPatientId;
-    final token = UserStateManager().patientToken;
-
-    print('🔍 Loading initial notifications...');
-    print('🔍 Patient ID: "$patientId"');
-    print('🔍 Token: ${token != null ? "Present" : "NULL"}');
-    print('🔍 Current Patient: ${UserStateManager().currentPatient}');
-    print('🔍 Is Patient Logged In: ${UserStateManager().isPatientLoggedIn}');
-
-    if (token != null && patientId != 'guest') {
-      try {
-        await _notificationService.fetchNotifications(patientId, token);
-        print(
-            '✅ Initial notifications loaded: ${_notificationService.unreadCount} unread');
-      } catch (e) {
-        print('❌ Error loading initial notifications: $e');
-      }
-    } else {
-      print(
-          '❌ Cannot load notifications: token is null or patient ID is guest');
-    }
-  }
-
   @override
   void dispose() {
     _notificationService.removeListener(_onNotificationChanged);
@@ -66,11 +43,22 @@ class _MainAppScreenState extends State<MainAppScreen> {
   }
 
   void _onNotificationChanged() {
-    print('=== NOTIFICATION CHANGED ===');
-    print('Current unread count: ${_notificationService.unreadCount}');
     setState(() {
       // This will rebuild the UI when notifications change
     });
+  }
+
+  Future<void> _loadInitialNotifications() async {
+    final patientId = UserStateManager().currentPatientId;
+    final token = UserStateManager().patientToken;
+
+    if (token != null && patientId != 'guest') {
+      try {
+        await _notificationService.fetchNotifications(patientId, token);
+      } catch (e) {
+        // Silent fail for background notification loading
+      }
+    }
   }
 
   int _selectedIndex = 0;
@@ -147,9 +135,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
         Timer.periodic(const Duration(minutes: 2), (timer) {
       _checkForApprovalNotifications();
     });
-
-    final patientId = UserStateManager().currentPatientId;
-    print('DashboardScreen initState: patientId= [32m$patientId [0m');
   }
 
   @override
@@ -162,17 +147,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final patientId = UserStateManager().currentPatientId;
     if (patientId != 'guest') {
       try {
-        print('🔄 Fetching appointments from backend for Dashboard...');
         final backendAppointments = await ApiService.getAppointments(patientId);
         HistoryService().loadAppointmentsFromBackend(backendAppointments,
             patientId: patientId);
-        print('✅ Synced appointments for Dashboard');
         setState(() {}); // Refresh UI after loading
       } catch (e) {
-        print('❌ Error fetching appointments for Dashboard: $e');
+        // Show user-friendly error message
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content:
+                  const Text('Failed to load appointments. Please try again.'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
       }
-    } else {
-      print('❌ No valid patient ID, skipping backend appointment fetch');
     }
   }
 
@@ -183,15 +174,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final patientToken = UserStateManager().patientToken;
 
       if (patientId.isEmpty || patientToken == null || patientId == 'guest') {
-        print('❌ No valid patient ID or token for notification check');
         return;
       }
 
-      print('🔍 Checking for approval notifications...');
-
       final response = await http.get(
-        Uri.parse(
-            'http://localhost:3000/api/patients/$patientId/notifications'),
+        Uri.parse('${AppConfig.apiBaseUrl}/patients/$patientId/notifications'),
         headers: {
           'Authorization': 'Bearer $patientToken',
           'Content-Type': 'application/json',
@@ -213,16 +200,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
         }).toList();
 
         if (approvalNotifications.isNotEmpty) {
-          print(
-              '✅ Found ${approvalNotifications.length} recent approval notifications, refreshing appointments...');
           await _fetchAndSyncAppointments();
           setState(() {}); // Refresh UI
-        } else {
-          print('ℹ️ No recent approval notifications found');
         }
       }
     } catch (e) {
-      print('❌ Error checking for approval notifications: $e');
+      // Silent fail for background notification checks
+      // Don't show error to user for background operations
     }
   }
 
@@ -704,7 +688,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       'Making API call to mark notification as read');
                                   final response = await http.put(
                                     Uri.parse(
-                                        'http://localhost:3000/api/patients/$patientId/notifications/${notification.id}/read'),
+                                        '${AppConfig.apiBaseUrl}/patients/$patientId/notifications/${notification.id}/read'),
                                     headers: {
                                       'Authorization': 'Bearer $token',
                                       'Content-Type': 'application/json',
@@ -1938,56 +1922,6 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
 
   Future<void> _refreshAppointments() async {
     await _loadAppointmentsFromBackend();
-  }
-
-  // Check for approval notifications and refresh appointments if needed
-  Future<void> _checkForApprovalNotifications() async {
-    try {
-      final patientId = UserStateManager().currentPatientId;
-      final patientToken = UserStateManager().patientToken;
-
-      if (patientId.isEmpty || patientToken == null || patientId == 'guest') {
-        print('❌ No valid patient ID or token for notification check');
-        return;
-      }
-
-      print('🔍 Checking for approval notifications...');
-
-      final response = await http.get(
-        Uri.parse(
-            'http://localhost:3000/api/patients/$patientId/notifications'),
-        headers: {
-          'Authorization': 'Bearer $patientToken',
-          'Content-Type': 'application/json',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final notifications = data['notifications'] ?? [];
-
-        // Check if there are any recent approval notifications
-        final approvalNotifications = notifications.where((notification) {
-          final type = notification['type'] ?? '';
-          final createdAt = notification['created_at'];
-          final isRecent = createdAt != null &&
-              DateTime.parse(createdAt)
-                  .isAfter(DateTime.now().subtract(const Duration(hours: 1)));
-          return type == 'appointment_approved' && isRecent;
-        }).toList();
-
-        if (approvalNotifications.isNotEmpty) {
-          print(
-              '✅ Found ${approvalNotifications.length} recent approval notifications, refreshing appointments...');
-          await _refreshAppointments();
-          setState(() {}); // Refresh UI
-        } else {
-          print('ℹ️ No recent approval notifications found');
-        }
-      }
-    } catch (e) {
-      print('❌ Error checking for approval notifications: $e');
-    }
   }
 
   Widget _buildUserStatusBanner(BuildContext context) {

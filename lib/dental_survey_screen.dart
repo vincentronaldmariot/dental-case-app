@@ -1231,61 +1231,60 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
           'missing_tooth_conditions': _missingToothConditions,
         };
 
-        // Import survey service
-        final surveyService = SurveyService();
-        print('Submitting survey data: ${surveyData.keys.toList()}');
-        final result = await surveyService.submitSurvey(surveyData);
-        print('Survey submission result: $result');
+        // Get token for survey submission
+        String? token;
+        if (widget.isKioskMode) {
+          // Use kiosk token for kiosk mode
+          token = 'kiosk_token';
+        } else {
+          // Get patient token for normal mode
+          token = UserStateManager().patientToken;
+        }
+
+        if (token == null) {
+          throw Exception('Authentication token not available');
+        }
+
+        // Submit survey using static method
+        final result = await SurveyService.submitSurvey(surveyData, token);
 
         // Close loading dialog
         Navigator.pop(context);
 
-        if (result['success']) {
-          // Mark survey as completed
-          UserStateManager().completeSurvey();
+        // Mark survey as completed
+        UserStateManager().completeSurvey();
 
-          // Show success message
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(result['message'] ??
-                  'Health assessment completed! You can now book appointments.'),
-              backgroundColor: const Color(0xFF005800),
-              duration: const Duration(seconds: 3),
-            ),
-          );
+        // Show success message
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+                'Health assessment completed! You can now book appointments.'),
+            backgroundColor: Color(0xFF005800),
+            duration: Duration(seconds: 3),
+          ),
+        );
 
-          // Handle navigation based on mode
-          if (widget.isKioskMode) {
-            // Generate receipt number using daily counter
-            final receiptCounterService = ReceiptCounterService();
-            final dailyNumber =
-                await receiptCounterService.getNextReceiptNumber();
-            final receiptNumber = 'SRV-$dailyNumber';
+        // Handle navigation based on mode
+        if (widget.isKioskMode) {
+          // Generate receipt number using daily counter
+          final receiptCounterService = ReceiptCounterService();
+          final dailyNumber =
+              await receiptCounterService.getNextReceiptNumber();
+          final receiptNumber = 'SRV-$dailyNumber';
 
-            // Navigate to receipt screen for kiosk mode
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                builder: (context) => KioskReceiptScreen(
-                  surveyData: surveyData,
-                  receiptNumber: receiptNumber,
-                ),
+          // Navigate to receipt screen for kiosk mode
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => KioskReceiptScreen(
+                surveyData: surveyData,
+                receiptNumber: receiptNumber,
               ),
-            );
-          } else {
-            // Navigate back for normal mode
-            Navigator.pop(context);
-          }
-        } else {
-          // Show error message
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(result['message'] ??
-                  'Failed to save survey. Please try again.'),
-              backgroundColor: Colors.red,
-              duration: const Duration(seconds: 4),
             ),
           );
+        } else {
+          // Navigate back for normal mode
+          Navigator.pop(context);
         }
       } catch (e) {
         // Close loading dialog
@@ -1294,7 +1293,7 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
         // Show error message
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: ${e.toString()}'),
+            content: Text('Failed to save survey: ${e.toString()}'),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 4),
           ),

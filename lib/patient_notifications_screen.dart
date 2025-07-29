@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'config/app_config.dart';
 
 class PatientNotificationsScreen extends StatefulWidget {
   final String patientId;
@@ -32,73 +33,66 @@ class _PatientNotificationsScreenState
 
   Future<void> _loadNotifications() async {
     try {
-      print('🔍 Loading notifications for patient: ${widget.patientId}');
-      print('🔍 Using token: ${widget.patientToken.substring(0, 20)}...');
-
       final response = await http.get(
         Uri.parse(
-            'http://localhost:3000/api/patients/${widget.patientId}/notifications'),
+            '${AppConfig.apiBaseUrl}/patients/${widget.patientId}/notifications'),
         headers: {
           'Authorization': 'Bearer ${widget.patientToken}',
           'Content-Type': 'application/json',
         },
       );
 
-      print('🔍 Notifications response status: ${response.statusCode}');
-      print('🔍 Notifications response body: ${response.body}');
-
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
+        final notifications = data['notifications'] ?? [];
+
         setState(() {
-          _notifications = data['notifications'] ?? [];
-          _isLoading = false;
+          _notifications = notifications;
         });
-        print('✅ Loaded ${_notifications.length} notifications');
-        int unreadInList = 0;
-        for (var notification in _notifications) {
-          if (!(notification['isRead'] ?? false)) {
-            unreadInList++;
-          }
-        }
-        print('✅ Unread notifications in list: $unreadInList');
+
+        final unreadInList =
+            _notifications.where((n) => n['read'] == false).length;
+        await _loadUnreadCount();
       } else {
-        print('❌ Error response: ${response.statusCode} - ${response.body}');
-        throw Exception(
-            'Failed to load notifications: ${response.statusCode} - ${response.body}');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content:
+                  Text('Failed to load notifications: ${response.statusCode}'),
+              backgroundColor: Colors.red,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
       }
     } catch (e) {
-      print('❌ Exception loading notifications: $e');
-      setState(() {
-        _isLoading = false;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error loading notifications: ${e.toString()}'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading notifications: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
     }
   }
 
   Future<void> _loadUnreadCount() async {
     try {
-      print('Loading unread count for patient: ${widget.patientId}');
       final response = await http.get(
         Uri.parse(
-            'http://localhost:3000/api/patients/${widget.patientId}/notifications/unread-count'),
+            '${AppConfig.apiBaseUrl}/patients/${widget.patientId}/notifications/unread-count'),
         headers: {
           'Authorization': 'Bearer ${widget.patientToken}',
           'Content-Type': 'application/json',
         },
       );
-      print('Unread count API Response Status: ${response.statusCode}');
-      print('Unread count API Response Body: ${response.body}');
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         setState(() {
           _unreadCount = data['unreadCount'] ?? 0;
         });
-        print('Set unread count to: $_unreadCount');
       }
     } catch (e) {
       print('Error loading unread count: $e');
@@ -109,7 +103,7 @@ class _PatientNotificationsScreenState
     try {
       final response = await http.put(
         Uri.parse(
-            'http://localhost:3000/api/patients/${widget.patientId}/notifications/$notificationId/read'),
+            '${AppConfig.apiBaseUrl}/patients/${widget.patientId}/notifications/$notificationId/read'),
         headers: {
           'Authorization': 'Bearer ${widget.patientToken}',
           'Content-Type': 'application/json',
@@ -154,7 +148,6 @@ class _PatientNotificationsScreenState
 
   @override
   Widget build(BuildContext context) {
-    print('Building PatientNotificationsScreen');
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
@@ -185,7 +178,6 @@ class _PatientNotificationsScreenState
           IconButton(
             icon: const Icon(Icons.refresh, color: Colors.white),
             onPressed: () {
-              print('Refresh button tapped');
               _loadNotifications();
               _loadUnreadCount();
             },

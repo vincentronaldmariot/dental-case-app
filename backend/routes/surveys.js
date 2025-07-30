@@ -86,7 +86,7 @@ router.post('/', async (req, res, next) => {
     console.log('Attempting to save survey for patient:', patientId);
     console.log('Survey data to save:', JSON.stringify(completeSurvey, null, 2));
 
-    // First, try to create the table if it doesn't exist
+    // First, try to create the table if it doesn't exist and ensure all columns exist
     try {
       await query(`
         CREATE TABLE IF NOT EXISTS dental_surveys (
@@ -99,6 +99,49 @@ router.post('/', async (req, res, next) => {
         );
       `);
       console.log('✅ dental_surveys table ensured to exist');
+      
+      // Check and add missing columns if table already existed
+      try {
+        // Check if updated_at column exists
+        const columnExists = await query(`
+          SELECT EXISTS (
+            SELECT FROM information_schema.columns 
+            WHERE table_schema = 'public' 
+            AND table_name = 'dental_surveys' 
+            AND column_name = 'updated_at'
+          );
+        `);
+        
+        if (!columnExists.rows[0].exists) {
+          console.log('🔧 Adding missing updated_at column...');
+          await query(`
+            ALTER TABLE dental_surveys 
+            ADD COLUMN updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;
+          `);
+          console.log('✅ updated_at column added');
+        }
+        
+        // Check if created_at column exists
+        const createdAtExists = await query(`
+          SELECT EXISTS (
+            SELECT FROM information_schema.columns 
+            WHERE table_schema = 'public' 
+            AND table_name = 'dental_surveys' 
+            AND column_name = 'created_at'
+          );
+        `);
+        
+        if (!createdAtExists.rows[0].exists) {
+          console.log('🔧 Adding missing created_at column...');
+          await query(`
+            ALTER TABLE dental_surveys 
+            ADD COLUMN created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP;
+          `);
+          console.log('✅ created_at column added');
+        }
+      } catch (columnError) {
+        console.error('❌ Failed to add missing columns:', columnError);
+      }
     } catch (tableError) {
       console.error('❌ Failed to create table:', tableError);
     }

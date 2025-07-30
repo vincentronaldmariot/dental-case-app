@@ -81,7 +81,9 @@ router.get('/emergency-records', verifyAdmin, async (req, res) => {
     let queryText = `
       SELECT 
         er.id, er.patient_id, er.emergency_date, er.emergency_type, 
-        er.description, er.severity, er.resolved, er.status, er.priority,
+        er.description, er.severity, er.resolved, 
+        COALESCE(er.status, 'reported') as status,
+        COALESCE(er.priority, 'standard') as priority,
         er.handled_by, er.resolution, er.follow_up_required, er.resolved_at,
         er.emergency_contact, er.notes, er.created_at,
         p.first_name, p.last_name, p.email, p.phone
@@ -93,7 +95,7 @@ router.get('/emergency-records', verifyAdmin, async (req, res) => {
     let paramCount = 0;
 
     if (exclude_resolved === 'true') {
-      queryText += ` WHERE er.status != 'resolved'`;
+      queryText += ` WHERE COALESCE(er.status, 'reported') != 'resolved'`;
     }
 
     queryText += ` ORDER BY er.emergency_date DESC LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}`;
@@ -112,7 +114,7 @@ router.get('/emergency-records', verifyAdmin, async (req, res) => {
       description: record.description,
       severity: record.severity,
       status: record.status || 'reported',
-      priority: record.priority || 'medium',
+      priority: record.priority || 'standard',
       handledBy: record.handled_by,
       resolution: record.resolution,
       followUpRequired: record.follow_up_required,
@@ -145,7 +147,9 @@ router.get('/emergency', verifyAdmin, async (req, res) => {
     let queryText = `
       SELECT 
         er.id, er.patient_id, er.emergency_date, er.emergency_type, 
-        er.description, er.severity, er.resolved, er.status, er.priority,
+        er.description, er.severity, er.resolved, 
+        COALESCE(er.status, 'reported') as status,
+        COALESCE(er.priority, 'standard') as priority,
         er.handled_by, er.resolution, er.follow_up_required, er.resolved_at,
         er.emergency_contact, er.notes, er.created_at,
         p.first_name, p.last_name, p.email, p.phone
@@ -154,7 +158,7 @@ router.get('/emergency', verifyAdmin, async (req, res) => {
     `;
     
     if (exclude_resolved === 'true') {
-      queryText += ` WHERE er.status != 'resolved'`;
+      queryText += ` WHERE COALESCE(er.status, 'reported') != 'resolved'`;
     }
 
     queryText += ` ORDER BY er.emergency_date DESC`;
@@ -172,7 +176,7 @@ router.get('/emergency', verifyAdmin, async (req, res) => {
       description: record.description,
       severity: record.severity,
       status: record.status || 'reported',
-      priority: record.priority || 'medium',
+      priority: record.priority || 'standard',
       handledBy: record.handled_by,
       resolution: record.resolution,
       followUpRequired: record.follow_up_required,

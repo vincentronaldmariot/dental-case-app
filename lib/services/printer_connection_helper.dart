@@ -1,103 +1,138 @@
 import 'package:flutter/material.dart';
-// import 'package:blue_thermal_printer/blue_thermal_printer.dart';  // Temporarily commented out
+import 'package:flutter/foundation.dart';
+import 'dart:io';
 
 class PrinterConnectionHelper {
-  // static final BlueThermalPrinter bluetooth = BlueThermalPrinter.instance;  // Temporarily commented out
-  // static BluetoothDevice? connectedDevice;  // Temporarily commented out
   static bool isConnected = false;
+  static String? connectedDeviceName;
 
-  /// Gets list of paired Bluetooth devices
-  // static Future<List<BluetoothDevice>> getPairedDevices() async {
-  //   try {
-  //     return await bluetooth.getBondedDevices();
-  //   } catch (e) {
-  //     print('Error getting paired devices: $e');
-  //     return [];
-  //   }
-  // }
+  static Future<List<Map<String, String>>> getPairedDevices() async {
+    if (kIsWeb || (!Platform.isAndroid && !Platform.isIOS)) {
+      return [];
+    }
 
-  /// Connects to a specific Bluetooth device
-  // static Future<bool> connectToDevice(BluetoothDevice device) async {
-  //   try {
-  //     await bluetooth.connect(device);
-  //     connectedDevice = device;
-  //     isConnected = true;
-  //     return true;
-  //   } catch (e) {
-  //     print('Error connecting to device: $e');
-  //     return false;
-  //   }
-  // }
+    // Simulate device discovery
+    await Future.delayed(const Duration(seconds: 1));
 
-  /// Shows a dialog to select a Bluetooth device
-  // static Future<BluetoothDevice?> showDeviceSelectionDialog(
-  //     BuildContext context) async {
-  //   final devices = await getPairedDevices();
-  //   if (devices.isEmpty) {
-  //     showDialog(
-  //       context: context,
-  //       builder: (context) => AlertDialog(
-  //         title: const Text('No Devices Found'),
-  //         content: const Text(
-  //             'No paired Bluetooth devices found. Please pair your thermal printer first.'),
-  //         actions: [
-  //           TextButton(
-  //             onPressed: () => Navigator.of(context).pop(),
-  //             child: const Text('OK'),
-  //           ),
-  //         ],
-  //       ),
-  //     );
-  //     return null;
-  //   }
+    // Return simulated devices for testing
+    return [
+      {'name': 'Thermal Printer 001', 'address': '00:11:22:33:44:55'},
+      {'name': 'Receipt Printer', 'address': 'AA:BB:CC:DD:EE:FF'},
+    ];
+  }
 
-  //   return showDialog<BluetoothDevice>(
-  //     context: context,
-  //     builder: (context) => AlertDialog(
-  //       title: const Text('Select Printer'),
-  //       content: SizedBox(
-  //         width: double.maxFinite,
-  //         child: ListView.builder(
-  //           shrinkWrap: true,
-  //           itemCount: devices.length,
-  //           itemBuilder: (context, index) {
-  //             final device = devices[index];
-  //             return ListTile(
-  //               title: Text(device.name ?? 'Unknown Device'),
-  //               subtitle: Text(device.address),
-  //               onTap: () => Navigator.of(context).pop(device),
-  //             );
-  //           },
-  //         ),
-  //       ),
-  //       actions: [
-  //         TextButton(
-  //           onPressed: () => Navigator.of(context).pop(),
-  //           child: const Text('Cancel'),
-  //         ),
-  //       ],
-  //     ),
-  //   );
-  // }
+  static Future<bool> connectToDevice(Map<String, String> device) async {
+    if (kIsWeb || (!Platform.isAndroid && !Platform.isIOS)) {
+      return false;
+    }
 
-  /// Connects to the first available device or shows device selection dialog
-  static Future<bool> connectToFirstAvailableOrShowDialog(
+    try {
+      // Simulate connection delay
+      await Future.delayed(const Duration(seconds: 2));
+      connectedDeviceName = device['name'];
+      isConnected = true;
+      return true;
+    } catch (e) {
+      print('Error connecting to device: $e');
+      isConnected = false;
+      return false;
+    }
+  }
+
+  static Future<Map<String, String>?> showDeviceSelectionDialog(
       BuildContext context) async {
-    // Placeholder implementation
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Printer Connection'),
-        content: const Text(
-            'Thermal printer connection is temporarily unavailable.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
+    if (kIsWeb || (!Platform.isAndroid && !Platform.isIOS)) {
+      return null;
+    }
+
+    try {
+      final devices = await getPairedDevices();
+      if (devices.isEmpty) {
+        return null;
+      }
+
+      return await showDialog<Map<String, String>>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Select Printer'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: devices.length,
+              itemBuilder: (context, index) {
+                final device = devices[index];
+                return ListTile(
+                  leading: const Icon(Icons.print),
+                  title: Text(device['name'] ?? 'Unknown Device'),
+                  subtitle: Text(device['address'] ?? 'Unknown Address'),
+                  onTap: () => Navigator.of(context).pop(device),
+                );
+              },
+            ),
           ),
-        ],
-      ),
-    );
-    return false;
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+          ],
+        ),
+      );
+    } catch (e) {
+      print('Error showing device selection dialog: $e');
+      return null;
+    }
+  }
+
+  static Future<bool> connectToFirstAvailableOrShowDialog(
+      BuildContext? context) async {
+    if (kIsWeb || (!Platform.isAndroid && !Platform.isIOS)) {
+      return false;
+    }
+
+    try {
+      final devices = await getPairedDevices();
+
+      if (devices.isEmpty) {
+        if (context != null) {
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('No Printers Found'),
+              content: const Text(
+                'No paired Bluetooth thermal printers found. '
+                'Please pair a thermal printer with this device first.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('OK'),
+                ),
+              ],
+            ),
+          );
+        }
+        return false;
+      }
+
+      if (devices.length == 1) {
+        // Auto-connect to the only available device
+        return await connectToDevice(devices.first);
+      }
+
+      if (context != null) {
+        // Show selection dialog for multiple devices
+        final selectedDevice = await showDeviceSelectionDialog(context);
+        if (selectedDevice != null) {
+          return await connectToDevice(selectedDevice);
+        }
+      }
+
+      return false;
+    } catch (e) {
+      print('Error connecting to first available device: $e');
+      return false;
+    }
   }
 }

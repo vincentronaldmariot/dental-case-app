@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/patient.dart';
 import '../config/app_config.dart';
+import '../user_state_manager.dart';
 
 class ApiService {
   // Use configuration for server URL
@@ -114,6 +115,25 @@ class ApiService {
 
     if (_token != null) {
       headers['Authorization'] = 'Bearer $_token';
+    }
+
+    return headers;
+  }
+
+  // Get headers with patient authentication
+  static Map<String, String> _getPatientHeaders() {
+    final headers = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    };
+
+    final patientToken = UserStateManager().patientToken;
+    print('🔑 Patient token: ${patientToken != null ? 'present' : 'null'}');
+    if (patientToken != null) {
+      headers['Authorization'] = 'Bearer $patientToken';
+      print('🔑 Using patient token for authentication');
+    } else {
+      print('⚠️ No patient token available');
     }
 
     return headers;
@@ -328,6 +348,8 @@ class ApiService {
         final user = data['admin'] ?? data['user'] ?? {};
         user['type'] = 'admin';
         await _storeToken(token);
+        print(
+            '✅ Admin token stored in ApiService: ${token != null ? 'present' : 'null'}');
         return {
           'token': token,
           'user': user,
@@ -349,7 +371,8 @@ class ApiService {
         final token = data['token'];
         final user = data['patient'] ?? data['user'] ?? {};
         user['type'] = 'patient';
-        await _storeToken(token);
+        // Don't store patient token in API service - it should be stored in UserStateManager
+        // await _storeToken(token);
         return {
           'token': token,
           'user': user,
@@ -392,7 +415,7 @@ class ApiService {
 
       final response = await http.get(
         Uri.parse('$baseUrl/patients/profile'),
-        headers: _headers,
+        headers: _getPatientHeaders(),
       );
 
       print('Get patient response status: ${response.statusCode}');
@@ -433,7 +456,7 @@ class ApiService {
 
       final response = await http.post(
         Uri.parse('$baseUrl/surveys'),
-        headers: _headers,
+        headers: _getPatientHeaders(),
         body: json.encode({
           'surveyData': surveyData,
         }),
@@ -475,7 +498,7 @@ class ApiService {
 
       final response = await http.get(
         Uri.parse('$baseUrl/surveys'),
-        headers: _headers,
+        headers: _getPatientHeaders(),
       );
 
       print('Get survey response status: ${response.statusCode}');
@@ -553,7 +576,7 @@ class ApiService {
 
       final response = await http.post(
         Uri.parse('$baseUrl/appointments'),
-        headers: _headers,
+        headers: _getPatientHeaders(),
         body: json.encode({
           'service': appointmentData['service'],
           'appointmentDate':
@@ -599,7 +622,7 @@ class ApiService {
 
         final response = await http.post(
           Uri.parse('$baseUrl/appointments'),
-          headers: _headers,
+          headers: _getPatientHeaders(),
           body: json.encode({
             'service': appointmentData['service'],
             'appointmentDate':
@@ -657,6 +680,10 @@ class ApiService {
   static Future<List<Map<String, dynamic>>> getAppointments(
       String patientId) async {
     print('🌐 ApiService.getAppointments called - Offline mode: $_offlineMode');
+    print('🔑 Current patient ID: $patientId');
+    print(
+        '🔑 Patient token available: ${UserStateManager().patientToken != null}');
+
     if (_offlineMode) {
       // Offline mode - return empty list instead of mock data
       print('📱 Offline mode: returning empty appointment list');
@@ -667,41 +694,139 @@ class ApiService {
       print('Getting appointments for patient: $patientId');
 
       final response = await http.get(
-        Uri.parse('$baseUrl/appointments'),
-        headers: _headers,
+        Uri.parse('$baseUrl/patients/$patientId/history'),
+        headers: _getPatientHeaders(),
       );
 
       print('Get appointments response status: ${response.statusCode}');
+      print('Get appointments response body: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        final appointments = data['appointments'] as List;
+        print('📊 Parsed response data: $data');
+        final history = data['history'];
+        final appointments = history['appointments'] as List;
 
         print('📊 Backend returned ${appointments.length} appointments');
         for (int i = 0; i < appointments.length; i++) {
           final apt = appointments[i];
           print(
-              '   Appointment $i: ID=${apt['id']}, PatientID=${apt['patientId']}, Status=${apt['status']}, Service=${apt['service']}');
+              '   Appointment $i: ID=${apt['id']}, Status=${apt['status']}, Service=${apt['service']}');
         }
 
         return appointments
             .map((apt) => {
                   'id': apt['id'],
-                  'patient_id': apt['patientId'],
+                  'patient_id': patientId,
                   'service': apt['service'],
-                  'appointment_date': apt['appointmentDate'],
+                  'date': apt['date'],
                   'time_slot': apt['timeSlot'],
                   'status': apt['status'],
                   'notes': apt['notes'],
                   'created_at': apt['createdAt'],
                 })
             .toList();
+      } else if (response.statusCode == 500) {
+        // Fallback: Try to get appointments through admin endpoint
+        print('⚠️ Patient history endpoint failed, trying fallback method...');
+        return await _getAppointmentsFallback(patientId);
       } else {
         _handleError(response);
         return [];
       }
     } catch (e) {
       print('Get appointments error: $e');
+      // Try fallback method on any error
+      print('⚠️ Trying fallback method due to error...');
+      return await _getAppointmentsFallback(patientId);
+    }
+  }
+
+  /// Fallback method to get appointments when patient history fails
+  static Future<List<Map<String, dynamic>>> _getAppointmentsFallback(
+      String patientId) async {
+    try {
+      print('🔄 Using fallback method to get appointments...');
+
+      // Try to get notifications to infer appointments
+      final notificationsResponse = await http.get(
+        Uri.parse('$baseUrl/patients/$patientId/notifications'),
+        headers: _getPatientHeaders(),
+      );
+
+      List<Map<String, dynamic>> allAppointments = [];
+
+      if (notificationsResponse.statusCode == 200) {
+        final notificationsData = json.decode(notificationsResponse.body);
+        final notifications = notificationsData['notifications'] as List? ?? [];
+
+        print('📋 Found ${notifications.length} notifications');
+
+        // Look for approval notifications to infer approved appointments
+        final appointmentNotifications = notifications.where((notification) {
+          return notification['type'] == 'appointment_approved' ||
+              notification['type'] == 'appointment_completed';
+        }).toList();
+
+        print(
+            '✅ Found ${appointmentNotifications.length} appointment notifications');
+
+        // Convert appointment notifications to appointment data
+        for (final notification in appointmentNotifications) {
+          final message = notification['message'] as String;
+
+          // Parse appointment details from notification message
+          // Example: "Your appointment for Teeth Whitening on 8/1/2025 at 08:00 AM has been approved!"
+          final serviceRegex = RegExp(r'for (.+?) on');
+          final dateRegex = RegExp(r'on (\d{1,2}/\d{1,2}/\d{4})');
+          final timeRegex = RegExp(r'at (\d{1,2}:\d{2}(?: [AP]M)?)');
+
+          final serviceMatch = serviceRegex.firstMatch(message);
+          final dateMatch = dateRegex.firstMatch(message);
+          final timeMatch = timeRegex.firstMatch(message);
+
+          if (serviceMatch != null && dateMatch != null) {
+            final service = serviceMatch.group(1);
+            final dateStr = dateMatch.group(1);
+            final timeSlot = timeMatch != null ? timeMatch.group(1) : '';
+
+            // Parse date
+            if (dateStr != null) {
+              final dateParts = dateStr.split('/');
+              final month = int.parse(dateParts[0]);
+              final day = int.parse(dateParts[1]);
+              final year = int.parse(dateParts[2]);
+              final date = DateTime(year, month, day);
+
+              // Determine status based on notification type
+              String appointmentStatus = 'approved'; // default
+              if (notification['type'] == 'appointment_completed') {
+                appointmentStatus = 'completed';
+              }
+
+              allAppointments.add({
+                'id': 'inferred_${notification['id']}',
+                'patient_id': patientId,
+                'service': service,
+                'date': date.toIso8601String(),
+                'time_slot': timeSlot,
+                'status': appointmentStatus,
+                'notes': '',
+                'created_at': notification['createdAt'],
+              });
+
+              print(
+                  '✅ Inferred appointment: $service on $dateStr at $timeSlot');
+            }
+          }
+        }
+      }
+
+      print(
+          '🔄 Fallback method completed, total appointments: ${allAppointments.length}');
+      return allAppointments;
+    } catch (e) {
+      print('❌ Fallback method also failed: $e');
       return [];
     }
   }
@@ -709,15 +834,43 @@ class ApiService {
   /// Admin: Get appointments for a patient
   static Future<List<Map<String, dynamic>>> getAppointmentsAsAdmin(
       String patientId) async {
+    print('🔍 getAppointmentsAsAdmin called for patientId: $patientId');
+
+    // Get admin token from UserStateManager (where it's actually stored)
+    final adminToken = UserStateManager().adminToken;
+    print(
+        '🔑 Admin token from UserStateManager: ${adminToken != null ? 'present' : 'null'}');
+
+    if (adminToken == null) {
+      print('❌ No admin token available');
+      throw Exception('Admin token not available. Please log in again.');
+    }
+
+    final headers = {
+      'Authorization': 'Bearer $adminToken',
+      'Content-Type': 'application/json',
+    };
+
+    print('🔑 Using headers: $headers');
+
     final response = await http.get(
       Uri.parse(
           '${AppConfig.apiBaseUrl}/admin/patients/$patientId/appointments'),
-      headers: _headers,
+      headers: headers,
     );
+
+    print('📊 Response status: ${response.statusCode}');
+    print('📊 Response body: ${response.body}');
+
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
-      return List<Map<String, dynamic>>.from(data['appointments'] ?? []);
+      final appointments =
+          List<Map<String, dynamic>>.from(data['appointments'] ?? []);
+      print('✅ Successfully fetched ${appointments.length} appointments');
+      return appointments;
     } else {
+      print(
+          '❌ Failed to fetch appointments: ${response.statusCode} - ${response.body}');
       throw Exception(
           'Failed to fetch appointments as admin: ${response.body}');
     }
@@ -726,9 +879,19 @@ class ApiService {
   /// Update appointment notes as admin
   static Future<void> updateAppointmentNotesAsAdmin(
       String appointmentId, String notes) async {
+    final adminToken = UserStateManager().adminToken;
+    if (adminToken == null) {
+      throw Exception('Admin token not available. Please log in again.');
+    }
+
+    final headers = {
+      'Authorization': 'Bearer $adminToken',
+      'Content-Type': 'application/json',
+    };
+
     final response = await http.put(
       Uri.parse('$baseUrl/admin/appointments/$appointmentId/update'),
-      headers: _headers,
+      headers: headers,
       body: json.encode({'notes': notes}),
     );
     if (response.statusCode != 200) {
@@ -739,9 +902,19 @@ class ApiService {
   /// Cancel appointment as admin with note
   static Future<void> cancelAppointmentAsAdmin(
       String appointmentId, String note) async {
+    final adminToken = UserStateManager().adminToken;
+    if (adminToken == null) {
+      throw Exception('Admin token not available. Please log in again.');
+    }
+
+    final headers = {
+      'Authorization': 'Bearer $adminToken',
+      'Content-Type': 'application/json',
+    };
+
     final response = await http.post(
       Uri.parse('$baseUrl/admin/appointments/$appointmentId/cancel'),
-      headers: _headers,
+      headers: headers,
       body: json.encode({'note': note}),
     );
     if (response.statusCode != 200) {
@@ -752,9 +925,19 @@ class ApiService {
   /// Rebook appointment as admin (reschedule date/time/service)
   static Future<void> rebookAppointmentAsAdmin(String appointmentId,
       {String? service, String? date, String? timeSlot}) async {
+    final adminToken = UserStateManager().adminToken;
+    if (adminToken == null) {
+      throw Exception('Admin token not available. Please log in again.');
+    }
+
+    final headers = {
+      'Authorization': 'Bearer $adminToken',
+      'Content-Type': 'application/json',
+    };
+
     final response = await http.put(
       Uri.parse('$baseUrl/admin/appointments/$appointmentId/rebook'),
-      headers: _headers,
+      headers: headers,
       body: json.encode({
         if (service != null) 'service': service,
         if (date != null) 'date': date,
@@ -840,9 +1023,19 @@ class ApiService {
   static Future<List<Map<String, dynamic>>>
       getAllEmergencyRecordsAsAdmin() async {
     try {
+      final adminToken = UserStateManager().adminToken;
+      if (adminToken == null) {
+        throw Exception('Admin token not available. Please log in again.');
+      }
+
+      final headers = {
+        'Authorization': 'Bearer $adminToken',
+        'Content-Type': 'application/json',
+      };
+
       final response = await http.get(
         Uri.parse('$baseUrl/admin/emergency'),
-        headers: _headers,
+        headers: headers,
       );
 
       if (response.statusCode == 200) {
@@ -867,9 +1060,19 @@ class ApiService {
       String emergencyId, String status,
       {String? handledBy, String? resolution, String? notes}) async {
     try {
+      final adminToken = UserStateManager().adminToken;
+      if (adminToken == null) {
+        throw Exception('Admin token not available. Please log in again.');
+      }
+
+      final headers = {
+        'Authorization': 'Bearer $adminToken',
+        'Content-Type': 'application/json',
+      };
+
       final response = await http.put(
         Uri.parse('$baseUrl/admin/emergency/$emergencyId/status'),
-        headers: _headers,
+        headers: headers,
         body: json.encode({
           'status': status,
           if (handledBy != null) 'handledBy': handledBy,

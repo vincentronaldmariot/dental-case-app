@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'package:intl/intl.dart';
 import 'models/appointment.dart';
 import 'models/patient.dart';
 import 'models/treatment_record.dart';
@@ -99,6 +100,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
             '🔄 Appointments tab selected - refreshing pending appointments...');
         _fetchPendingAppointmentsWithSurvey();
         _loadApprovedAppointments();
+        setState(() {
+          // Trigger UI update after data refresh
+        });
+      } else if (_tabController.index == 2) {
+        // Approved tab (index 2)
+        print('🔄 Approved tab selected - refreshing approved appointments...');
+        _loadApprovedAppointments();
+        setState(() {
+          // Trigger UI update after data refresh
+        });
       }
     });
 
@@ -290,12 +301,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   Future<void> _fetchPendingAppointmentsWithSurvey() async {
     try {
       print('🔄 Starting to fetch pending appointments...');
+      print(
+          '🌐 Using API URL: ${AppConfig.apiBaseUrl}/admin/appointments/pending');
       final adminToken = await _getAdminToken();
       if (adminToken == null) {
         print('❌ Admin token not available for loading pending appointments');
         return;
       }
       print('✅ Admin token available');
+      print('🔑 Token preview: ${adminToken.substring(0, 20)}...');
 
       final response = await http.get(
         Uri.parse('${AppConfig.apiBaseUrl}/admin/appointments/pending'),
@@ -309,7 +323,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         print('📊 Raw response data type: ${data.runtimeType}');
-        print('📊 Raw response data: ${data.toString().substring(0, 200)}...');
+        print('📊 Raw response data: ${data.toString()}');
 
         List<dynamic> appointments = [];
 
@@ -330,12 +344,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
 
         setState(() {
           _pendingAppointments = appointments;
+          print(
+              '🔄 setState() called - updating UI with ${appointments.length} appointments');
         });
         print('✅ Loaded ${_pendingAppointments.length} pending appointments');
         for (var appointment in _pendingAppointments) {
           print(
               '📋 Appointment: ${appointment['patientName']} - ${appointment['service']} - ${appointment['id']}');
         }
+        print(
+            '🎯 UI should now display ${_pendingAppointments.length} pending appointments');
       } else {
         print('❌ Failed to load pending appointments: ${response.statusCode}');
         print('Response body: ${response.body}');
@@ -640,21 +658,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
             : null);
 
     // Format date for display
-    String formattedDate = 'Unknown';
+    String formattedDate = _formatDate(date);
     DateTime? parsedDate;
     if (date != null) {
       try {
         if (date is String) {
           parsedDate = DateTime.parse(date);
-          formattedDate =
-              '${parsedDate.year}-${parsedDate.month.toString().padLeft(2, '0')}-${parsedDate.day.toString().padLeft(2, '0')}';
         } else if (date is DateTime) {
           parsedDate = date;
-          formattedDate =
-              '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
         }
       } catch (e) {
-        formattedDate = date.toString();
+        // Keep formattedDate as set by _formatDate
       }
     }
 
@@ -1371,6 +1385,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
           // Clear approval notes
           _approvalNotes = '';
 
+          // Immediately remove the approved appointment from pending list
+          setState(() {
+            _pendingAppointments
+                .removeWhere((apt) => apt['id'] == appointment['id']);
+          });
+
           // Refresh data and switch tabs
           await _refreshAfterApproval();
 
@@ -1616,6 +1636,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       // Refresh approved appointments
       await _loadApprovedAppointments();
 
+      // Force a setState to update the UI immediately
+      setState(() {
+        // This will trigger a rebuild of the UI
+      });
+
       // Switch to Approved tab after data is refreshed
       if (_tabController.length > 2) {
         _tabController.animateTo(2); // Switch to Approved tab
@@ -1719,6 +1744,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
 
           // Clear rejection reason
           _rejectionReason = '';
+
+          // Immediately remove the rejected appointment from pending list
+          setState(() {
+            _pendingAppointments
+                .removeWhere((apt) => apt['id'] == appointment['id']);
+          });
 
           // Refresh data after rejection
           await _refreshAfterRejection();
@@ -2325,6 +2356,17 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                         ],
                       ),
                     ),
+                    IconButton(
+                      onPressed: () async {
+                        print('🔄 Manual refresh of pending appointments...');
+                        await _fetchPendingAppointmentsWithSurvey();
+                        setState(() {
+                          // Trigger UI update
+                        });
+                      },
+                      icon: const Icon(Icons.refresh, color: Colors.orange),
+                      tooltip: 'Refresh Pending Appointments',
+                    ),
                   ],
                 ),
                 if (_pendingAppointments.isNotEmpty) ...[
@@ -2466,9 +2508,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                         children: [
                           _buildInfoRow(
                               'Date',
-                              appointment['appointmentDate'] ??
-                                  appointment['date'] ??
-                                  'Unknown'),
+                              _formatDate(appointment['appointmentDate'] ??
+                                  appointment['date'])),
                           _buildInfoRow(
                               'Time', appointment['timeSlot'] ?? 'Unknown'),
                           _buildInfoRow('Classification',
@@ -2581,33 +2622,51 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     } else {
       return Column(
         children: [
-          // Search bar
+          // Search bar and refresh button
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-            child: TextField(
-              controller: _approvedSearchController,
-              decoration: InputDecoration(
-                hintText: 'Search approved by name, service, or status',
-                prefixIcon: const Icon(Icons.search),
-                border:
-                    OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                suffixIcon: _approvedSearchQuery.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear),
-                        onPressed: () {
-                          setState(() {
-                            _approvedSearchQuery = '';
-                            _approvedSearchController.clear();
-                          });
-                        },
-                      )
-                    : null,
-              ),
-              onChanged: (value) {
-                setState(() {
-                  _approvedSearchQuery = value;
-                });
-              },
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _approvedSearchController,
+                    decoration: InputDecoration(
+                      hintText: 'Search approved by name, service, or status',
+                      prefixIcon: const Icon(Icons.search),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8)),
+                      suffixIcon: _approvedSearchQuery.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear),
+                              onPressed: () {
+                                setState(() {
+                                  _approvedSearchQuery = '';
+                                  _approvedSearchController.clear();
+                                });
+                              },
+                            )
+                          : null,
+                    ),
+                    onChanged: (value) {
+                      setState(() {
+                        _approvedSearchQuery = value;
+                      });
+                    },
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  onPressed: () async {
+                    print('🔄 Manual refresh of approved appointments...');
+                    await _loadApprovedAppointments();
+                    setState(() {
+                      // Trigger UI update
+                    });
+                  },
+                  icon: const Icon(Icons.refresh, color: Colors.teal),
+                  tooltip: 'Refresh Approved Appointments',
+                ),
+              ],
             ),
           ),
           Expanded(
@@ -2646,7 +2705,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                                 Text(
                                     'Service: ${appointment['service'] ?? 'N/A'}'),
                                 Text(
-                                    'Date: ${appointment['appointmentDate'] ?? 'N/A'}'),
+                                    'Date: ${_formatDate(appointment['appointmentDate'])}'),
                                 Text(
                                     'Time: ${appointment['timeSlot'] ?? 'N/A'}'),
                                 Text(
@@ -3423,7 +3482,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     if (date == null) return 'N/A';
     try {
       DateTime dateTime = DateTime.parse(date.toString());
-      return '${dateTime.day}/${dateTime.month}/${dateTime.year}';
+      // Format to readable format (e.g., "July 31, 2025")
+      return DateFormat('MMMM d, yyyy').format(dateTime);
     } catch (e) {
       return date.toString();
     }
@@ -4180,11 +4240,18 @@ $allPatientsData
   Future<String?> _getAdminToken() async {
     // Try to get token from API service first (where it's actually stored)
     final apiToken = ApiService.currentToken;
+    print(
+        '🔑 ApiService.currentToken: ${apiToken != null ? 'present' : 'null'}');
     if (apiToken != null) {
+      print('✅ Using ApiService token');
       return apiToken;
     }
     // Fallback to UserStateManager
-    return UserStateManager().adminToken;
+    final userStateToken = UserStateManager().adminToken;
+    print(
+        '🔑 UserStateManager().adminToken: ${userStateToken != null ? 'present' : 'null'}');
+    print('✅ Using UserStateManager token');
+    return userStateToken;
   }
 
   Future<void> _sendEmergencyNotification(

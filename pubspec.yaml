@@ -41,7 +41,7 @@ dependencies:
   # qr_code_scanner: ^1.0.1  # Temporarily commented out due to compatibility issues
   printing: ^5.11.1
   pdf: ^3.10.7
-  # blue_thermal_printer: ^1.1.5  # Temporarily commented out due to compatibility issues
+  # blue_thermal_printer: ^1.1.5  # Temporarily commented out due to build issues
 
 dev_dependencies:
   flutter_test:

@@ -52,10 +52,11 @@ class _MainAppScreenState extends State<MainAppScreen> {
     final patientId = UserStateManager().currentPatientId;
     final token = UserStateManager().patientToken;
 
-    if (token != null && patientId != 'guest') {
+    if (token != null && patientId != 'guest' && patientId.isNotEmpty) {
       try {
         await _notificationService.fetchNotifications(patientId, token);
       } catch (e) {
+        print('⚠️ Initial notification load failed (non-critical): $e');
         // Silent fail for background notification loading
       }
     }
@@ -527,10 +528,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       print(
           '✅ Fetched notifications: ${NotificationService().notifications.length} total');
     } catch (e) {
-      print('❌ Error fetching notifications: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to load notifications: $e')),
-      );
+      print('⚠️ Error fetching notifications (non-critical): $e');
+      // Don't show error to user for notification failures
     }
 
     showModalBottomSheet(
@@ -615,7 +614,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           // Force rebuild of the modal
                           setState(() {});
                         } catch (e) {
-                          print('❌ Error refreshing notifications: $e');
+                          print(
+                              '⚠️ Error refreshing notifications (non-critical): $e');
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content:
@@ -677,15 +677,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             if (!notification.isRead) {
                               print(
                                   'Notification is unread, proceeding to mark as read');
+
+                              // Mark notification as read locally immediately for better UX
+                              NotificationService().markAsRead(notification.id);
+                              print('✅ Notification marked as read locally');
+                              print(
+                                  'New unread count: ${NotificationService().unreadCount}');
+
+                              // Try to update on server in background (non-blocking)
                               final patientId =
                                   UserStateManager().currentPatientId;
                               final token = UserStateManager().patientToken;
-                              print('Patient ID: $patientId');
-                              print('Token available: ${token != null}');
                               if (token != null) {
                                 try {
                                   print(
-                                      'Making API call to mark notification as read');
+                                      '🔄 Attempting to update notification on server...');
                                   final response = await http.put(
                                     Uri.parse(
                                         '${AppConfig.apiBaseUrl}/patients/$patientId/notifications/${notification.id}/read'),
@@ -696,27 +702,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   );
                                   print(
                                       'API Response Status: ${response.statusCode}');
-                                  print('API Response Body: ${response.body}');
                                   if (response.statusCode == 200) {
-                                    print(
-                                        'API call successful, updating notification locally');
-                                    // Update the notification using the service
-                                    NotificationService()
-                                        .markAsRead(notification.id);
-                                    print(
-                                        'Notification marked as read locally');
-                                    print(
-                                        'New unread count: ${NotificationService().unreadCount}');
+                                    print('✅ Server update successful');
                                   } else {
                                     print(
-                                        'API call failed with status: ${response.statusCode}');
+                                        '⚠️ Server update failed: ${response.statusCode}');
+                                    // Don't show error to user since local update worked
                                   }
                                 } catch (e) {
-                                  print(
-                                      'Error marking notification as read: $e');
+                                  print('⚠️ Server update failed: $e');
+                                  // Don't show error to user since local update worked
                                 }
-                              } else {
-                                print('No token available');
                               }
                             } else {
                               print(
@@ -787,8 +783,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
       );
 
-      // Refresh notifications
-      await NotificationService().fetchNotifications(patientId, token);
+      // Refresh notifications (handles errors gracefully)
+      try {
+        await NotificationService().fetchNotifications(patientId, token);
+      } catch (e) {
+        print('⚠️ Notification refresh failed (non-critical): $e');
+        // Don't show error to user for notification failures
+      }
 
       // Refresh survey status
       try {
@@ -1156,6 +1157,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 UserStateManager().currentPatientId;
                             final patient = UserStateManager().currentPatient;
                             final historyService = HistoryService();
+
+                            // First, try to refresh appointments from backend
+                            try {
+                              print(
+                                  '🔄 Refreshing appointments from backend...');
+                              print(
+                                  '🔑 Patient token check: ${UserStateManager().patientToken != null ? 'present' : 'null'}');
+                              print('🔑 Patient ID check: $patientId');
+                              final backendAppointments =
+                                  await ApiService.getAppointments(patientId);
+                              historyService.loadAppointmentsFromBackend(
+                                  backendAppointments,
+                                  patientId: patientId);
+                            } catch (e) {
+                              print('⚠️ Failed to refresh appointments: $e');
+                            }
+
+                            // Debug: Show all appointments first
+                            print(
+                                '🔍 DEBUG: Checking all appointments in HistoryService');
+                            historyService.debugShowAllAppointments();
+
                             // Assuming 'scheduled' means approved/accepted for patients
                             final approvedAppointments =
                                 historyService.getAppointmentsByStatus(

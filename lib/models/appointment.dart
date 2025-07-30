@@ -96,6 +96,8 @@ class Appointment {
         return AppointmentStatus.scheduled; // Map 'approved' to 'scheduled'
       case 'completed':
         return AppointmentStatus.completed;
+      case 'done':
+        return AppointmentStatus.completed; // Map 'done' to 'completed'
       case 'cancelled':
         return AppointmentStatus.cancelled;
       case 'missed':

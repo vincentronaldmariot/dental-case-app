@@ -323,15 +323,19 @@ router.get('/:id/notifications/unread-count', verifyToken, async (req, res) => {
 router.get('/:id/history', verifyToken, async (req, res) => {
   try {
     const patientId = req.params.id;
+    console.log('🔍 Patient history request for patient ID:', patientId);
+    console.log('🔍 User from token:', req.user);
     
     // Verify the token belongs to this patient
     if (req.user.id !== patientId) {
+      console.log('❌ Access denied: token user ID', req.user.id, 'does not match patient ID', patientId);
       return res.status(403).json({
         error: 'Access denied. You can only view your own history.'
       });
     }
 
     // Get patient's survey data
+    console.log('🔍 Fetching survey data for patient:', patientId);
     const surveyResult = await query(`
       SELECT id, survey_data, completed_at, updated_at
       FROM dental_surveys 
@@ -339,35 +343,54 @@ router.get('/:id/history', verifyToken, async (req, res) => {
       ORDER BY updated_at DESC
       LIMIT 1
     `, [patientId]);
+    console.log('📊 Survey result rows:', surveyResult.rows.length);
 
     // Get patient's appointments
+    console.log('🔍 Fetching appointments for patient:', patientId);
     const appointmentsResult = await query(`
-      SELECT id, service, date, time_slot, status, notes, created_at
+      SELECT id, service, appointment_date, time_slot, status, notes, created_at
       FROM appointments 
       WHERE patient_id = $1
-      ORDER BY date DESC
+      ORDER BY appointment_date DESC
       LIMIT 20
     `, [patientId]);
+    console.log('📊 Appointments result rows:', appointmentsResult.rows.length);
 
     // Get patient's treatment records (if they exist in database)
-    const treatmentResult = await query(`
-      SELECT id, treatment_type, description, treatment_date, 
-             procedures, notes, prescription, created_at
-      FROM treatment_records 
-      WHERE patient_id = $1
-      ORDER BY treatment_date DESC
-      LIMIT 20
-    `, [patientId]);
+    console.log('🔍 Fetching treatment records for patient:', patientId);
+    let treatmentResult = { rows: [] };
+    try {
+      treatmentResult = await query(`
+        SELECT id, treatment_type, description, treatment_date, 
+               procedures, notes, prescription, created_at
+        FROM treatment_records 
+        WHERE patient_id = $1
+        ORDER BY treatment_date DESC
+        LIMIT 20
+      `, [patientId]);
+    } catch (treatmentError) {
+      console.log('⚠️ Treatment records query failed:', treatmentError.message);
+      // Continue with empty treatment records
+    }
+    console.log('📊 Treatment records result rows:', treatmentResult.rows.length);
 
     // Get patient's emergency records
-    const emergencyResult = await query(`
-      SELECT id, type, priority, status, description, reported_at, 
-             pain_level, symptoms, location, handled_by, resolved_at, resolution
-      FROM emergency_records 
-      WHERE patient_id = $1
-      ORDER BY reported_at DESC
-      LIMIT 20
-    `, [patientId]);
+    console.log('🔍 Fetching emergency records for patient:', patientId);
+    let emergencyResult = { rows: [] };
+    try {
+      emergencyResult = await query(`
+        SELECT id, type, priority, status, description, reported_at, 
+               pain_level, symptoms, location, handled_by, resolved_at, resolution
+        FROM emergency_records 
+        WHERE patient_id = $1
+        ORDER BY reported_at DESC
+        LIMIT 20
+      `, [patientId]);
+    } catch (emergencyError) {
+      console.log('⚠️ Emergency records query failed:', emergencyError.message);
+      // Continue with empty emergency records
+    }
+    console.log('📊 Emergency records result rows:', emergencyResult.rows.length);
 
     const history = {
       patientId,
@@ -380,7 +403,7 @@ router.get('/:id/history', verifyToken, async (req, res) => {
       appointments: appointmentsResult.rows.map(apt => ({
         id: apt.id,
         service: apt.service,
-        date: apt.date,
+        date: apt.appointment_date,
         timeSlot: apt.time_slot,
         status: apt.status,
         notes: apt.notes,
@@ -412,12 +435,14 @@ router.get('/:id/history', verifyToken, async (req, res) => {
       }))
     };
 
+    console.log('✅ Successfully built history object for patient:', patientId);
     res.json({
       history
     });
 
   } catch (error) {
-    console.error('Get patient history error:', error);
+    console.error('❌ Get patient history error:', error);
+    console.error('❌ Error stack:', error.stack);
     res.status(500).json({
       error: 'Failed to retrieve patient history. Please try again.'
     });

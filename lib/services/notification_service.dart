@@ -66,8 +66,14 @@ class NotificationService extends ChangeNotifier {
   }
 
   Future<void> fetchNotifications(String patientId, String token) async {
-    if (patientId.isEmpty) {
+    if (patientId.isEmpty || patientId == 'null' || patientId == 'undefined') {
+      print('⚠️ Invalid patient ID: "$patientId"');
       throw Exception('Invalid patient ID: $patientId');
+    }
+
+    if (token.isEmpty || token == 'null' || token == 'undefined') {
+      print('⚠️ Invalid token: "$token"');
+      throw Exception('Invalid token: $token');
     }
 
     try {
@@ -81,27 +87,46 @@ class NotificationService extends ChangeNotifier {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
+        print('📋 Raw notification response: $data');
+
         final notifications = data['notifications'] ?? [];
+        print('📋 Found ${notifications.length} notifications');
 
         _notifications.clear();
         for (var n in notifications) {
-          _notifications.add(AppNotification(
-            id: n['id'].toString(),
-            title: n['title'],
-            message: n['message'],
-            type: NotificationType.appointment,
-            isRead: n['read'] == true,
-            createdAt: DateTime.parse(n['created_at']),
-          ));
+          try {
+            _notifications.add(AppNotification(
+              id: n['id']?.toString() ?? '',
+              title: n['title']?.toString() ?? '',
+              message: n['message']?.toString() ?? '',
+              type: NotificationType.appointment,
+              isRead: n['isRead'] == true || n['read'] == true,
+              createdAt: n['createdAt'] != null
+                  ? DateTime.parse(n['createdAt'].toString())
+                  : n['created_at'] != null
+                      ? DateTime.parse(n['created_at'].toString())
+                      : DateTime.now(),
+            ));
+          } catch (e) {
+            print('⚠️ Error parsing notification: $e');
+            print('⚠️ Notification data: $n');
+            // Skip invalid notifications
+            continue;
+          }
         }
         notifyListeners();
       } else {
+        print('❌ Failed to fetch notifications: ${response.statusCode}');
+        print('❌ Response body: ${response.body}');
         throw Exception(
           'Failed to fetch notifications: ${response.statusCode} - ${response.body}',
         );
       }
     } catch (e) {
-      throw Exception('Failed to fetch notifications: $e');
+      print('❌ Exception in fetchNotifications: $e');
+      // Don't throw the exception, just log it and continue with empty notifications
+      _notifications.clear();
+      notifyListeners();
     }
   }
 }

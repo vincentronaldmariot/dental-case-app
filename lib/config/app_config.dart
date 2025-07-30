@@ -6,7 +6,7 @@ class AppConfig {
   static const bool isOnlineMode = true; // Set to true for online server
 
   // Local development server (same WiFi network)
-  static const String localServerUrl = 'http://192.168.100.223:3000';
+  static const String localServerUrl = 'http://localhost:3000';
 
   // Online server (Railway deployment) - works from anywhere
   static const String onlineServerUrl =

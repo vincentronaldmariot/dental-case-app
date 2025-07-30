@@ -788,6 +788,24 @@ router.put('/appointments/:id/status', verifyAdmin, [
     const appointmentId = req.params.id;
     const { status, notes } = req.body;
 
+    // Get appointment details with patient info before updating
+    const appointmentResult = await query(`
+      SELECT 
+        a.id, a.service, a.appointment_date, a.time_slot, a.status as current_status,
+        p.first_name, p.last_name, p.email, p.phone
+      FROM appointments a
+      JOIN patients p ON a.patient_id = p.id
+      WHERE a.id = $1
+    `, [appointmentId]);
+
+    if (appointmentResult.rows.length === 0) {
+      return res.status(404).json({
+        error: 'Appointment not found'
+      });
+    }
+
+    const appointment = appointmentResult.rows[0];
+
     const result = await query(`
       UPDATE appointments 
       SET status = $1, notes = COALESCE($2, notes), updated_at = CURRENT_TIMESTAMP
@@ -801,15 +819,64 @@ router.put('/appointments/:id/status', verifyAdmin, [
       });
     }
 
-    const appointment = result.rows[0];
+    const updatedAppointment = result.rows[0];
+
+    // Send notification if status is changed to 'completed'
+    if (status === 'completed' && appointment.current_status !== 'completed') {
+      console.log('🔔 Starting completion notification creation...');
+      console.log(`Appointment ID: ${appointmentId}`);
+      console.log(`Patient Email: ${appointment.email}`);
+      
+      try {
+        // Get patient_id from appointment
+        const patientIdResult = await query('SELECT patient_id FROM appointments WHERE id = $1', [appointmentId]);
+        console.log('Patient ID query result:', patientIdResult.rows);
+        
+        if (patientIdResult.rows.length === 0) {
+          console.error('❌ No patient_id found for appointment:', appointmentId);
+        } else {
+          const patientId = patientIdResult.rows[0].patient_id;
+          console.log(`Found patient_id: ${patientId}`);
+          
+          const notificationMessage = `Your appointment for ${appointment.service} on ${new Date(appointment.appointment_date).toLocaleDateString()} at ${appointment.time_slot} has been completed. Thank you for choosing our dental services!`;
+          console.log('Notification message:', notificationMessage);
+          
+          const insertResult = await query(`
+            INSERT INTO notifications (patient_id, title, message, type, created_at)
+            VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
+            RETURNING id, title, message, type, created_at
+          `, [patientId, 'Appointment Completed', notificationMessage, 'appointment_completed']);
+          
+          // Keep only the 20 most recent notifications for this patient
+          await query(`
+            DELETE FROM notifications
+            WHERE id IN (
+              SELECT id FROM notifications
+              WHERE patient_id = $1
+              ORDER BY created_at DESC
+              OFFSET 20
+            )
+          `, [patientId]);
+          
+          console.log('✅ Completion notification created successfully:');
+          console.log(JSON.stringify(insertResult.rows[0], null, 2));
+          console.log(`✅ Notification created for ${appointment.email}: Appointment completed`);
+        }
+      } catch (notificationError) {
+        console.error('❌ Failed to create completion notification:', notificationError);
+        console.error('Error details:', notificationError.message);
+        console.error('Error stack:', notificationError.stack);
+        // Don't fail the whole request if notification creation fails
+      }
+    }
 
     res.json({
       message: 'Appointment status updated successfully',
       appointment: {
-        id: appointment.id,
-        status: appointment.status,
-        notes: appointment.notes,
-        updatedAt: appointment.updated_at
+        id: updatedAppointment.id,
+        status: updatedAppointment.status,
+        notes: updatedAppointment.notes,
+        updatedAt: updatedAppointment.updated_at
       }
     });
 

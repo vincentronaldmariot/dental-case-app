@@ -132,13 +132,22 @@ class HistoryService {
       {String? patientId}) async {
     try {
       final targetPatientId = patientId ?? UserStateManager().currentPatientId;
+      print(
+          '🔄 Loading appointments from backend for patient: $targetPatientId');
+      print('📊 Backend appointments count: ${backendAppointments.length}');
 
       // Clear existing appointments for this patient
+      final beforeCount = _appointments.length;
       _appointments.removeWhere((apt) => apt.patientId == targetPatientId);
+      final afterClearCount = _appointments.length;
+      print(
+          '🧹 Cleared ${beforeCount - afterClearCount} existing appointments');
 
       // Convert backend data to Appointment objects
       for (final aptData in backendAppointments) {
         try {
+          print(
+              '📋 Processing appointment: ${aptData['id']} - ${aptData['status']} - ${aptData['service']}');
           final appointment = Appointment(
             id: aptData['id']?.toString() ?? '',
             patientId: aptData['patient_id']?.toString() ?? targetPatientId,
@@ -149,12 +158,20 @@ class HistoryService {
             notes: aptData['notes']?.toString() ?? '',
           );
           _appointments.add(appointment);
+          print(
+              '✅ Added appointment: ${appointment.id} - ${appointment.status} - ${appointment.service}');
         } catch (e) {
+          print('⚠️ Error processing appointment data: $e');
+          print('⚠️ Appointment data: $aptData');
           // Skip invalid appointment data
           continue;
         }
       }
+
+      print('✅ Loaded ${_appointments.length} total appointments');
+      debugShowAllAppointments();
     } catch (e) {
+      print('❌ Error loading appointments from backend: $e');
       // Handle any errors during loading
     }
   }

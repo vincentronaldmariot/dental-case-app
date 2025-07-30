@@ -109,8 +109,38 @@ class _KioskModeScreenState extends State<KioskModeScreen> {
                                     Text('Print Receipt'),
                                   ],
                                 ),
-                                content: const Text(
-                                  'To print a receipt, please complete the survey first. The print option will be available on the receipt screen.',
+                                content: const Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'To print a receipt, please complete the survey first. The print option will be available on the receipt screen.',
+                                    ),
+                                    SizedBox(height: 16),
+                                    Text(
+                                      'Available print options:',
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.bold),
+                                    ),
+                                    SizedBox(height: 8),
+                                    Row(
+                                      children: [
+                                        Icon(Icons.picture_as_pdf,
+                                            color: Colors.blue, size: 16),
+                                        SizedBox(width: 8),
+                                        Text('PDF Print (Blue button)'),
+                                      ],
+                                    ),
+                                    SizedBox(height: 4),
+                                    Row(
+                                      children: [
+                                        Icon(Icons.receipt_long,
+                                            color: Color(0xFFFF6B35), size: 16),
+                                        SizedBox(width: 8),
+                                        Text('Thermal Print (Orange button)'),
+                                      ],
+                                    ),
+                                  ],
                                 ),
                                 actions: [
                                   TextButton(

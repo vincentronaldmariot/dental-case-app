@@ -186,6 +186,7 @@ router.post('/', async (req, res, next) => {
     // Use UPSERT to handle both insert and update
     let result;
     try {
+      // First try with updated_at column
       result = await query(`
         INSERT INTO dental_surveys (patient_id, survey_data)
         VALUES ($1, $2)
@@ -195,16 +196,42 @@ router.post('/', async (req, res, next) => {
         RETURNING id, completed_at, updated_at
       `, [patientId, JSON.stringify(completeSurvey)]);
       
-      console.log('✅ Database query executed successfully');
+      console.log('✅ Database query executed successfully with updated_at');
       console.log('Query result:', result);
       console.log('Result rows:', result.rows);
       console.log('Result row count:', result.rowCount);
     } catch (queryError) {
-      console.error('❌ Database query failed:', queryError);
-      return res.status(500).json({
-        error: 'Database operation failed',
-        details: queryError.message
-      });
+      console.error('❌ Database query failed with updated_at:', queryError);
+      
+      // If updated_at column doesn't exist, try without it
+      if (queryError.message.includes('updated_at')) {
+        console.log('🔧 Trying without updated_at column...');
+        try {
+          result = await query(`
+            INSERT INTO dental_surveys (patient_id, survey_data)
+            VALUES ($1, $2)
+            ON CONFLICT (patient_id) DO UPDATE SET
+              survey_data = EXCLUDED.survey_data
+            RETURNING id, completed_at
+          `, [patientId, JSON.stringify(completeSurvey)]);
+          
+          console.log('✅ Database query executed successfully without updated_at');
+          console.log('Query result:', result);
+          console.log('Result rows:', result.rows);
+          console.log('Result row count:', result.rowCount);
+        } catch (fallbackError) {
+          console.error('❌ Fallback database query also failed:', fallbackError);
+          return res.status(500).json({
+            error: 'Database operation failed',
+            details: fallbackError.message
+          });
+        }
+      } else {
+        return res.status(500).json({
+          error: 'Database operation failed',
+          details: queryError.message
+        });
+      }
     }
 
     // Check if the query was successful
@@ -226,7 +253,7 @@ router.post('/', async (req, res, next) => {
         id: survey.id,
         patientId,
         completedAt: survey.completed_at,
-        updatedAt: survey.updated_at
+        updatedAt: survey.updated_at || survey.completed_at
       }
     });
 
@@ -491,5 +518,5 @@ router.get('/admin/surveys/:patientId', verifyAdmin, async (req, res) => {
   }
 });
 
-module.exports = router; #   F o r c e   r e d e p l o y  
+module.exports = router; 
  

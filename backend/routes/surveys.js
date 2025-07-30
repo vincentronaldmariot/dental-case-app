@@ -13,7 +13,7 @@ const surveyValidation = [
   body('surveyData.patient_info').optional().isObject().withMessage('Patient info must be an object if provided'),
 ];
 
-// POST /api/surveys - Submit or update dental survey (UPDATED WITH GRACEFUL COLUMN HANDLING)
+// POST /api/surveys - Submit or update dental survey (FINAL FIX WITH GRACEFUL COLUMN HANDLING)
 router.post('/', async (req, res, next) => {
   try {
     // Check validation errors first

@@ -19,21 +19,41 @@ class SurveyService {
   static Future<Map<String, dynamic>> submitSurvey(
       Map<String, dynamic> surveyData, String token) async {
     try {
+      print('🔍 SurveyService: Starting API submission...');
+      print('🔍 SurveyService: URL: $baseUrl/surveys');
+      print('🔍 SurveyService: Token: $token');
+      print('🔍 SurveyService: Survey data keys: ${surveyData.keys.toList()}');
+
+      // Wrap survey data in the expected structure for the backend
+      final requestBody = {'surveyData': surveyData};
+
+      print(
+          '🔍 SurveyService: Request body structure: ${requestBody.keys.toList()}');
+
       final response = await http.post(
         Uri.parse('$baseUrl/surveys'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
-        body: jsonEncode(surveyData),
+        body: jsonEncode(requestBody),
       );
 
+      print('🔍 SurveyService: Response status: ${response.statusCode}');
+      print('🔍 SurveyService: Response body: ${response.body}');
+
       if (response.statusCode == 201 || response.statusCode == 200) {
-        return jsonDecode(response.body);
+        final result = jsonDecode(response.body);
+        print('✅ SurveyService: Submission successful');
+        return result;
       } else {
-        throw Exception('Failed to submit survey: ${response.statusCode}');
+        print(
+            '❌ SurveyService: Submission failed with status ${response.statusCode}');
+        throw Exception(
+            'Failed to submit survey: ${response.statusCode} - ${response.body}');
       }
     } catch (e) {
+      print('❌ SurveyService: Exception occurred: $e');
       throw Exception('Failed to submit survey: $e');
     }
   }

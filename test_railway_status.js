@@ -1,56 +1,54 @@
 const axios = require('axios');
 
-const API_BASE_URL = 'https://afp-dental-app-production.up.railway.app';
+const BASE_URL = 'https://afp-dental-app-production.up.railway.app';
 
-async function testRailwayStatus() {
-  try {
-    console.log('🔍 Testing Railway Deployment Status...\n');
-    console.log('API URL:', API_BASE_URL);
-
-    // Test basic connectivity
-    console.log('📡 Testing basic connectivity...');
+async function checkRailwayStatus() {
+  console.log('🔍 Checking Railway deployment status...');
+  console.log(`🌐 URL: ${BASE_URL}`);
+  
+  // Try different endpoints to see what's working
+  const endpoints = [
+    '/',
+    '/health',
+    '/api/health',
+    '/api',
+    '/api/auth',
+    '/api/admin'
+  ];
+  
+  for (const endpoint of endpoints) {
     try {
-      const healthResponse = await axios.get(`${API_BASE_URL}/health`, { timeout: 5000 });
-      console.log('✅ Health check successful:', healthResponse.status);
-    } catch (healthError) {
-      console.log('❌ Health check failed:', healthError.message);
-    }
-
-    // Test API root
-    console.log('\n📡 Testing API root...');
-    try {
-      const rootResponse = await axios.get(`${API_BASE_URL}/`, { timeout: 5000 });
-      console.log('✅ API root accessible:', rootResponse.status);
-    } catch (rootError) {
-      console.log('❌ API root failed:', rootError.message);
-    }
-
-    // Test registration endpoint
-    console.log('\n📡 Testing registration endpoint...');
-    try {
-      const registerResponse = await axios.post(`${API_BASE_URL}/api/auth/register`, {
-        firstName: 'Test',
-        lastName: 'User',
-        email: 'test@example.com',
-        password: 'testpass123',
-        phone: '09123456789',
-        dateOfBirth: '1990-01-01',
-        classification: 'Military'
-      }, { timeout: 10000 });
-      
-      console.log('✅ Registration endpoint working:', registerResponse.status);
-    } catch (registerError) {
-      console.log('❌ Registration endpoint failed:', registerError.message);
-      if (registerError.response) {
-        console.log('  Status:', registerError.response.status);
-        console.log('  Data:', registerError.response.data);
+      console.log(`\n🔍 Testing: ${endpoint}`);
+      const response = await axios.get(`${BASE_URL}${endpoint}`, {
+        timeout: 5000
+      });
+      console.log(`✅ ${endpoint} - Status: ${response.status}`);
+      if (response.data) {
+        console.log(`   Data: ${JSON.stringify(response.data).substring(0, 100)}...`);
+      }
+    } catch (error) {
+      console.log(`❌ ${endpoint} - ${error.message}`);
+      if (error.response) {
+        console.log(`   Status: ${error.response.status}`);
+        console.log(`   Data: ${JSON.stringify(error.response.data).substring(0, 100)}...`);
       }
     }
-
+  }
+  
+  // Try to check if it's a Railway routing issue
+  console.log('\n🔍 Checking if it\'s a Railway routing issue...');
+  try {
+    const response = await axios.get(`${BASE_URL}`, {
+      timeout: 5000,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+      }
+    });
+    console.log('✅ Root endpoint works:', response.status);
+    console.log('Response headers:', Object.keys(response.headers));
   } catch (error) {
-    console.error('❌ Test failed:', error.message);
+    console.log('❌ Root endpoint failed:', error.message);
   }
 }
 
-// Run the test
-testRailwayStatus(); 
+checkRailwayStatus(); 

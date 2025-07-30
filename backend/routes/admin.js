@@ -73,6 +73,130 @@ router.get('/dashboard', verifyAdmin, async (req, res) => {
   }
 });
 
+// GET /api/admin/emergency-records - Get emergency records
+router.get('/emergency-records', verifyAdmin, async (req, res) => {
+  try {
+    const { limit = 50, offset = 0, exclude_resolved = false } = req.query;
+
+    let queryText = `
+      SELECT 
+        er.id, er.patient_id, er.emergency_date, er.emergency_type, 
+        er.description, er.severity, er.resolved, er.status, er.priority,
+        er.handled_by, er.resolution, er.follow_up_required, er.resolved_at,
+        er.emergency_contact, er.notes, er.created_at,
+        p.first_name, p.last_name, p.email, p.phone
+      FROM emergency_records er
+      LEFT JOIN patients p ON er.patient_id = p.id
+    `;
+    
+    const queryParams = [];
+    let paramCount = 0;
+
+    if (exclude_resolved === 'true') {
+      queryText += ` WHERE er.status != 'resolved'`;
+    }
+
+    queryText += ` ORDER BY er.emergency_date DESC LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}`;
+    queryParams.push(parseInt(limit), parseInt(offset));
+
+    const result = await query(queryText, queryParams);
+
+    const emergencyRecords = result.rows.map(record => ({
+      id: record.id,
+      patientId: record.patient_id,
+      patientName: `${record.first_name || ''} ${record.last_name || ''}`.trim(),
+      patientEmail: record.email,
+      patientPhone: record.phone,
+      reportedAt: record.emergency_date,
+      emergencyType: record.emergency_type,
+      description: record.description,
+      severity: record.severity,
+      status: record.status || 'reported',
+      priority: record.priority || 'medium',
+      handledBy: record.handled_by,
+      resolution: record.resolution,
+      followUpRequired: record.follow_up_required,
+      resolvedAt: record.resolved_at,
+      emergencyContact: record.emergency_contact,
+      notes: record.notes,
+      resolved: record.resolved || false,
+      createdAt: record.created_at
+    }));
+
+    res.json({
+      emergencyRecords: emergencyRecords,
+      total: emergencyRecords.length,
+      message: 'Emergency records retrieved successfully'
+    });
+
+  } catch (error) {
+    console.error('❌ Error fetching emergency records:', error);
+    res.status(500).json({
+      error: 'Failed to retrieve emergency records. Please try again.'
+    });
+  }
+});
+
+// GET /api/admin/emergency - Alternative emergency records endpoint
+router.get('/emergency', verifyAdmin, async (req, res) => {
+  try {
+    const { exclude_resolved = false } = req.query;
+
+    let queryText = `
+      SELECT 
+        er.id, er.patient_id, er.emergency_date, er.emergency_type, 
+        er.description, er.severity, er.resolved, er.status, er.priority,
+        er.handled_by, er.resolution, er.follow_up_required, er.resolved_at,
+        er.emergency_contact, er.notes, er.created_at,
+        p.first_name, p.last_name, p.email, p.phone
+      FROM emergency_records er
+      LEFT JOIN patients p ON er.patient_id = p.id
+    `;
+    
+    if (exclude_resolved === 'true') {
+      queryText += ` WHERE er.status != 'resolved'`;
+    }
+
+    queryText += ` ORDER BY er.emergency_date DESC`;
+
+    const result = await query(queryText);
+
+    const emergencyRecords = result.rows.map(record => ({
+      id: record.id,
+      patientId: record.patient_id,
+      patientName: `${record.first_name || ''} ${record.last_name || ''}`.trim(),
+      patientEmail: record.email,
+      patientPhone: record.phone,
+      reportedAt: record.emergency_date,
+      emergencyType: record.emergency_type,
+      description: record.description,
+      severity: record.severity,
+      status: record.status || 'reported',
+      priority: record.priority || 'medium',
+      handledBy: record.handled_by,
+      resolution: record.resolution,
+      followUpRequired: record.follow_up_required,
+      resolvedAt: record.resolved_at,
+      emergencyContact: record.emergency_contact,
+      notes: record.notes,
+      resolved: record.resolved || false,
+      createdAt: record.created_at
+    }));
+
+    res.json({
+      emergencyRecords: emergencyRecords,
+      total: emergencyRecords.length,
+      message: 'Emergency records retrieved successfully'
+    });
+
+  } catch (error) {
+    console.error('❌ Error fetching emergency records:', error);
+    res.status(500).json({
+      error: 'Failed to retrieve emergency records. Please try again.'
+    });
+  }
+});
+
 // GET /api/admin/patients - Get all patients
 router.get('/patients', verifyAdmin, async (req, res) => {
   try {
@@ -111,34 +235,26 @@ router.get('/patients', verifyAdmin, async (req, res) => {
     const countResult = await query(countQuery, countParams);
     const totalCount = parseInt(countResult.rows[0]?.count || 0);
 
-    res.json({
-      patients: result.rows.map(patient => ({
-        id: patient.id,
-        firstName: patient.first_name,
-        lastName: patient.last_name,
-        fullName: `${patient.first_name} ${patient.last_name}`,
-        email: patient.email,
-        phone: patient.phone,
-        classification: patient.classification,
-        otherClassification: patient.other_classification,
-        serialNumber: patient.serial_number,
-        unitAssignment: patient.unit_assignment,
-        dateOfBirth: patient.date_of_birth,
-        address: patient.address,
-        emergencyContact: patient.emergency_contact,
-        emergencyPhone: patient.emergency_phone,
-        medicalHistory: patient.medical_history,
-        allergies: patient.allergies,
-        createdAt: patient.created_at,
-        survey_data: patient.survey_data
-      })),
-      pagination: {
-        total: totalCount,
-        limit: parseInt(limit),
-        offset: parseInt(offset),
-        hasMore: totalCount > parseInt(offset) + parseInt(limit)
-      }
-    });
+    res.json(result.rows.map(patient => ({
+      id: patient.id,
+      first_name: patient.first_name,
+      last_name: patient.last_name,
+      fullName: `${patient.first_name} ${patient.last_name}`,
+      email: patient.email,
+      phone: patient.phone,
+      classification: patient.classification,
+      otherClassification: patient.other_classification,
+      serialNumber: patient.serial_number,
+      unitAssignment: patient.unit_assignment,
+      dateOfBirth: patient.date_of_birth,
+      address: patient.address,
+      emergencyContact: patient.emergency_contact,
+      emergencyPhone: patient.emergency_phone,
+      medicalHistory: patient.medical_history,
+      allergies: patient.allergies,
+      createdAt: patient.created_at,
+      survey_data: patient.survey_data
+    })));
 
   } catch (error) {
     console.error('Get patients error:', error);
@@ -202,33 +318,24 @@ router.get('/appointments', verifyAdmin, async (req, res) => {
     const countResult = await query(countQuery, countParams);
     const totalCount = parseInt(countResult.rows[0]?.count || 0);
 
-    res.json({
-      appointments: result.rows.map(appointment => ({
-        id: appointment.id,
-        patientId: appointment.patient_id,
-        patientName: `${appointment.first_name} ${appointment.last_name}`,
-        patientEmail: appointment.email,
-        patientPhone: appointment.phone,
-        patientClassification: appointment.classification,
-        patientOtherClassification: appointment.other_classification,
-        service: appointment.service || 'N/A',
-        appointmentDate: appointment.appointment_date,
-        timeSlot: appointment.time_slot || 'N/A', // Handle null time slots
-
-        status: appointment.status,
-        notes: appointment.notes,
-        createdAt: appointment.created_at,
-        updatedAt: appointment.updated_at,
-        surveyData: appointment.survey_data,
-        surveyCompletedAt: appointment.survey_completed_at
-      })),
-      pagination: {
-        total: totalCount,
-        limit: parseInt(limit),
-        offset: parseInt(offset),
-        hasMore: totalCount > parseInt(offset) + parseInt(limit)
-      }
-    });
+    res.json(result.rows.map(appointment => ({
+      id: appointment.id,
+      patientId: appointment.patient_id,
+      patientName: `${appointment.first_name} ${appointment.last_name}`,
+      patientEmail: appointment.email,
+      patientPhone: appointment.phone,
+      patientClassification: appointment.classification,
+      patientOtherClassification: appointment.other_classification,
+      service: appointment.service || 'N/A',
+      appointmentDate: appointment.appointment_date,
+      timeSlot: appointment.time_slot || 'N/A', // Handle null time slots
+      status: appointment.status,
+      notes: appointment.notes,
+      createdAt: appointment.created_at,
+      updatedAt: appointment.updated_at,
+      surveyData: appointment.survey_data,
+      surveyCompletedAt: appointment.survey_completed_at
+    })));
 
   } catch (error) {
     console.error('Admin get appointments error:', error);
@@ -276,33 +383,25 @@ router.get('/appointments/pending', verifyAdmin, async (req, res) => {
     const countResult = await query('SELECT COUNT(*) FROM appointments WHERE status = $1', ['pending']);
     const totalCount = parseInt(countResult.rows[0]?.count || 0);
 
-    res.json({
-      pendingAppointments: result.rows.map(appointment => ({
-        id: appointment.id,
-        patientId: appointment.patient_id,
-        patientName: `${appointment.first_name} ${appointment.last_name}`,
-        patientEmail: appointment.email,
-        patientPhone: appointment.phone,
-        patientClassification: appointment.classification,
-        patientOtherClassification: appointment.other_classification,
-        service: appointment.service || 'N/A',
-        appointmentDate: appointment.appointment_date,
-        timeSlot: appointment.time_slot || 'N/A', // Handle null time slots
-        status: appointment.status,
-        notes: appointment.notes,
-        createdAt: appointment.created_at,
-        updatedAt: appointment.updated_at,
-        surveyData: appointment.survey_data,
-        surveyCompletedAt: appointment.survey_completed_at,
-        hasSurveyData: appointment.survey_data !== null
-      })),
-      pagination: {
-        total: totalCount,
-        limit: parseInt(limit),
-        offset: parseInt(offset),
-        hasMore: totalCount > parseInt(offset) + parseInt(limit)
-      }
-    });
+    res.json(result.rows.map(appointment => ({
+      id: appointment.id,
+      patientId: appointment.patient_id,
+      patientName: `${appointment.first_name} ${appointment.last_name}`,
+      patientEmail: appointment.email,
+      patientPhone: appointment.phone,
+      patientClassification: appointment.classification,
+      patientOtherClassification: appointment.other_classification,
+      service: appointment.service || 'N/A',
+      appointmentDate: appointment.appointment_date,
+      timeSlot: appointment.time_slot || 'N/A', // Handle null time slots
+      status: appointment.status,
+      notes: appointment.notes,
+      createdAt: appointment.created_at,
+      updatedAt: appointment.updated_at,
+      surveyData: appointment.survey_data,
+      surveyCompletedAt: appointment.survey_completed_at,
+      hasSurveyData: appointment.survey_data !== null
+    })));
 
   } catch (error) {
     console.error('Admin get pending appointments error:', error);
@@ -350,42 +449,34 @@ router.get('/appointments/approved', verifyAdmin, async (req, res) => {
     const countResult = await query("SELECT COUNT(*) FROM appointments WHERE status = 'approved'");
     const totalCount = parseInt(countResult.rows[0]?.count || 0);
 
-    res.json({
-      approvedAppointments: result.rows.map(appointment => {
-        // Format the date properly to avoid timezone issues
-        let formattedDate = appointment.appointment_date;
-        if (appointment.appointment_date) {
-          // Extract date in local timezone, not UTC
-          formattedDate = formatDateLocal(appointment.appointment_date);
-        }
-        
-        return {
-          appointmentId: appointment.id,
-          patientId: appointment.patient_id,
-          patientName: `${appointment.first_name} ${appointment.last_name}`,
-          patientEmail: appointment.email,
-          patientPhone: appointment.phone,
-          patientClassification: appointment.classification,
-          patientOtherClassification: appointment.other_classification,
-          service: appointment.service || 'N/A',
-          appointmentDate: formattedDate,
-          timeSlot: appointment.time_slot || 'N/A',
-          status: appointment.status,
-          notes: appointment.notes,
-          createdAt: appointment.created_at,
-          updatedAt: appointment.updated_at,
-          surveyData: appointment.survey_data,
-          surveyCompletedAt: appointment.survey_completed_at,
-          hasSurveyData: appointment.survey_data !== null
-        };
-      }),
-      pagination: {
-        total: totalCount,
-        limit: parseInt(limit),
-        offset: parseInt(offset),
-        hasMore: totalCount > parseInt(offset) + parseInt(limit)
+    res.json(result.rows.map(appointment => {
+      // Format the date properly to avoid timezone issues
+      let formattedDate = appointment.appointment_date;
+      if (appointment.appointment_date) {
+        // Extract date in local timezone, not UTC
+        formattedDate = formatDateLocal(appointment.appointment_date);
       }
-    });
+      
+      return {
+        appointmentId: appointment.id,
+        patientId: appointment.patient_id,
+        patientName: `${appointment.first_name} ${appointment.last_name}`,
+        patientEmail: appointment.email,
+        patientPhone: appointment.phone,
+        patientClassification: appointment.classification,
+        patientOtherClassification: appointment.other_classification,
+        service: appointment.service || 'N/A',
+        appointmentDate: formattedDate,
+        timeSlot: appointment.time_slot || 'N/A',
+        status: appointment.status,
+        notes: appointment.notes,
+        createdAt: appointment.created_at,
+        updatedAt: appointment.updated_at,
+        surveyData: appointment.survey_data,
+        surveyCompletedAt: appointment.survey_completed_at,
+        hasSurveyData: appointment.survey_data !== null
+      };
+    }));
 
   } catch (error) {
     console.error('Admin get approved appointments error:', error);
@@ -433,42 +524,34 @@ router.get('/appointments/completed', verifyAdmin, async (req, res) => {
     const countResult = await query("SELECT COUNT(*) FROM appointments WHERE status = 'completed'");
     const totalCount = parseInt(countResult.rows[0]?.count || 0);
 
-    res.json({
-      completedAppointments: result.rows.map(appointment => {
-        // Format the date properly to avoid timezone issues
-        let formattedDate = appointment.appointment_date;
-        if (appointment.appointment_date) {
-          // Extract date in local timezone, not UTC
-          formattedDate = formatDateLocal(appointment.appointment_date);
-        }
-        
-        return {
-          appointmentId: appointment.id,
-          patientId: appointment.patient_id,
-          patientName: `${appointment.first_name} ${appointment.last_name}`,
-          patientEmail: appointment.email,
-          patientPhone: appointment.phone,
-          patientClassification: appointment.classification,
-          patientOtherClassification: appointment.other_classification,
-          service: appointment.service || 'N/A',
-          appointmentDate: formattedDate,
-          timeSlot: appointment.time_slot || 'N/A',
-          status: appointment.status,
-          notes: appointment.notes,
-          createdAt: appointment.created_at,
-          updatedAt: appointment.updated_at,
-          surveyData: appointment.survey_data,
-          surveyCompletedAt: appointment.survey_completed_at,
-          hasSurveyData: appointment.survey_data !== null
-        };
-      }),
-      pagination: {
-        total: totalCount,
-        limit: parseInt(limit),
-        offset: parseInt(offset),
-        hasMore: totalCount > parseInt(offset) + parseInt(limit)
+    res.json(result.rows.map(appointment => {
+      // Format the date properly to avoid timezone issues
+      let formattedDate = appointment.appointment_date;
+      if (appointment.appointment_date) {
+        // Extract date in local timezone, not UTC
+        formattedDate = formatDateLocal(appointment.appointment_date);
       }
-    });
+      
+      return {
+        appointmentId: appointment.id,
+        patientId: appointment.patient_id,
+        patientName: `${appointment.first_name} ${appointment.last_name}`,
+        patientEmail: appointment.email,
+        patientPhone: appointment.phone,
+        patientClassification: appointment.classification,
+        patientOtherClassification: appointment.other_classification,
+        service: appointment.service || 'N/A',
+        appointmentDate: formattedDate,
+        timeSlot: appointment.time_slot || 'N/A',
+        status: appointment.status,
+        notes: appointment.notes,
+        createdAt: appointment.created_at,
+        updatedAt: appointment.updated_at,
+        surveyData: appointment.survey_data,
+        surveyCompletedAt: appointment.survey_completed_at,
+        hasSurveyData: appointment.survey_data !== null
+      };
+    }));
 
   } catch (error) {
     console.error('Admin get completed appointments error:', error);

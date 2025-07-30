@@ -90,6 +90,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 5, vsync: this);
+
+    // Add tab change listener to refresh data when appointments tab is selected
+    _tabController.addListener(() {
+      if (_tabController.index == 1) {
+        // Appointments tab (index 1)
+        print(
+            '🔄 Appointments tab selected - refreshing pending appointments...');
+        _fetchPendingAppointmentsWithSurvey();
+        _loadApprovedAppointments();
+      }
+    });
+
     _loadData();
 
     // Set initial tab if specified
@@ -160,16 +172,26 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
+        List<dynamic> patients = [];
+
+        // Handle both array and object responses for backward compatibility
         if (data is List) {
-          setState(() {
-            _patients = data;
-          });
+          patients = data;
         } else if (data is Map && data.containsKey('patients')) {
-          setState(() {
-            _patients = data['patients'] ?? [];
-          });
+          patients = data['patients'] ?? [];
+        } else if (data is Map) {
+          // If it's a map but doesn't have 'patients' key, try to use it as a single patient
+          patients = [data];
         }
+
+        setState(() {
+          _patients = patients;
+        });
+
+        print('✅ Loaded ${patients.length} patients');
       } else {
+        print('❌ Failed to load patients: ${response.statusCode}');
+        print('Response body: ${response.body}');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -181,6 +203,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         }
       }
     } catch (e) {
+      print('❌ Error loading patients: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -219,16 +242,26 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
+        List<dynamic> appointments = [];
+
+        // Handle both array and object responses for backward compatibility
         if (data is List) {
-          setState(() {
-            _appointments = data;
-          });
+          appointments = data;
         } else if (data is Map && data.containsKey('appointments')) {
-          setState(() {
-            _appointments = data['appointments'] ?? [];
-          });
+          appointments = data['appointments'] ?? [];
+        } else if (data is Map) {
+          // If it's a map but doesn't have 'appointments' key, try to use it as a single appointment
+          appointments = [data];
         }
+
+        setState(() {
+          _appointments = appointments;
+        });
+
+        print('✅ Loaded ${appointments.length} appointments');
       } else {
+        print('❌ Failed to load appointments: ${response.statusCode}');
+        print('Response body: ${response.body}');
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -241,6 +274,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         }
       }
     } catch (e) {
+      print('❌ Error loading appointments: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -255,31 +289,44 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
 
   Future<void> _fetchPendingAppointmentsWithSurvey() async {
     try {
+      print('🔄 Starting to fetch pending appointments...');
       final adminToken = await _getAdminToken();
       if (adminToken == null) {
         print('❌ Admin token not available for loading pending appointments');
         return;
       }
+      print('✅ Admin token available');
 
       final response = await http.get(
-        Uri.parse('${AppConfig.apiBaseUrl}/admin/pending-appointments'),
+        Uri.parse('${AppConfig.apiBaseUrl}/admin/appointments/pending'),
         headers: {
           'Authorization': 'Bearer $adminToken',
           'Content-Type': 'application/json',
         },
       );
 
+      print('📡 Pending appointments response status: ${response.statusCode}');
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        // Handle both array and object responses
+        print('📊 Raw response data type: ${data.runtimeType}');
+        print('📊 Raw response data: ${data.toString().substring(0, 200)}...');
+
         List<dynamic> appointments = [];
+
+        // Handle both array and object responses for backward compatibility
         if (data is List) {
           appointments = data;
-        } else if (data is Map && data.containsKey('appointments')) {
-          appointments = data['appointments'] ?? [];
-        } else {
-          appointments = [];
+          print('📋 Using direct array response');
+        } else if (data is Map && data.containsKey('pendingAppointments')) {
+          appointments = data['pendingAppointments'] ?? [];
+          print('📋 Using pendingAppointments from object response');
+        } else if (data is Map) {
+          // If it's a map but doesn't have 'pendingAppointments' key, try to use it as a single appointment
+          appointments = [data];
+          print('📋 Using single object as array');
         }
+
+        print('📊 Extracted ${appointments.length} appointments from response');
 
         setState(() {
           _pendingAppointments = appointments;
@@ -287,7 +334,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         print('✅ Loaded ${_pendingAppointments.length} pending appointments');
         for (var appointment in _pendingAppointments) {
           print(
-              '📋 Appointment: ${appointment['patient_name']} - ${appointment['service']} - ${appointment['appointment_id']}');
+              '📋 Appointment: ${appointment['patientName']} - ${appointment['service']} - ${appointment['id']}');
         }
       } else {
         print('❌ Failed to load pending appointments: ${response.statusCode}');
@@ -324,10 +371,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         List<dynamic> appointments = [];
-        if (data is Map && data.containsKey('approvedAppointments')) {
+
+        // Handle both array and object responses for backward compatibility
+        if (data is List) {
+          appointments = data;
+        } else if (data is Map && data.containsKey('approvedAppointments')) {
           appointments = data['approvedAppointments'] ?? [];
-        } else {
-          appointments = [];
+        } else if (data is Map) {
+          // If it's a map but doesn't have 'approvedAppointments' key, try to use it as a single appointment
+          appointments = [data];
         }
 
         // Also load completed appointments
@@ -342,10 +394,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         List<dynamic> completedAppointments = [];
         if (completedResponse.statusCode == 200) {
           final completedData = jsonDecode(completedResponse.body);
-          if (completedData is Map &&
+          if (completedData is List) {
+            completedAppointments = completedData;
+          } else if (completedData is Map &&
               completedData.containsKey('completedAppointments')) {
             completedAppointments =
                 completedData['completedAppointments'] ?? [];
+          } else if (completedData is Map) {
+            completedAppointments = [completedData];
           }
         }
 
@@ -359,6 +415,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
             '✅ Loaded ${appointments.length - completedAppointments.length} approved appointments and ${completedAppointments.length} completed appointments');
       } else {
         print('❌ Failed to load approved appointments: ${response.statusCode}');
+        print('Response body: ${response.body}');
       }
     } catch (e) {
       print('❌ Error loading approved appointments: $e');
@@ -373,18 +430,41 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         return;
       }
 
-      final response = await http.get(
+      // Try the new emergency-records endpoint first
+      var response = await http.get(
         Uri.parse(
-            '${AppConfig.apiBaseUrl}/admin/emergency?exclude_resolved=true'),
+            '${AppConfig.apiBaseUrl}/admin/emergency-records?exclude_resolved=true'),
         headers: {
           'Authorization': 'Bearer $adminToken',
           'Content-Type': 'application/json',
         },
       );
 
+      // If that fails, try the alternative endpoint
+      if (response.statusCode != 200) {
+        response = await http.get(
+          Uri.parse(
+              '${AppConfig.apiBaseUrl}/admin/emergency?exclude_resolved=true'),
+          headers: {
+            'Authorization': 'Bearer $adminToken',
+            'Content-Type': 'application/json',
+          },
+        );
+      }
+
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        final List<dynamic> emergencyData = data['emergencyRecords'] ?? [];
+        List<dynamic> emergencyData = [];
+
+        // Handle both array and object responses for backward compatibility
+        if (data is List) {
+          emergencyData = data;
+        } else if (data is Map && data.containsKey('emergencyRecords')) {
+          emergencyData = data['emergencyRecords'] ?? [];
+        } else if (data is Map) {
+          // If it's a map but doesn't have 'emergencyRecords' key, try to use it as a single record
+          emergencyData = [data];
+        }
 
         setState(() {
           _emergencyRecords = emergencyData.map((record) {
@@ -528,36 +608,35 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   }
 
   void _showProceedDialog(dynamic appointment, [dynamic survey]) async {
-    print(
-        'Opening appointment details dialog for: ${appointment['appointment_id']}');
+    print('Opening appointment details dialog for: ${appointment['id']}');
 
-    final id = appointment is Appointment
-        ? appointment.id
-        : appointment['appointment_id'];
+    final id = appointment is Appointment ? appointment.id : appointment['id'];
     String service = appointment is Appointment
         ? appointment.service
-        : appointment['service'];
+        : appointment['service'] ?? 'N/A';
     dynamic date = appointment is Appointment
         ? appointment.date
-        : appointment['booking_date'] ?? appointment['appointment_date'];
+        : appointment['appointmentDate'];
     String timeSlot = appointment is Appointment
         ? appointment.timeSlot
-        : appointment['time_slot'];
+        : appointment['timeSlot'] ?? 'N/A';
     final status =
         appointment is Appointment ? appointment.status : appointment['status'];
     final patientName = appointment is Appointment
         ? (appointment.patientId ?? '')
-        : (appointment['patient_name'] ?? '');
-    final patientEmail =
-        appointment is Appointment ? '' : (appointment['patient_email'] ?? '');
-    final patientPhone =
-        appointment is Appointment ? '' : (appointment['patient_phone'] ?? '');
+        : (appointment['patientName'] ?? 'N/A');
+    final patientEmail = appointment is Appointment
+        ? ''
+        : (appointment['patientEmail'] ?? 'N/A');
+    final patientPhone = appointment is Appointment
+        ? ''
+        : (appointment['patientPhone'] ?? 'N/A');
     final notes =
         appointment is Appointment ? appointment.notes : appointment['notes'];
 
     final effectiveSurvey = survey ??
-        ((appointment is Map && (appointment).containsKey('survey_data'))
-            ? (appointment)['survey_data']
+        ((appointment is Map && (appointment).containsKey('surveyData'))
+            ? (appointment)['surveyData']
             : null);
 
     // Format date for display
@@ -1217,8 +1296,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
 
   Future<void> _approveAppointment(dynamic appointment) async {
     try {
-      print('✅ Approving appointment: ${appointment['appointment_id']}');
-      print('📋 Patient: ${appointment['patient_name']}');
+      print('✅ Approving appointment: ${appointment['id']}');
+      print('📋 Patient: ${appointment['patientName']}');
       print('🦷 Service: ${appointment['service']}');
       bool? confirmed = await showDialog<bool>(
         context: context,
@@ -1269,7 +1348,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
 
         final response = await http.post(
           Uri.parse(
-              '${AppConfig.apiBaseUrl}/admin/appointments/${appointment['appointment_id']}/approve'),
+              '${AppConfig.apiBaseUrl}/admin/appointments/${appointment['id']}/approve'),
           headers: {
             'Authorization': 'Bearer $adminToken',
             'Content-Type': 'application/json',
@@ -1288,17 +1367,23 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                     'Appointment approved successfully - Redirecting to Approved'),
                 backgroundColor: Colors.green),
           );
-          _fetchPendingAppointmentsWithSurvey();
-          _loadApprovedAppointments();
+
+          // Clear approval notes
+          _approvalNotes = '';
+
+          // Refresh data and switch tabs
+          await _refreshAfterApproval();
+
           final treatmentRecord = TreatmentRecord(
             id: 'tr_${DateTime.now().millisecondsSinceEpoch}',
-            patientId: appointment['patient_id'] ?? '',
-            appointmentId: appointment['appointment_id'] ?? '',
+            patientId: appointment['patientId'] ?? '',
+            appointmentId: appointment['id'] ?? '',
             treatmentType: appointment['service'] ?? 'General Treatment',
             description:
                 'Treatment for ${appointment['service'] ?? 'General Treatment'}',
             treatmentDate:
-                DateTime.tryParse(appointment['date'] ?? '') ?? DateTime.now(),
+                DateTime.tryParse(appointment['appointmentDate'] ?? '') ??
+                    DateTime.now(),
             procedures: [],
             notes: _approvalNotes.isNotEmpty ? _approvalNotes : null,
             prescription: null,
@@ -1307,7 +1392,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
           setState(() {
             _treatmentRecords = HistoryService().getTreatmentRecords();
           });
-          _tabController.animateTo(2); // Switch to Approved tab
         } else {
           throw Exception(
               'Failed to approve appointment: ${response.statusCode}');
@@ -1519,10 +1603,53 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
     }
   }
 
+  Future<void> _refreshAfterApproval() async {
+    try {
+      print('🔄 Refreshing data after approval...');
+
+      // Small delay to ensure backend has processed the status change
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      // Refresh pending appointments first
+      await _fetchPendingAppointmentsWithSurvey();
+
+      // Refresh approved appointments
+      await _loadApprovedAppointments();
+
+      // Switch to Approved tab after data is refreshed
+      if (_tabController.length > 2) {
+        _tabController.animateTo(2); // Switch to Approved tab
+      }
+
+      print('✅ Data refresh completed');
+    } catch (e) {
+      print('❌ Error refreshing data after approval: $e');
+    }
+  }
+
+  Future<void> _refreshAfterRejection() async {
+    try {
+      print('🔄 Refreshing data after rejection...');
+
+      // Small delay to ensure backend has processed the status change
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      // Refresh pending appointments
+      await _fetchPendingAppointmentsWithSurvey();
+
+      // Refresh all data
+      await _loadData();
+
+      print('✅ Data refresh completed after rejection');
+    } catch (e) {
+      print('❌ Error refreshing data after rejection: $e');
+    }
+  }
+
   Future<void> _rejectAppointment(dynamic appointment) async {
     try {
-      print('❌ Rejecting appointment: ${appointment['appointment_id']}');
-      print('📋 Patient: ${appointment['patient_name']}');
+      print('❌ Rejecting appointment: ${appointment['id']}');
+      print('📋 Patient: ${appointment['patientName']}');
       print('🦷 Service: ${appointment['service']}');
       bool? confirmed = await showDialog<bool>(
         context: context,
@@ -1572,7 +1699,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
 
         final response = await http.post(
           Uri.parse(
-              '${AppConfig.apiBaseUrl}/admin/appointments/${appointment['appointment_id']}/reject'),
+              '${AppConfig.apiBaseUrl}/admin/appointments/${appointment['id']}/reject'),
           headers: {
             'Authorization': 'Bearer $adminToken',
             'Content-Type': 'application/json',
@@ -1589,8 +1716,12 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                 content: Text('Appointment rejected successfully'),
                 backgroundColor: Colors.orange),
           );
-          _fetchPendingAppointmentsWithSurvey();
-          await _loadData();
+
+          // Clear rejection reason
+          _rejectionReason = '';
+
+          // Refresh data after rejection
+          await _refreshAfterRejection();
         } else {
           throw Exception(
               'Failed to reject appointment: ${response.statusCode}');
@@ -2120,9 +2251,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   Widget _buildAppointmentsTab() {
     final filteredAppointments = _pendingAppointments.where((app) {
       final query = _appointmentSearchQuery.toLowerCase();
-      return app['patient_name']?.toLowerCase().contains(query) == true ||
-          app['patient_email']?.toLowerCase().contains(query) == true ||
-          app['patient_classification']?.toLowerCase().contains(query) == true;
+      return app['patientName']?.toLowerCase().contains(query) == true ||
+          app['patientEmail']?.toLowerCase().contains(query) == true ||
+          app['patientClassification']?.toLowerCase().contains(query) == true;
     }).toList();
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
@@ -2214,7 +2345,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                                 .where((app) {
                                   try {
                                     final date = DateTime.parse(
-                                        app['booking_date'] ?? '');
+                                        app['appointmentDate'] ?? '');
                                     final today = DateTime.now();
                                     return date.year == today.year &&
                                         date.month == today.month &&
@@ -2236,7 +2367,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                                 .where((app) {
                                   try {
                                     final date = DateTime.parse(
-                                        app['booking_date'] ?? '');
+                                        app['appointmentDate'] ?? '');
                                     final now = DateTime.now();
                                     final weekStart = now.subtract(
                                         Duration(days: now.weekday - 1));
@@ -2260,7 +2391,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                           child: _buildSummaryItem(
                             'With Survey',
                             _pendingAppointments
-                                .where((app) => app['has_survey_data'] == true)
+                                .where((app) => app['hasSurveyData'] == true)
                                 .length
                                 .toString(),
                             Icons.assessment,
@@ -2312,16 +2443,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        appointment['patient_name'] ?? 'Unknown Patient',
+                        appointment['patientName'] ?? 'Unknown Patient',
                         style: const TextStyle(
                             fontWeight: FontWeight.bold, fontSize: 16),
                       ),
                       Text(
-                        'Classification: ${appointment['patient_classification'] ?? 'N/A'}',
+                        'Classification: ${appointment['patientClassification'] ?? 'N/A'}',
                         style: const TextStyle(fontSize: 14),
                       ),
                       Text(
-                        'ID: ${appointment['appointment_id'] ?? 'N/A'}',
+                        'ID: ${appointment['id'] ?? 'N/A'}',
                         style:
                             const TextStyle(fontSize: 12, color: Colors.grey),
                       ),
@@ -2335,23 +2466,25 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                         children: [
                           _buildInfoRow(
                               'Date',
-                              appointment['booking_date'] ??
+                              appointment['appointmentDate'] ??
                                   appointment['date'] ??
                                   'Unknown'),
                           _buildInfoRow(
-                              'Time', appointment['time_slot'] ?? 'Unknown'),
+                              'Time', appointment['timeSlot'] ?? 'Unknown'),
                           _buildInfoRow('Classification',
-                              appointment['patient_classification'] ?? 'N/A'),
-                          _buildInfoRow('Unit Assignment',
-                              appointment['patient_unit_assignment'] ?? 'N/A'),
-                          _buildInfoRow('Serial Number',
-                              appointment['patient_serial_number'] ?? 'N/A'),
-                          if (appointment['patient_email'] != null)
-                            _buildInfoRow(
-                                'Email', appointment['patient_email']),
-                          if (appointment['patient_phone'] != null)
-                            _buildInfoRow(
-                                'Phone', appointment['patient_phone']),
+                              appointment['patientClassification'] ?? 'N/A'),
+                          _buildInfoRow(
+                              'Unit Assignment',
+                              appointment['patientOtherClassification'] ??
+                                  'N/A'),
+                          _buildInfoRow(
+                              'Serial Number',
+                              appointment['patientOtherClassification'] ??
+                                  'N/A'),
+                          if (appointment['patientEmail'] != null)
+                            _buildInfoRow('Email', appointment['patientEmail']),
+                          if (appointment['patientPhone'] != null)
+                            _buildInfoRow('Phone', appointment['patientPhone']),
                           const SizedBox(height: 16),
                           Row(
                             children: [

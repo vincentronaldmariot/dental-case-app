@@ -573,7 +573,8 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
                   color: Colors.blue.shade600,
                 ),
               ),
-              validator: (value) => (value?.trim().isEmpty ?? true)
+              validator: (value) => (_selectedClassification == 'Others' &&
+                      (value?.trim().isEmpty ?? true))
                   ? 'Please specify your classification'
                   : null,
               textCapitalization: TextCapitalization.words,
@@ -1196,7 +1197,32 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
   }
 
   void _submitSurvey() async {
+    print('🔍 Starting survey submission...');
+    print('🔍 Form validation result: ${_formKey.currentState?.validate()}');
+
+    // Debug: Check individual field values
+    print('🔍 Field values:');
+    print('  - Name: "${_nameController.text}"');
+    print('  - Serial Number: "${_serialNumberController.text}"');
+    print('  - Unit Assignment: "${_unitAssignmentController.text}"');
+    print('  - Contact Number: "${_contactNumberController.text}"');
+    print('  - Email: "${_emailController.text}"');
+    print('  - Emergency Contact: "${_emergencyContactController.text}"');
+    print('  - Emergency Phone: "${_emergencyPhoneController.text}"');
+    print('  - Classification: "$_selectedClassification"');
+    print('  - Other Classification: "${_otherClassificationController.text}"');
+    print('  - Last Visit: "${_lastVisitController.text}"');
+    print('  - Tooth Conditions: $_toothConditions');
+    print('  - Tartar Level: $_tartarLevel');
+    print('  - Tooth Pain: $_toothPain');
+    print('  - Tooth Sensitive: $_toothSensitive');
+    print('  - Damaged Fillings: $_damagedFillings');
+    print('  - Need Dentures: $_needDentures');
+    print('  - Has Missing Teeth: $_hasMissingTeeth');
+    print('  - Missing Tooth Conditions: $_missingToothConditions');
+
     if (_formKey.currentState!.validate()) {
+      print('✅ Form validation passed');
       try {
         // Show loading indicator
         showDialog(
@@ -1231,22 +1257,28 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
           'missing_tooth_conditions': _missingToothConditions,
         };
 
+        print('🔍 Survey data prepared: ${surveyData.toString()}');
+
         // Get token for survey submission
         String? token;
         if (widget.isKioskMode) {
           // Use kiosk token for kiosk mode
           token = 'kiosk_token';
+          print('🔍 Using kiosk token: $token');
         } else {
           // Get patient token for normal mode
           token = UserStateManager().patientToken;
+          print('🔍 Using patient token: $token');
         }
 
         if (token == null) {
           throw Exception('Authentication token not available');
         }
 
+        print('🔍 Submitting survey to API...');
         // Submit survey using static method
         final result = await SurveyService.submitSurvey(surveyData, token);
+        print('✅ Survey submission successful: $result');
 
         // Close loading dialog
         Navigator.pop(context);
@@ -1266,6 +1298,7 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
 
         // Handle navigation based on mode
         if (widget.isKioskMode) {
+          print('🔍 Navigating to kiosk receipt screen...');
           // Generate receipt number using daily counter
           final receiptCounterService = ReceiptCounterService();
           final dailyNumber =
@@ -1287,6 +1320,7 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
           Navigator.pop(context);
         }
       } catch (e) {
+        print('❌ Survey submission error: $e');
         // Close loading dialog
         Navigator.pop(context);
 
@@ -1300,6 +1334,7 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
         );
       }
     } else {
+      print('❌ Form validation failed');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please fill in all required fields'),

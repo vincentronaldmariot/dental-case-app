@@ -241,7 +241,7 @@ class ApiService {
       print('Registering patient: ${patient.email}');
 
       final response = await http.post(
-        Uri.parse('$baseUrl/auth/register'),
+        Uri.parse('${AppConfig.serverUrl}/api/auth/register'),
         headers: _headers,
         body: json.encode({
           'firstName': patient.firstName,
@@ -313,7 +313,7 @@ class ApiService {
       print('Authenticating user: $emailOrUsername');
       // Try admin login first
       final adminResponse = await http.post(
-        Uri.parse('$baseUrl/auth/admin/login'),
+        Uri.parse('${AppConfig.serverUrl}/api/auth/admin/login'),
         headers: _headers,
         body: json.encode({
           'username': emailOrUsername,
@@ -335,7 +335,7 @@ class ApiService {
       }
       // If not admin, try patient login
       final patientResponse = await http.post(
-        Uri.parse('$baseUrl/auth/login'),
+        Uri.parse('${AppConfig.serverUrl}/api/auth/login'),
         headers: _headers,
         body: json.encode({
           'email': emailOrUsername,

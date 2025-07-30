@@ -519,4 +519,3 @@ router.get('/admin/surveys/:patientId', verifyAdmin, async (req, res) => {
 });
 
 module.exports = router; // Force redeploy - updated with graceful column handling 
- 

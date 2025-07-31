@@ -38,13 +38,12 @@ router.post('/', verifyPatient, [
 
     const result = await query(`
       INSERT INTO emergency_records (
-        patient_id, reported_at, emergency_type, priority, description,
-        pain_level, symptoms, location, duty_related, unit_command
-      ) VALUES ($1, CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Manila', $2, $3, $4, $5, $6, $7, $8, $9)
-      RETURNING id, reported_at, status
+        patient_id, emergency_date, emergency_type, priority, description,
+        severity, resolved
+      ) VALUES ($1, CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Manila', $2, $3, $4, $5, false)
+      RETURNING id, emergency_date, status
     `, [
-      patientId, emergencyType, priority, description,
-      painLevel, symptoms, location, dutyRelated || false, unitCommand
+      patientId, emergencyType, priority, description, painLevel
     ]);
 
     const emergency = result.rows[0];
@@ -54,7 +53,7 @@ router.post('/', verifyPatient, [
       emergency: {
         id: emergency.id,
         patientId,
-        reportedAt: emergency.reported_at,
+        emergencyDate: emergency.emergency_date,
         status: emergency.status
       }
     });
@@ -75,20 +74,19 @@ router.get('/', verifyPatient, async (req, res) => {
     const result = await query(`
       SELECT 
         id, 
-        TO_CHAR(reported_at AT TIME ZONE 'Asia/Manila', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as reported_at,
+        TO_CHAR(emergency_date AT TIME ZONE 'Asia/Manila', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as emergency_date,
         emergency_type, priority, status, description,
-        pain_level, symptoms, location, duty_related, unit_command,
-        handled_by, first_aid_provided, 
+        severity, resolved,
+        handled_by, resolution, follow_up_required, 
         CASE WHEN resolved_at IS NOT NULL 
           THEN TO_CHAR(resolved_at AT TIME ZONE 'Asia/Manila', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')
           ELSE NULL 
         END as resolved_at,
-        resolution,
-        follow_up_required, emergency_contact, notes, 
+        emergency_contact, notes, 
         TO_CHAR(created_at AT TIME ZONE 'Asia/Manila', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as created_at
       FROM emergency_records 
       WHERE patient_id = $1
-      ORDER BY reported_at DESC
+      ORDER BY emergency_date DESC
     `, [patientId]);
 
     res.json({

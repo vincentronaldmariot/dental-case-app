@@ -3998,7 +3998,7 @@ $allPatientsData
           // Step 1: Update emergency status to resolved
           final emergencyResponse = await http.put(
             Uri.parse(
-                '${AppConfig.apiBaseUrl}/admin/emergencies/${record.id}/status'),
+                '${AppConfig.apiBaseUrl}/api/admin/emergencies/${record.id}/status'),
             headers: {
               'Content-Type': 'application/json',
               'Authorization': 'Bearer $adminToken',
@@ -4195,7 +4195,7 @@ $allPatientsData
         }
 
         final response = await http.delete(
-          Uri.parse('${AppConfig.apiBaseUrl}/admin/emergencies/${record.id}'),
+          Uri.parse('${AppConfig.apiBaseUrl}/api/admin/emergencies/${record.id}'),
           headers: {
             'Authorization': 'Bearer $adminToken',
           },
@@ -4264,7 +4264,7 @@ $allPatientsData
 
       final response = await http.post(
         Uri.parse(
-            '${AppConfig.apiBaseUrl}/admin/emergencies/${record.id}/notify'),
+            '${AppConfig.apiBaseUrl}/api/admin/emergencies/${record.id}/notify'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $adminToken',

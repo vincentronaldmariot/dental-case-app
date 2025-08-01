@@ -2,7 +2,6 @@ const express = require('express');
 const { body, validationResult } = require('express-validator');
 const { query } = require('../config/database');
 const { verifyAdmin } = require('../middleware/auth');
-const json = require('json');
 
 const router = express.Router();
 
@@ -2606,23 +2605,37 @@ router.post('/emergencies/:id/notify', verifyAdmin, async (req, res) => {
 
     const emergency = emergencyResult.rows[0];
 
-    // Import notification service
-    const notificationService = require('../services/notification_service');
+    // Create notification in database
+    const notificationResult = await query(`
+      INSERT INTO notifications (patient_id, title, message, type, created_at)
+      VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
+      RETURNING id, title, message, type, is_read, created_at
+    `, [
+      emergency.patient_id,
+      'Emergency Case Update',
+      `Your emergency dental case (${emergencyType || emergency.emergency_type}) has been ${emergency.status}. ${message ? `Notes: ${message}` : ''}`,
+      'emergency'
+    ]);
 
-    // Create emergency notification with SMS
-    const notification = await notificationService.sendEmergencyNotification({
-      id: emergency.id,
-      patientId: emergency.patient_id,
-      emergencyTypeDisplay: emergencyType || emergency.emergency_type,
-      statusDisplay: emergency.status,
-      notes: message
-    });
+    const notification = notificationResult.rows[0];
 
-    console.log('✅ Emergency notification with SMS sent successfully');
+    console.log('✅ Emergency notification created successfully');
     res.json({
       message: 'Emergency notification sent successfully',
-      notification: notification,
-      smsStatus: notificationService.getSMSStatus()
+      notification: {
+        id: notification.id,
+        title: notification.title,
+        message: notification.message,
+        type: notification.type,
+        isRead: notification.is_read,
+        createdAt: notification.created_at
+      },
+      smsStatus: {
+        configured: false,
+        accountSid: 'Not Set',
+        authToken: 'Not Set',
+        phoneNumber: 'Not Set'
+      }
     });
 
   } catch (error) {
@@ -2637,8 +2650,15 @@ router.post('/emergencies/:id/notify', verifyAdmin, async (req, res) => {
 // GET /api/admin/sms-status - Get SMS service status
 router.get('/sms-status', verifyAdmin, async (req, res) => {
   try {
-    const notificationService = require('../services/notification_service');
-    const smsStatus = notificationService.getSMSStatus();
+    // Check if Twilio environment variables are set
+    const smsStatus = {
+      configured: !!(process.env.TWILIO_ACCOUNT_SID && 
+                    process.env.TWILIO_AUTH_TOKEN && 
+                    process.env.TWILIO_PHONE_NUMBER),
+      accountSid: process.env.TWILIO_ACCOUNT_SID ? 'Set' : 'Not Set',
+      authToken: process.env.TWILIO_AUTH_TOKEN ? 'Set' : 'Not Set',
+      phoneNumber: process.env.TWILIO_PHONE_NUMBER || 'Not Set'
+    };
     
     res.json({
       smsStatus: smsStatus

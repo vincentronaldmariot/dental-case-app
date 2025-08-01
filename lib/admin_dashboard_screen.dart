@@ -449,9 +449,9 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         return;
       }
 
-      // Use the working emergency endpoint directly
+      // Use the working emergency admin endpoint
       final response = await http.get(
-        Uri.parse('${AppConfig.apiBaseUrl}/admin/emergency'),
+        Uri.parse('${AppConfig.apiBaseUrl}/emergency/admin'),
         headers: {
           'Authorization': 'Bearer $adminToken',
           'Content-Type': 'application/json',
@@ -4002,7 +4002,7 @@ $allPatientsData
           // Step 1: Update emergency status to resolved
           final emergencyResponse = await http.put(
             Uri.parse(
-                '${AppConfig.apiBaseUrl}/admin/emergency/${record.id}/status'),
+                '${AppConfig.apiBaseUrl}/emergency/admin/${record.id}/status'),
             headers: {
               'Content-Type': 'application/json',
               'Authorization': 'Bearer $adminToken',
@@ -4020,7 +4020,7 @@ $allPatientsData
 
           // Step 1.5: Get the updated emergency record to get the resolved_at date
           final updatedEmergencyResponse = await http.get(
-            Uri.parse('${AppConfig.apiBaseUrl}/admin/emergency'),
+            Uri.parse('${AppConfig.apiBaseUrl}/emergency/admin'),
             headers: {
               'Authorization': 'Bearer $adminToken',
             },

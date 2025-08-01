@@ -2576,6 +2576,80 @@ router.post('/fix-survey-issue', verifyAdmin, async (req, res) => {
   }
 });
 
+// POST /api/admin/emergencies/:id/notify - Send emergency notification with SMS
+router.post('/emergencies/:id/notify', verifyAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { patientId, message, emergencyType } = req.body;
 
+    console.log(`📱 Admin sending emergency notification for emergency ${id}`);
+
+    // Get emergency record
+    const emergencyResult = await query(`
+      SELECT 
+        er.id, 
+        er.patient_id, 
+        er.emergency_type, 
+        er.status,
+        er.description,
+        er.notes,
+        p.first_name,
+        p.last_name
+      FROM emergency_records er
+      LEFT JOIN patients p ON er.patient_id = p.id
+      WHERE er.id = $1
+    `, [id]);
+
+    if (emergencyResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Emergency record not found' });
+    }
+
+    const emergency = emergencyResult.rows[0];
+
+    // Import notification service
+    const notificationService = require('../services/notification_service');
+
+    // Create emergency notification with SMS
+    const notification = await notificationService.sendEmergencyNotification({
+      id: emergency.id,
+      patientId: emergency.patient_id,
+      emergencyTypeDisplay: emergencyType || emergency.emergency_type,
+      statusDisplay: emergency.status,
+      notes: message
+    });
+
+    console.log('✅ Emergency notification with SMS sent successfully');
+    res.json({
+      message: 'Emergency notification sent successfully',
+      notification: notification,
+      smsStatus: notificationService.getSMSStatus()
+    });
+
+  } catch (error) {
+    console.error('❌ Error sending emergency notification:', error);
+    res.status(500).json({
+      error: 'Failed to send emergency notification. Please try again.',
+      details: error.message
+    });
+  }
+});
+
+// GET /api/admin/sms-status - Get SMS service status
+router.get('/sms-status', verifyAdmin, async (req, res) => {
+  try {
+    const notificationService = require('../services/notification_service');
+    const smsStatus = notificationService.getSMSStatus();
+    
+    res.json({
+      smsStatus: smsStatus
+    });
+  } catch (error) {
+    console.error('❌ Error getting SMS status:', error);
+    res.status(500).json({
+      error: 'Failed to get SMS status. Please try again.',
+      details: error.message
+    });
+  }
+});
 
 module.exports = router; 

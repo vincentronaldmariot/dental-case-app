@@ -488,7 +488,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
             try {
               reportedAt = DateTime.parse(record['reportedAt']);
             } catch (e) {
-              print('⚠️ Failed to parse reportedAt: ${record['reportedAt']}, using current time');
+              print(
+                  '⚠️ Failed to parse reportedAt: ${record['reportedAt']}, using current time');
               reportedAt = DateTime.now();
             }
 
@@ -3178,7 +3179,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       } else {
         patientName = 'Unknown Patient';
       }
-      
+
       classification = patientData?['classification']?.toString() ?? 'N/A';
       unitAssignment = patientData?['unitAssignment']?.toString() ?? 'N/A';
       serialNumber = patientData?['serialNumber']?.toString() ?? 'N/A';

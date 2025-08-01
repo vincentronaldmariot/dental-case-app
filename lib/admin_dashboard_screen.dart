@@ -196,11 +196,20 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
           patients = [data];
         }
 
+        // Populate patient map for easy lookup
+        final patientMap = <String, dynamic>{};
+        for (final patient in patients) {
+          if (patient['id'] != null) {
+            patientMap[patient['id'].toString()] = patient;
+          }
+        }
+
         setState(() {
           _patients = patients;
+          _patientMap = patientMap;
         });
 
-        print('✅ Loaded ${patients.length} patients');
+        print('✅ Loaded ${patients.length} patients and populated patient map');
       } else {
         print('❌ Failed to load patients: ${response.statusCode}');
         print('Response body: ${response.body}');
@@ -474,10 +483,29 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
 
         setState(() {
           _emergencyRecords = emergencyData.map((record) {
+            // Safe date parsing
+            DateTime reportedAt;
+            try {
+              reportedAt = DateTime.parse(record['reportedAt']);
+            } catch (e) {
+              print('⚠️ Failed to parse reportedAt: ${record['reportedAt']}, using current time');
+              reportedAt = DateTime.now();
+            }
+
+            DateTime? resolvedAt;
+            if (record['resolvedAt'] != null) {
+              try {
+                resolvedAt = DateTime.parse(record['resolvedAt']);
+              } catch (e) {
+                print('⚠️ Failed to parse resolvedAt: ${record['resolvedAt']}');
+                resolvedAt = null;
+              }
+            }
+
             return EmergencyRecord(
               id: record['id'].toString(),
               patientId: record['patientId'] ?? '',
-              reportedAt: DateTime.parse(record['reportedAt']),
+              reportedAt: reportedAt,
               type: _parseEmergencyType(record['emergencyType']),
               priority: _parseEmergencyPriority(record['priority']),
               status: _parseEmergencyStatus(record['status']),
@@ -489,9 +517,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
               unitCommand: record['unitCommand'],
               handledBy: record['handledBy'],
               firstAidProvided: record['firstAidProvided'],
-              resolvedAt: record['resolvedAt'] != null
-                  ? DateTime.parse(record['resolvedAt'])
-                  : null,
+              resolvedAt: resolvedAt,
               resolution: record['resolution'],
               followUpRequired: record['followUpRequired'],
               emergencyContact: record['emergencyContact'],
@@ -3136,15 +3162,33 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
   }
 
   Widget _buildEmergencyCard(EmergencyRecord record) {
-    // Get patient information from the patient map
+    // Get patient information from the patient map with error handling
     final patientData = _patientMap[record.patientId];
-    final patientName = patientData != null
-        ? '${patientData['firstName'] ?? ''} ${patientData['lastName'] ?? ''}'
-            .trim()
-        : 'Unknown Patient';
-    final classification = patientData?['classification'] ?? 'N/A';
-    final unitAssignment = patientData?['unitAssignment'] ?? 'N/A';
-    final serialNumber = patientData?['serialNumber'] ?? 'N/A';
+    String patientName;
+    String classification;
+    String unitAssignment;
+    String serialNumber;
+
+    try {
+      if (patientData != null) {
+        final firstName = patientData['firstName']?.toString() ?? '';
+        final lastName = patientData['lastName']?.toString() ?? '';
+        patientName = '$firstName $lastName'.trim();
+        if (patientName.isEmpty) patientName = 'Unknown Patient';
+      } else {
+        patientName = 'Unknown Patient';
+      }
+      
+      classification = patientData?['classification']?.toString() ?? 'N/A';
+      unitAssignment = patientData?['unitAssignment']?.toString() ?? 'N/A';
+      serialNumber = patientData?['serialNumber']?.toString() ?? 'N/A';
+    } catch (e) {
+      print('⚠️ Error processing patient data for emergency card: $e');
+      patientName = 'Unknown Patient';
+      classification = 'N/A';
+      unitAssignment = 'N/A';
+      serialNumber = 'N/A';
+    }
 
     // Format date and time
     final dateStr =
@@ -4009,7 +4053,8 @@ $allPatientsData
             },
             body: jsonEncode({
               'status': 'resolved',
-              'notes': 'Emergency resolved and converted to appointment by Admin',
+              'notes':
+                  'Emergency resolved and converted to appointment by Admin',
             }),
           );
 
@@ -4033,8 +4078,7 @@ $allPatientsData
 
           final updatedEmergencyData =
               jsonDecode(updatedEmergencyResponse.body);
-          final updatedEmergency =
-              updatedEmergencyData.firstWhere(
+          final updatedEmergency = updatedEmergencyData.firstWhere(
             (e) => e['id'].toString() == record.id,
             orElse: () => null,
           );

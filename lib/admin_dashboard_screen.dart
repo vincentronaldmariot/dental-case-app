@@ -449,27 +449,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
         return;
       }
 
-      // Try the new emergency-records endpoint first
-      var response = await http.get(
-        Uri.parse(
-            '${AppConfig.apiBaseUrl}/admin/emergency-records?exclude_resolved=true'),
+      // Use the working emergency endpoint directly
+      final response = await http.get(
+        Uri.parse('${AppConfig.apiBaseUrl}/admin/emergency'),
         headers: {
           'Authorization': 'Bearer $adminToken',
           'Content-Type': 'application/json',
         },
       );
-
-      // If that fails, try the alternative endpoint
-      if (response.statusCode != 200) {
-        response = await http.get(
-          Uri.parse(
-              '${AppConfig.apiBaseUrl}/admin/emergency?exclude_resolved=true'),
-          headers: {
-            'Authorization': 'Bearer $adminToken',
-            'Content-Type': 'application/json',
-          },
-        );
-      }
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -4015,16 +4002,14 @@ $allPatientsData
           // Step 1: Update emergency status to resolved
           final emergencyResponse = await http.put(
             Uri.parse(
-                '${AppConfig.apiBaseUrl}/api/admin/emergencies/${record.id}/status'),
+                '${AppConfig.apiBaseUrl}/admin/emergency/${record.id}/status'),
             headers: {
               'Content-Type': 'application/json',
               'Authorization': 'Bearer $adminToken',
             },
             body: jsonEncode({
               'status': 'resolved',
-              'handledBy': 'Admin',
-              'resolution': 'Emergency resolved and converted to appointment',
-              'followUpRequired': 'Follow-up appointment created',
+              'notes': 'Emergency resolved and converted to appointment by Admin',
             }),
           );
 
@@ -4035,7 +4020,7 @@ $allPatientsData
 
           // Step 1.5: Get the updated emergency record to get the resolved_at date
           final updatedEmergencyResponse = await http.get(
-            Uri.parse('${AppConfig.apiBaseUrl}/admin/emergencies'),
+            Uri.parse('${AppConfig.apiBaseUrl}/admin/emergency'),
             headers: {
               'Authorization': 'Bearer $adminToken',
             },
@@ -4049,8 +4034,8 @@ $allPatientsData
           final updatedEmergencyData =
               jsonDecode(updatedEmergencyResponse.body);
           final updatedEmergency =
-              updatedEmergencyData['emergencyRecords'].firstWhere(
-            (e) => e['id'] == record.id,
+              updatedEmergencyData.firstWhere(
+            (e) => e['id'].toString() == record.id,
             orElse: () => null,
           );
 

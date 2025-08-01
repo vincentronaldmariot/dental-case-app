@@ -64,6 +64,82 @@ router.post('/', verifyPatient, appointmentValidation, async (req, res) => {
 
     const appointment = result.rows[0];
 
+    // Get patient information for SMS
+    const patientResult = await query(`
+      SELECT first_name, last_name, phone
+      FROM patients
+      WHERE id = $1
+    `, [patientId]);
+
+    let smsResult = null;
+    if (patientResult.rows.length > 0) {
+      const patient = patientResult.rows[0];
+      
+      // Check if SMS service is configured
+      const smsConfigured = !!(process.env.TWILIO_ACCOUNT_SID && 
+                              process.env.TWILIO_AUTH_TOKEN && 
+                              process.env.TWILIO_PHONE_NUMBER);
+
+      if (smsConfigured && patient.phone) {
+        try {
+          // Import Twilio
+          const twilio = require('twilio');
+          const client = twilio(
+            process.env.TWILIO_ACCOUNT_SID,
+            process.env.TWILIO_AUTH_TOKEN
+          );
+
+          // Format phone number
+          let phone = patient.phone.replace(/\D/g, '');
+          if (phone.startsWith('0')) {
+            phone = '+63' + phone.substring(1);
+          } else if (phone.startsWith('9') && phone.length === 10) {
+            phone = '+63' + phone;
+          } else if (!phone.startsWith('+')) {
+            phone = '+' + phone;
+          }
+
+          // Send SMS
+          const smsMessage = `Hi ${patient.first_name}! Your dental appointment for ${appointment.service} has been booked for ${appointment.appointment_date} at ${appointment.time_slot}. Status: Pending approval. We'll notify you once approved. Reply STOP to unsubscribe.`;
+          
+          const twilioResult = await client.messages.create({
+            body: smsMessage,
+            from: process.env.TWILIO_PHONE_NUMBER,
+            to: phone
+          });
+
+          smsResult = {
+            success: true,
+            messageId: twilioResult.sid,
+            status: twilioResult.status
+          };
+
+          console.log(`✅ Appointment booking SMS sent successfully to ${phone}`);
+        } catch (smsError) {
+          console.error('❌ Appointment booking SMS failed:', smsError);
+          smsResult = {
+            success: false,
+            error: smsError.message
+          };
+        }
+      }
+    }
+
+    // Create notification in database
+    try {
+      await query(`
+        INSERT INTO notifications (patient_id, title, message, type, created_at)
+        VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
+      `, [
+        patientId,
+        'Appointment Booked',
+        `Your dental appointment for ${appointment.service} has been booked for ${appointment.appointment_date} at ${appointment.time_slot}. Status: Pending approval.`,
+        'appointment'
+      ]);
+    } catch (notificationError) {
+      console.error('❌ Failed to create appointment notification:', notificationError);
+    }
+
     res.status(201).json({
       message: 'Appointment booked successfully',
       appointment: {
@@ -75,7 +151,8 @@ router.post('/', verifyPatient, appointmentValidation, async (req, res) => {
         status: appointment.status,
         notes: appointment.notes,
         createdAt: appointment.created_at
-      }
+      },
+      sms: smsResult
     });
 
   } catch (error) {

@@ -135,15 +135,61 @@ async function setupDatabase() {
     
     await client.query(`
       CREATE TABLE IF NOT EXISTS emergency_records (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        patient_id UUID REFERENCES patients(id) ON DELETE CASCADE,
-        emergency_date TIMESTAMP NOT NULL,
-        emergency_type VARCHAR(100),
-        description TEXT,
-        severity VARCHAR(20),
-        resolved BOOLEAN DEFAULT false,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        id SERIAL PRIMARY KEY,
+        patient_id UUID NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+        reported_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        emergency_type VARCHAR(50) NOT NULL,
+        priority VARCHAR(20) NOT NULL CHECK (priority IN ('immediate', 'urgent', 'standard')),
+        status VARCHAR(20) DEFAULT 'reported' CHECK (status IN ('reported', 'triaged', 'in_progress', 'resolved', 'referred')),
+        description TEXT NOT NULL,
+        pain_level INTEGER CHECK (pain_level >= 0 AND pain_level <= 10),
+        symptoms TEXT[],
+        location VARCHAR(100),
+        duty_related BOOLEAN DEFAULT FALSE,
+        unit_command VARCHAR(100),
+        handled_by VARCHAR(100),
+        first_aid_provided TEXT,
+        resolved_at TIMESTAMP,
+        resolution TEXT,
+        follow_up_required TEXT,
+        emergency_contact VARCHAR(20),
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
+    `);
+    
+    // Create indexes for emergency_records
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_emergency_records_patient_id ON emergency_records(patient_id)
+    `);
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_emergency_records_status ON emergency_records(status)
+    `);
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_emergency_records_priority ON emergency_records(priority)
+    `);
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_emergency_records_reported_at ON emergency_records(reported_at)
+    `);
+    
+    // Create trigger function for updated_at
+    await client.query(`
+      CREATE OR REPLACE FUNCTION update_updated_at_column()
+      RETURNS TRIGGER AS $$
+      BEGIN
+          NEW.updated_at = CURRENT_TIMESTAMP;
+          RETURN NEW;
+      END;
+      $$ language 'plpgsql'
+    `);
+    
+    // Create trigger for emergency_records
+    await client.query(`
+      CREATE TRIGGER update_emergency_records_updated_at 
+        BEFORE UPDATE ON emergency_records 
+        FOR EACH ROW 
+        EXECUTE FUNCTION update_updated_at_column()
     `);
     
     await client.query(`

@@ -47,6 +47,7 @@
 	<true/>
 	<!-- Camera permission for QR code scanning -->
 	<key>NSCameraUsageDescription</key>
-	<string>This app needs camera access to scan QR codes for appointment and receipt information.</string>
+	<string>This app needs camera access to scan QR codes for appointment and survey information.</string>
+
 </dict>
 </plist>

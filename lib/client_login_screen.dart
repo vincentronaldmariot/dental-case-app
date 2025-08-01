@@ -438,7 +438,7 @@ class _ClientLoginScreenState extends State<ClientLoginScreen>
 
                                 _buildClassificationDropdown(),
 
-                                if (_selectedClassification != 'Others') ...[
+                                if (_selectedClassification != 'Other') ...[
                                   const SizedBox(height: 16),
                                   _buildInputField(
                                     controller: _serialNumberController,
@@ -459,7 +459,7 @@ class _ClientLoginScreenState extends State<ClientLoginScreen>
                                   ),
                                 ],
 
-                                if (_selectedClassification == 'Others') ...[
+                                if (_selectedClassification == 'Other') ...[
                                   const SizedBox(height: 16),
                                   _buildInputField(
                                     controller: _otherClassificationController,
@@ -586,7 +586,12 @@ class _ClientLoginScreenState extends State<ClientLoginScreen>
   }
 
   Widget _buildClassificationDropdown() {
-    final classifications = ['Military', 'AD/HR', 'Department', 'Others'];
+    final classifications = [
+      'Military',
+      'Civilian Staff',
+      'Department',
+      'Other'
+    ];
 
     return Container(
       decoration: BoxDecoration(
@@ -622,7 +627,7 @@ class _ClientLoginScreenState extends State<ClientLoginScreen>
         onChanged: (value) {
           setState(() {
             _selectedClassification = value ?? 'Military';
-            if (_selectedClassification != 'Others') {
+            if (_selectedClassification != 'Other') {
               _otherClassificationController.clear();
             } else {
               _serialNumberController.clear();
@@ -801,14 +806,14 @@ class _ClientLoginScreenState extends State<ClientLoginScreen>
       address: _addressController.text,
       emergencyContact: 'Emergency Contact', // Default value
       emergencyPhone: '123-456-7890', // Default value
-      serialNumber: _selectedClassification != 'Others'
+      serialNumber: _selectedClassification != 'Other'
           ? _serialNumberController.text
           : '',
-      unitAssignment: _selectedClassification != 'Others'
+      unitAssignment: _selectedClassification != 'Other'
           ? _unitAssignmentController.text
           : '',
       classification: _selectedClassification,
-      otherClassification: _selectedClassification == 'Others'
+      otherClassification: _selectedClassification == 'Other'
           ? _otherClassificationController.text
           : '',
     );

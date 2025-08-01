@@ -14,7 +14,8 @@ import 'dental_survey_simple.dart';
 import 'services/api_service.dart';
 import 'user_state_manager.dart';
 import 'appointment_history_screen.dart';
-import 'qr_scanner_screen.dart';
+import 'admin_qr_scanner_screen.dart';
+
 import 'config/app_config.dart';
 
 class AdminDashboardScreen extends StatefulWidget {
@@ -1831,76 +1832,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // QR Scanner Card
-          Card(
-            elevation: 4,
-            child: InkWell(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const QRScannerScreen(),
-                  ),
-                );
-              },
-              child: Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF0029B2), Color(0xFF001B8A)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Icon(
-                        Icons.qr_code_scanner,
-                        color: Colors.white,
-                        size: 32,
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'QR Code Scanner',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Scan patient QR codes and appointment receipts',
-                            style: TextStyle(
-                              color: Colors.white.withOpacity(0.9),
-                              fontSize: 14,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const Icon(
-                      Icons.arrow_forward_ios,
-                      color: Colors.white,
-                      size: 20,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
           const SizedBox(height: 16),
           Card(
             child: Padding(
@@ -1987,6 +1918,92 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen>
                     ],
                   ),
                 ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // QR Scanner Card
+          Card(
+            elevation: 4,
+            child: InkWell(
+              onTap: () async {
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const AdminQrScannerScreen(),
+                  ),
+                );
+
+                if (result != null && context.mounted) {
+                  // Handle the scanned QR data
+                  final data = result as Map<String, dynamic>;
+                  final type = data['type'] as String?;
+
+                  if (type == 'appointment') {
+                    // Show appointment details dialog
+                    _showScannedAppointmentDetails(data);
+                  } else if (type == 'survey_receipt') {
+                    // Show survey receipt details dialog
+                    _showScannedSurveyDetails(data);
+                  }
+                }
+              },
+              child: Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF0029B2), Color(0xFF001B8A)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(
+                        Icons.qr_code_scanner,
+                        color: Colors.white,
+                        size: 32,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'QR Code Scanner',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Scan appointment and survey QR codes',
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.9),
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Icon(
+                      Icons.arrow_forward_ios,
+                      color: Colors.white,
+                      size: 20,
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -4195,7 +4212,8 @@ $allPatientsData
         }
 
         final response = await http.delete(
-          Uri.parse('${AppConfig.apiBaseUrl}/api/admin/emergencies/${record.id}'),
+          Uri.parse(
+              '${AppConfig.apiBaseUrl}/api/admin/emergencies/${record.id}'),
           headers: {
             'Authorization': 'Bearer $adminToken',
           },
@@ -4287,5 +4305,89 @@ $allPatientsData
       print('❌ Error sending emergency notification: $e');
       throw Exception('Failed to send notification: $e');
     }
+  }
+
+  void _showScannedAppointmentDetails(Map<String, dynamic> data) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Row(
+            children: [
+              const Icon(Icons.calendar_today, color: Color(0xFF0029B2)),
+              const SizedBox(width: 8),
+              const Text('Appointment Details'),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildInfoRow('Patient Name', data['patientName'] ?? 'N/A'),
+                _buildInfoRow('Service', data['service'] ?? 'N/A'),
+                _buildInfoRow('Date', data['date'] ?? 'N/A'),
+                _buildInfoRow('Time', data['time'] ?? 'N/A'),
+                _buildInfoRow(
+                    'Classification', data['classification'] ?? 'N/A'),
+                _buildInfoRow('Email', data['email'] ?? 'N/A'),
+                _buildInfoRow('Phone', data['phone'] ?? 'N/A'),
+                _buildInfoRow(
+                    'Appointment ID', data['id']?.toString() ?? 'N/A'),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Close'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showScannedSurveyDetails(Map<String, dynamic> data) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Row(
+            children: [
+              const Icon(Icons.assignment, color: Color(0xFF0029B2)),
+              const SizedBox(width: 8),
+              const Text('Survey Receipt Details'),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildInfoRow(
+                    'Receipt Number', data['receipt_number'] ?? 'N/A'),
+                _buildInfoRow('Daily Counter', data['daily_counter'] ?? 'N/A'),
+                _buildInfoRow('Patient Name', data['name'] ?? 'N/A'),
+                _buildInfoRow('Serial Number', data['serial_number'] ?? 'N/A'),
+                _buildInfoRow(
+                    'Unit Assignment', data['unit_assignment'] ?? 'N/A'),
+                _buildInfoRow(
+                    'Classification', data['classification'] ?? 'N/A'),
+                _buildInfoRow(
+                    'Contact Number', data['contact_number'] ?? 'N/A'),
+                _buildInfoRow('Timestamp', data['timestamp'] ?? 'N/A'),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Close'),
+            ),
+          ],
+        );
+      },
+    );
   }
 }

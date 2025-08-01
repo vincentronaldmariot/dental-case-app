@@ -279,7 +279,7 @@ class PatientSurveyResultsScreen extends StatelessWidget {
     if (patient.unitAssignment.contains('Military')) {
       return 'Active Military Personnel';
     } else if (patient.unitAssignment.contains('AV/HR')) {
-      return 'Civilian Employee';
+      return 'Civilian Staff';
     } else if (patient.unitAssignment.contains('Emergency')) {
       return 'Emergency Services Staff';
     } else {

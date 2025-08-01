@@ -3,154 +3,151 @@
 ## Overview
 This guide explains how to set up and use a 58mm POS Bluetooth thermal printer with your dental clinic kiosk application.
 
-## Supported Printers
-- **58mm POS Bluetooth Thermal Printers** (like the one from [Shopee](https://shopee.ph/58MM-POS-Printer-Bluetooth-USB-Thermal-Receipt-printers-for-Supermarket-Convenience-store-Milk-tea-shop-Takeaway-order-i.1020397340.28707868904))
-- Compatible with ESC/POS commands
-- Bluetooth connectivity
+## Compatible Printers
+- **58mm POS Bluetooth Thermal Printers** (like the one from [Shopee](https://shopee.ph/58MM-POS-Printer-Bluetooth-USB-Thermal-Receipt-printers-for-Supermarket-Convenience-store-Milk-tea-shop-Takeaway-order-i.1020))
+- **Any ESC/POS compatible thermal printer**
+- **Bluetooth-enabled thermal printers**
 
 ## Setup Instructions
 
-### 1. Hardware Setup
+### 1. Printer Setup
 1. **Power on your thermal printer**
 2. **Insert thermal paper** (58mm width)
 3. **Turn on Bluetooth** on the printer (if applicable)
+4. **Note the printer name** for pairing
 
-### 2. Bluetooth Pairing
-1. **Enable Bluetooth** on your device (Android tablet/phone/PC)
+### 2. Device Pairing
+1. **Enable Bluetooth** on your Android device/tablet
 2. **Go to Bluetooth settings**
 3. **Scan for devices** and find your thermal printer
-4. **Pair with the printer** (usually no password required)
-5. **Note the printer name** for future reference
+4. **Pair the device** (usually no password required)
+5. **Note the paired device name**
 
 ### 3. App Configuration
-The app will automatically:
-- **Detect paired devices** when you try to print
-- **Connect to the printer** automatically if only one is available
-- **Show a selection dialog** if multiple printers are paired
+1. **Open the dental kiosk app**
+2. **Click the orange printer icon** in the top-right corner
+3. **This opens the Thermal Printer Test screen**
+4. **Click "Refresh Devices"** to scan for paired printers
+5. **Select your thermal printer** from the list
+6. **Click "Connect"** to establish connection
+7. **Test the connection** by clicking "Print Test"
 
 ## Using the Thermal Printer
 
-### Print Options Available
-Your kiosk now has **two printing options**:
-
-1. **PDF Print** (Blue button)
-   - Creates professional PDF receipts
-   - Can be printed on any standard printer
-   - Can be saved as PDF files
-   - Includes full formatting and colors
-
-2. **Thermal Print** (Orange button)
-   - Prints directly to your 58mm thermal printer
-   - Simple text format optimized for thermal paper
-   - Fast printing for immediate receipt delivery
-
-### How to Print
-1. **Complete the dental survey** in kiosk mode
-2. **On the receipt screen**, you'll see two print buttons:
-   - **"Print PDF"** - For standard printing
+### In Kiosk Mode
+1. **Complete the dental survey** as a patient
+2. **Review the receipt** on the screen
+3. **Choose print option:**
+   - **"Print PDF"** - For PDF receipt
    - **"Thermal Print"** - For thermal printer
-3. **Click "Thermal Print"** for your 58mm printer
-4. **The app will automatically connect** to your paired printer
-5. **Receipt will print immediately** on thermal paper
+4. **Click "Thermal Print"** for your 58mm printer
+5. **Check the printer output** for the receipt
+
+### Features
+- **Automatic connection** to paired thermal printers
+- **Real-time status** showing connection state
+- **Error handling** with helpful messages
+- **Test printing** functionality
+- **Proper ESC/POS formatting** for thermal paper
 
 ## Troubleshooting
 
 ### Common Issues
 
-#### "No paired Bluetooth devices found"
-**Solution:**
-- Ensure your printer is turned on
-- Check that Bluetooth is enabled on your device
-- Re-pair the printer in Bluetooth settings
-- Restart both the printer and your device
+#### "No Bluetooth devices found"
+- Ensure Bluetooth is enabled on your device
+- Make sure the thermal printer is paired
+- Try refreshing the device list
 
 #### "Failed to connect to thermal printer"
-**Solution:**
-- Check if the printer is within range (usually 10 meters)
-- Ensure the printer is not connected to another device
-- Try disconnecting and reconnecting the printer
-- Restart the printer
+- Check if the printer is turned on
+- Verify the printer is in pairing mode
+- Try disconnecting and reconnecting
+- Restart both the app and printer
 
-#### "Print failed" error
-**Solution:**
-- Check if thermal paper is loaded correctly
-- Ensure the paper is not stuck or jammed
-- Check if the printer has enough paper
-- Try printing a test page from printer settings
+#### "Print failed"
+- Check if thermal paper is loaded
+- Ensure the printer is not out of paper
+- Verify the connection is still active
+- Try printing a test receipt first
+
+#### "Permissions required"
+- Grant Bluetooth permissions when prompted
+- Go to device settings if permissions are denied
+- Enable location services (required for Bluetooth scanning)
+
+### Printer-Specific Issues
+
+#### Paper not feeding
+- Check paper alignment
+- Ensure paper is properly loaded
+- Clean the paper feed mechanism
 
 #### Poor print quality
-**Solution:**
-- Clean the print head with a soft cloth
-- Check if the thermal paper is fresh and not exposed to heat
-- Ensure the printer is not overheating
-- Replace thermal paper if it's old or damaged
+- Clean the print head
+- Check paper quality
+- Adjust print density if available
 
-### Printer Maintenance
-1. **Clean the print head** regularly with a soft, dry cloth
-2. **Keep the printer in a cool, dry place**
-3. **Use high-quality thermal paper**
-4. **Avoid exposing the printer to direct sunlight**
-5. **Store thermal paper in a cool, dark place**
+#### Connection drops
+- Keep devices within 10 meters
+- Avoid interference from other Bluetooth devices
+- Check battery level on portable printers
 
 ## Technical Details
 
+### ESC/POS Commands Used
+- **Font formatting** (bold, size, alignment)
+- **Paper feed** and cut commands
+- **Character encoding** for proper text display
+- **Receipt layout** optimized for 58mm paper
+
+### Bluetooth Implementation
+- **Automatic device discovery**
+- **Connection management**
+- **Error handling** and recovery
+- **Permission management**
+
 ### Receipt Format
-The thermal receipt includes:
-- **Clinic header** with dental clinic branding
-- **Receipt number** and daily counter
-- **Patient information** (name, serial number, unit, classification, contact)
-- **Timestamp** of completion
-- **Thank you message**
-
-### Print Specifications
-- **Paper width**: 58mm
-- **Characters per line**: ~32-42 (depending on font size)
-- **Print speed**: Fast thermal printing
-- **Paper type**: Thermal paper (no ink required)
-
-### Supported Platforms
-- **Android**: Full support with automatic device detection
-- **Windows**: Limited support (may require additional setup)
-- **iOS**: Limited support due to Bluetooth restrictions
-- **Web**: Not supported (Bluetooth not available in browsers)
+- **Header** with clinic name and receipt number
+- **Patient information** section
+- **Survey results** with total score
+- **Questions and answers** (limited to fit paper width)
+- **Footer** with thank you message
+- **QR code** for digital record access
 
 ## Advanced Configuration
 
-### Customizing Receipt Content
-You can modify the receipt content by editing:
-- `lib/services/thermal_print_service.dart` - Main print logic
-- `lib/services/printer_connection_helper.dart` - Connection management
+### Customizing Receipt Layout
+The receipt format can be customized in `lib/services/thermal_print_service.dart`:
+- Modify the `_createThermalReceiptContent` method
+- Adjust text formatting and layout
+- Add custom headers or footers
+- Change paper width settings
 
-### Adding More Print Options
-To add additional print formats:
-1. Create new print service methods
-2. Add new buttons to the receipt screen
-3. Update the UI to accommodate more options
-
-### Printer Selection
-If you have multiple printers:
-- The app will show a selection dialog
-- You can choose which printer to use
-- The selection is remembered for the session
-
-## Security Considerations
-- **Bluetooth pairing** is required for security
-- **No sensitive data** is stored on the printer
-- **Receipts contain only** patient information and survey data
-- **No network connectivity** required for thermal printing
+### Adding New Printer Models
+To support additional printer models:
+1. **Test compatibility** with ESC/POS commands
+2. **Adjust formatting** for different paper widths
+3. **Update connection logic** if needed
+4. **Add printer-specific settings**
 
 ## Support
-If you encounter issues:
-1. **Check this troubleshooting guide** first
-2. **Restart the app** and try again
-3. **Check printer manufacturer** documentation
-4. **Contact technical support** if problems persist
+
+### Getting Help
+- **Check the troubleshooting section** above
+- **Use the test screen** to diagnose issues
+- **Verify printer compatibility** with ESC/POS
+- **Test with different thermal paper** if needed
+
+### Contact Information
+For technical support with the thermal printer integration:
+- Check the app's error messages
+- Review the console logs for detailed information
+- Test with the built-in test functionality
 
 ## Future Enhancements
-Potential improvements for thermal printing:
-- **QR code printing** on thermal receipts
+- **Multiple printer support**
+- **Print queue management**
 - **Custom receipt templates**
-- **Multiple language support**
-- **Print preview** before printing
-- **Batch printing** capabilities
-- **Print history** tracking 
+- **Print history tracking**
+- **QR code printing** on thermal receipts 

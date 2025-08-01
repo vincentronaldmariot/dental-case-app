@@ -572,12 +572,14 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                _getMonthYearText(selectedDate),
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF0029B2),
+              Expanded(
+                child: Text(
+                  _getMonthYearText(selectedDate),
+                  style: TextStyle(
+                    fontSize: MediaQuery.of(context).size.width < 400 ? 16 : 18,
+                    fontWeight: FontWeight.bold,
+                    color: const Color(0xFF0029B2),
+                  ),
                 ),
               ),
               Row(
@@ -626,6 +628,7 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen>
               border: Border.all(color: Colors.blue.shade200),
             ),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Icon(Icons.info_outline, color: Colors.blue.shade700, size: 20),
                 const SizedBox(width: 8),
@@ -633,7 +636,8 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen>
                   child: Text(
                     'Appointments can be booked from today up to 5 days ahead only',
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize:
+                          MediaQuery.of(context).size.width < 400 ? 11 : 12,
                       color: Colors.blue.shade700,
                       fontWeight: FontWeight.w500,
                     ),
@@ -643,8 +647,12 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen>
             ),
           ),
           const SizedBox(height: 15),
-          // Custom Calendar Grid
-          _buildCustomCalendar(),
+          // Custom Calendar Grid with proper constraints
+          LayoutBuilder(
+            builder: (context, constraints) {
+              return _buildCustomCalendar(constraints.maxWidth);
+            },
+          ),
         ],
       ),
     );
@@ -668,7 +676,7 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen>
     return '${months[date.month - 1]} ${date.year}';
   }
 
-  Widget _buildCustomCalendar() {
+  Widget _buildCustomCalendar([double? maxWidth]) {
     final now = DateTime.now();
     final maxBookingDate = now.add(
       const Duration(days: 5),
@@ -683,143 +691,157 @@ class _AppointmentBookingScreenState extends State<AppointmentBookingScreen>
       Duration(days: firstDayOfMonth.weekday % 7),
     );
 
-    return Column(
-      children: [
-        // Weekday headers
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: ['S', 'M', 'T', 'W', 'T', 'F', 'S']
-              .map(
-                (day) => Container(
-                  width: 40,
-                  height: 40,
-                  alignment: Alignment.center,
-                  child: Text(
-                    day,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey,
-                      fontSize: 14,
-                    ),
-                  ),
-                ),
-              )
-              .toList(),
-        ),
-        const SizedBox(height: 10),
-        // Calendar days
-        ...List.generate(6, (weekIndex) {
-          return Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: List.generate(7, (dayIndex) {
-              final date = startDate.add(
-                Duration(days: weekIndex * 7 + dayIndex),
-              );
-              final isCurrentMonth = date.month == selectedDate.month;
-              final isToday = date.day == now.day &&
-                  date.month == now.month &&
-                  date.year == now.year;
-              final isSelected = date.day == selectedDate.day &&
-                  date.month == selectedDate.month &&
-                  date.year == selectedDate.year;
-              final isPast = date.isBefore(now) && !isToday;
-              final isTooFar = date.isAfter(maxBookingDate);
-              final isBookable = isCurrentMonth && !isPast && !isTooFar;
+    // Calculate responsive cell size based on available width
+    final availableWidth = (maxWidth ?? MediaQuery.of(context).size.width) -
+        32; // Account for padding
+    final cellSize = (availableWidth / 7) - 4; // 7 days per week, minus margins
+    final fontSize =
+        availableWidth < 400 ? 14.0 : 16.0; // Smaller font for small screens
 
-              return GestureDetector(
-                onTap: !isBookable
-                    ? () {
-                        // Shake animation for restricted dates
-                        _shakeController.forward().then((_) {
-                          _shakeController.reverse();
-                        });
-                      }
-                    : () {
-                        setState(() {
-                          selectedDate = date;
-                        });
-                      },
-                child: AnimatedBuilder(
-                  animation: _shakeAnimation,
-                  builder: (context, child) {
-                    return Transform.translate(
-                      offset: !isBookable
-                          ? Offset(
-                              (_shakeAnimation.value *
-                                  10 *
-                                  (0.5 - (_shakeAnimation.value * 0.5))),
-                              0,
-                            )
-                          : Offset.zero,
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        width: 40,
-                        height: 40,
-                        margin: const EdgeInsets.all(2),
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? const Color(0xFF0029B2)
-                              : isToday
-                                  ? const Color(0xFF0029B2).withOpacity(0.1)
-                                  : isTooFar
-                                      ? Colors.red.withOpacity(0.1)
-                                      : Colors.transparent,
-                          borderRadius: BorderRadius.circular(
-                            8,
-                          ), // Square with rounded corners
-                          border: isToday && !isSelected
-                              ? Border.all(
-                                  color: const Color(0xFF0029B2),
-                                  width: 2,
-                                )
-                              : isTooFar && !isSelected
-                                  ? Border.all(color: Colors.red, width: 1)
-                                  : null,
-                          boxShadow: isSelected
-                              ? [
-                                  BoxShadow(
-                                    color: const Color(
-                                      0xFF0029B2,
-                                    ).withOpacity(0.3),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ]
-                              : null,
-                        ),
-                        child: Center(
-                          child: AnimatedDefaultTextStyle(
-                            duration: const Duration(milliseconds: 200),
-                            style: TextStyle(
-                              color: isSelected
-                                  ? Colors.white
-                                  : isPast
-                                      ? Colors.grey.shade400
-                                      : isTooFar
-                                          ? Colors.red.shade600
-                                          : isCurrentMonth
-                                              ? Colors.black87
-                                              : Colors.grey.shade300,
-                              fontWeight: isSelected || isToday
-                                  ? FontWeight.bold
-                                  : FontWeight.normal,
-                              fontSize: 16,
-                            ),
-                            child: Text(date.day.toString()),
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: SizedBox(
+        width: availableWidth,
+        child: Column(
+          children: [
+            // Weekday headers
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: ['S', 'M', 'T', 'W', 'T', 'F', 'S']
+                  .map(
+                    (day) => SizedBox(
+                      width: cellSize,
+                      height: cellSize,
+                      child: Center(
+                        child: Text(
+                          day,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey,
+                            fontSize: fontSize - 2,
                           ),
                         ),
                       ),
-                    );
-                  },
-                ),
+                    ),
+                  )
+                  .toList(),
+            ),
+            const SizedBox(height: 10),
+            // Calendar days
+            ...List.generate(6, (weekIndex) {
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: List.generate(7, (dayIndex) {
+                  final date = startDate.add(
+                    Duration(days: weekIndex * 7 + dayIndex),
+                  );
+                  final isCurrentMonth = date.month == selectedDate.month;
+                  final isToday = date.day == now.day &&
+                      date.month == now.month &&
+                      date.year == now.year;
+                  final isSelected = date.day == selectedDate.day &&
+                      date.month == selectedDate.month &&
+                      date.year == selectedDate.year;
+                  final isPast = date.isBefore(now) && !isToday;
+                  final isTooFar = date.isAfter(maxBookingDate);
+                  final isBookable = isCurrentMonth && !isPast && !isTooFar;
+
+                  return GestureDetector(
+                    onTap: !isBookable
+                        ? () {
+                            // Shake animation for restricted dates
+                            _shakeController.forward().then((_) {
+                              _shakeController.reverse();
+                            });
+                          }
+                        : () {
+                            setState(() {
+                              selectedDate = date;
+                            });
+                          },
+                    child: AnimatedBuilder(
+                      animation: _shakeAnimation,
+                      builder: (context, child) {
+                        return Transform.translate(
+                          offset: !isBookable
+                              ? Offset(
+                                  (_shakeAnimation.value *
+                                      10 *
+                                      (0.5 - (_shakeAnimation.value * 0.5))),
+                                  0,
+                                )
+                              : Offset.zero,
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            width: cellSize,
+                            height: cellSize,
+                            margin: const EdgeInsets.all(2),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? const Color(0xFF0029B2)
+                                  : isToday
+                                      ? const Color(0xFF0029B2).withOpacity(0.1)
+                                      : isTooFar
+                                          ? Colors.red.withOpacity(0.1)
+                                          : Colors.transparent,
+                              borderRadius: BorderRadius.circular(
+                                8,
+                              ), // Square with rounded corners
+                              border: isToday && !isSelected
+                                  ? Border.all(
+                                      color: const Color(0xFF0029B2),
+                                      width: 2,
+                                    )
+                                  : isTooFar && !isSelected
+                                      ? Border.all(color: Colors.red, width: 1)
+                                      : null,
+                              boxShadow: isSelected
+                                  ? [
+                                      BoxShadow(
+                                        color: const Color(
+                                          0xFF0029B2,
+                                        ).withOpacity(0.3),
+                                        blurRadius: 8,
+                                        offset: const Offset(0, 4),
+                                      ),
+                                    ]
+                                  : null,
+                            ),
+                            child: Center(
+                              child: AnimatedDefaultTextStyle(
+                                duration: const Duration(milliseconds: 200),
+                                style: TextStyle(
+                                  color: isSelected
+                                      ? Colors.white
+                                      : isPast
+                                          ? Colors.grey.shade400
+                                          : isTooFar
+                                              ? Colors.red.shade600
+                                              : isCurrentMonth
+                                                  ? Colors.black87
+                                                  : Colors.grey.shade300,
+                                  fontWeight: isSelected || isToday
+                                      ? FontWeight.bold
+                                      : FontWeight.normal,
+                                  fontSize: fontSize,
+                                ),
+                                child: Text(date.day.toString()),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  );
+                }),
               );
-            }),
-          );
-        }).where((row) {
-          // Only show rows that have days from current month
-          return true;
-        }).take(6),
-      ],
+            }).where((row) {
+              // Only show rows that have days from current month
+              return true;
+            }).take(6),
+          ],
+        ),
+      ),
     );
   }
 

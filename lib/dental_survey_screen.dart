@@ -3,15 +3,18 @@ import 'package:flutter/services.dart';
 import 'user_state_manager.dart';
 import 'services/survey_service.dart';
 import 'services/receipt_counter_service.dart';
+import 'services/language_service.dart';
 import 'utils/phone_validator.dart';
 import 'kiosk_receipt_screen.dart';
 
 class DentalSurveyScreen extends StatefulWidget {
   final bool isKioskMode;
+  final String? language;
 
   const DentalSurveyScreen({
     super.key,
     this.isKioskMode = false,
+    this.language,
   });
 
   @override
@@ -29,6 +32,9 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
   final _emergencyPhoneController = TextEditingController();
   final _lastVisitController = TextEditingController();
   final _otherClassificationController = TextEditingController();
+  final _departmentTypeController = TextEditingController();
+
+  String _currentLanguage = LanguageService.getCurrentLanguage();
 
   String _selectedClassification = '';
 
@@ -68,16 +74,34 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
     _emergencyPhoneController.dispose();
     _lastVisitController.dispose();
     _otherClassificationController.dispose();
+    _departmentTypeController.dispose();
     super.dispose();
   }
 
   @override
   void initState() {
     super.initState();
+    // Set language if provided
+    if (widget.language != null) {
+      LanguageService.setLanguage(widget.language!);
+      _currentLanguage = widget.language!;
+    }
     // Reset form if in kiosk mode to ensure clean state for each patient
     if (widget.isKioskMode) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _resetForm();
+      });
+    }
+  }
+
+  @override
+  void didUpdateWidget(DentalSurveyScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Check if language has changed
+    if (widget.language != oldWidget.language && widget.language != null) {
+      setState(() {
+        _currentLanguage = widget.language!;
+        LanguageService.setLanguage(widget.language!);
       });
     }
   }
@@ -93,6 +117,7 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
     _emergencyPhoneController.clear();
     _lastVisitController.clear();
     _otherClassificationController.clear();
+    _departmentTypeController.clear();
 
     // Reset all survey answers
     setState(() {
@@ -188,10 +213,16 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
 
                       _buildClassificationDropdown(),
 
-                      // Show "Other" specification field when "Others" is selected
-                      if (_selectedClassification == 'Others') ...[
+                      // Show "Other" specification field when "Other" is selected
+                      if (_selectedClassification == 'Other') ...[
                         const SizedBox(height: 15),
                         _buildOtherSpecificationField(),
+                      ],
+
+                      // Show department type field when "Department" is selected
+                      if (_selectedClassification == 'Department') ...[
+                        const SizedBox(height: 15),
+                        _buildDepartmentTypeField(),
                       ],
 
                       const SizedBox(height: 25),
@@ -211,9 +242,9 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
                       _buildInputField(
                         controller: _serialNumberController,
                         labelText: 'SERIAL NUMBER:',
-                        enabled: _selectedClassification != 'Others',
+                        enabled: _selectedClassification != 'Other',
                         validator: (value) =>
-                            _selectedClassification != 'Others' &&
+                            _selectedClassification != 'Other' &&
                                     (value?.isEmpty ?? true)
                                 ? 'Serial number is required'
                                 : null,
@@ -223,9 +254,9 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
                       _buildInputField(
                         controller: _unitAssignmentController,
                         labelText: 'UNIT ASSIGNMENT:',
-                        enabled: _selectedClassification != 'Others',
+                        enabled: _selectedClassification != 'Other',
                         validator: (value) =>
-                            _selectedClassification != 'Others' &&
+                            _selectedClassification != 'Other' &&
                                     (value?.isEmpty ?? true)
                                 ? 'Unit assignment is required'
                                 : null,
@@ -283,12 +314,13 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
                       const SizedBox(height: 25),
 
                       // Self-Assessment Dental Survey
-                      _buildSectionTitle('Self-Assessment Dental Survey'),
+                      _buildSectionTitle(
+                          LanguageService.getText('self_assessment_title')),
                       const SizedBox(height: 20),
 
                       // Question 1: Tooth Conditions
                       _buildQuestionTitle(
-                        '1. Do you have any of the ones shown in the pictures?',
+                        LanguageService.getText('question_1'),
                       ),
                       const SizedBox(height: 15),
 
@@ -298,7 +330,7 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
 
                       // Question 2: Tartar/Calculus
                       _buildQuestionTitle(
-                        '2. Do you have tartar/calculus deposits or rough feeling teeth like in the images?',
+                        LanguageService.getText('question_2'),
                       ),
                       const SizedBox(height: 15),
 
@@ -308,7 +340,7 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
 
                       // Question 3: Tooth Sensitivity
                       _buildSimpleYesNoQuestion(
-                        '3. Do your teeth feel sensitive to hot, cold, or sweet foods?',
+                        LanguageService.getText('question_3'),
                         _toothSensitive,
                         (value) => setState(() => _toothSensitive = value),
                       ),
@@ -317,7 +349,7 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
 
                       // Question 4: Tooth Pain
                       _buildSimpleYesNoQuestion(
-                        '4. Do you experience tooth pain?',
+                        LanguageService.getText('question_4'),
                         _toothPain,
                         (value) => setState(() => _toothPain = value),
                       ),
@@ -326,7 +358,7 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
 
                       // Question 5: Damaged Fillings
                       _buildQuestionTitle(
-                        '5. Do you have damaged or broken fillings like those shown in the pictures?',
+                        LanguageService.getText('question_5'),
                       ),
                       const SizedBox(height: 15),
 
@@ -336,7 +368,7 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
 
                       // Questions 6-7: Dentures and Missing Teeth
                       _buildSimpleYesNoQuestion(
-                        '6. Do you need to get dentures (false teeth)?',
+                        LanguageService.getText('question_6'),
                         _needDentures,
                         (value) {
                           setState(() => _needDentures = value);
@@ -347,7 +379,7 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
 
                       // Question 7: Missing/Extracted Teeth
                       _buildSimpleYesNoQuestion(
-                        '7. Do you have missing or extracted teeth?',
+                        LanguageService.getText('question_7'),
                         _hasMissingTeeth,
                         (value) {
                           setState(() => _hasMissingTeeth = value);
@@ -360,13 +392,13 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
 
                       // Question 8: Last Visit
                       _buildQuestionTitle(
-                        '8. When was your last dental visit at a Dental Treatment Facility?',
+                        LanguageService.getText('question_8'),
                       ),
                       const SizedBox(height: 15),
 
                       _buildInputField(
                         controller: _lastVisitController,
-                        labelText: 'Write your answer here',
+                        labelText: LanguageService.getText('write_answer_here'),
                         maxLines: 3,
                       ),
 
@@ -459,7 +491,12 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
   }
 
   Widget _buildClassificationDropdown() {
-    final classifications = ['Military', 'AD/HR', 'Department', 'Others'];
+    final classifications = [
+      'Military',
+      'Civilian Staff',
+      'Department',
+      'Other'
+    ];
 
     return Container(
       decoration: BoxDecoration(
@@ -491,13 +528,20 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
           setState(() {
             _selectedClassification = value ?? '';
 
-            // If "Others" is selected, clear and disable military-specific fields
-            if (_selectedClassification == 'Others') {
+            // If "Other" is selected, clear and disable military-specific fields
+            if (_selectedClassification == 'Other') {
               _serialNumberController.clear();
               _unitAssignmentController.clear();
-            } else {
-              // If not "Others", clear the other specification field
+              _departmentTypeController.clear();
+            } else if (_selectedClassification == 'Department') {
+              // If "Department" is selected, clear military-specific fields and other specification
+              _serialNumberController.clear();
+              _unitAssignmentController.clear();
               _otherClassificationController.clear();
+            } else {
+              // If not "Other" or "Department", clear the specification fields
+              _otherClassificationController.clear();
+              _departmentTypeController.clear();
             }
           });
         },
@@ -573,9 +617,88 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
                   color: Colors.blue.shade600,
                 ),
               ),
-              validator: (value) => (_selectedClassification == 'Others' &&
+              validator: (value) => (_selectedClassification == 'Other' &&
                       (value?.trim().isEmpty ?? true))
                   ? 'Please specify your classification'
+                  : null,
+              textCapitalization: TextCapitalization.words,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDepartmentTypeField() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.green.shade50,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.green.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header with icon
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.green.shade100,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(8),
+                topRight: Radius.circular(8),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.business, color: Colors.green.shade700, size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  'Please specify your department:',
+                  style: TextStyle(
+                    color: Colors.green.shade700,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Text field
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: TextFormField(
+              controller: _departmentTypeController,
+              decoration: InputDecoration(
+                hintText: 'e.g., IT Department, HR Department, Finance, etc.',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: Colors.green.shade300),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: Colors.green.shade300),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide:
+                      BorderSide(color: Colors.green.shade600, width: 2),
+                ),
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                prefixIcon: Icon(
+                  Icons.business_outlined,
+                  color: Colors.green.shade600,
+                ),
+              ),
+              validator: (value) => (_selectedClassification == 'Department' &&
+                      (value?.trim().isEmpty ?? true))
+                  ? 'Please specify your department'
                   : null,
               textCapitalization: TextCapitalization.words,
             ),
@@ -1182,7 +1305,9 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
           onTap: _submitSurvey,
           child: Center(
             child: Text(
-              widget.isKioskMode ? 'SUBMIT SURVEY' : 'NEXT',
+              widget.isKioskMode
+                  ? LanguageService.getText('submit_survey')
+                  : 'NEXT',
               style: const TextStyle(
                 color: Colors.white,
                 fontSize: 18,

@@ -11,6 +11,7 @@ class UserStateManager extends ChangeNotifier {
   bool _isAdminLoggedIn = false;
   bool _isClientLoggedIn = false;
   bool _isPatientLoggedIn = false;
+  bool _cameFromKioskSelection = false;
   Patient? _currentPatient;
   String? _patientToken;
   String? _adminToken;
@@ -20,6 +21,7 @@ class UserStateManager extends ChangeNotifier {
   bool get isAdminLoggedIn => _isAdminLoggedIn;
   bool get isClientLoggedIn => _isClientLoggedIn;
   bool get isPatientLoggedIn => _isPatientLoggedIn;
+  bool get cameFromKioskSelection => _cameFromKioskSelection;
   Patient? get currentPatient => _currentPatient;
   String? get patientToken => _patientToken;
   String? get adminToken => _adminToken;
@@ -115,6 +117,16 @@ class UserStateManager extends ChangeNotifier {
     _isSurveyCompleted = false;
     _isFirstTimeUser = true;
     _patientToken = null;
+    notifyListeners();
+  }
+
+  void setCameFromKioskSelection(bool value) {
+    _cameFromKioskSelection = value;
+    notifyListeners();
+  }
+
+  void resetCameFromKioskSelection() {
+    _cameFromKioskSelection = false;
     notifyListeners();
   }
 

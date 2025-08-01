@@ -5,7 +5,7 @@ import 'user_state_manager.dart';
 import 'utils/phone_validator.dart';
 import './main_app_screen.dart';
 import './admin_dashboard_screen.dart';
-import './kiosk_mode_screen.dart';
+import './kiosk_selection_screen.dart';
 import 'dart:convert'; // Added for jsonEncode and jsonDecode
 import 'package:http/http.dart' as http; // Added for http.post
 import 'config/app_config.dart';
@@ -117,10 +117,11 @@ class _UnifiedLoginScreenState extends State<UnifiedLoginScreen>
             UserStateManager().setAdminToken(data['token']);
             UserStateManager().setPatientToken(data[
                 'token']); // Ensure token is available for survey submission
-            // Navigate to your kiosk dashboard or main app
+            // Navigate to kiosk selection screen
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (context) => const KioskModeScreen()),
+              MaterialPageRoute(
+                  builder: (context) => const KioskSelectionScreen()),
             );
             return;
           } else {
@@ -548,7 +549,7 @@ class _UnifiedLoginScreenState extends State<UnifiedLoginScreen>
                                 _buildUnitAssignmentField(),
                                 const SizedBox(height: 16),
                                 _buildClassificationField(),
-                                if (_selectedClassification == 'Others') ...[
+                                if (_selectedClassification == 'Other') ...[
                                   const SizedBox(height: 16),
                                   _buildOtherClassificationField(),
                                 ],
@@ -1002,8 +1003,8 @@ class _UnifiedLoginScreenState extends State<UnifiedLoginScreen>
           filled: true,
           fillColor: Colors.white,
         ),
-        items:
-            ['Military', 'Civilian', 'Dependent', 'Other'].map((String value) {
+        items: ['Military', 'Civilian Staff', 'Department', 'Other']
+            .map((String value) {
           return DropdownMenuItem<String>(
             value: value,
             child: Text(value),
@@ -1050,7 +1051,7 @@ class _UnifiedLoginScreenState extends State<UnifiedLoginScreen>
           fillColor: Colors.white,
         ),
         validator: (value) {
-          if (_selectedClassification == 'Others' &&
+          if (_selectedClassification == 'Other' &&
               (value == null || value.isEmpty)) {
             return 'Please specify your classification';
           }

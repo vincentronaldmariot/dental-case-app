@@ -1,33 +1,69 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:io';
-import 'dart:typed_data';
-import 'package:printing/printing.dart';
-import 'package:pdf/pdf.dart';
-import 'package:pdf/widgets.dart' as pw;
+// import 'package:blue_thermal_printer/blue_thermal_printer.dart';  // Temporarily disabled
+import 'package:permission_handler/permission_handler.dart';
+import 'dart:typed_data'; // Added for Uint8List
 
 class ThermalPrintService {
   static bool isConnected = false;
   static String? connectedDeviceName;
+  // static BlueThermalPrinter bluetooth = BlueThermalPrinter.instance;  // Temporarily disabled
+  // static BluetoothDevice? connectedDevice;  // Temporarily disabled
 
   static Future<bool> isConnectedToPrinter() async {
     if (kIsWeb || (!Platform.isAndroid && !Platform.isIOS)) {
       return false;
     }
-    return isConnected;
+
+    // Temporarily return false since thermal printer is not available
+    return false;
   }
 
-  static Future<bool> connectToPrinter() async {
+  static Future<bool> requestPermissions() async {
     if (kIsWeb || (!Platform.isAndroid && !Platform.isIOS)) {
       return false;
     }
 
-    // For now, we'll simulate a connection
-    // In a real implementation, this would connect to a Bluetooth thermal printer
-    await Future.delayed(const Duration(seconds: 2));
-    isConnected = true;
-    connectedDeviceName = 'Thermal Printer (Simulated)';
-    return true;
+    try {
+      // Request Bluetooth permissions
+      Map<Permission, PermissionStatus> statuses = await [
+        Permission.bluetooth,
+        Permission.bluetoothConnect,
+        Permission.bluetoothScan,
+        Permission.location,
+      ].request();
+
+      bool allGranted = true;
+      statuses.forEach((permission, status) {
+        if (!status.isGranted) {
+          allGranted = false;
+        }
+      });
+
+      return allGranted;
+    } catch (e) {
+      print('Error requesting permissions: $e');
+      return false;
+    }
+  }
+
+  static Future<List<dynamic>> getAvailableDevices() async {
+    if (kIsWeb || (!Platform.isAndroid && !Platform.isIOS)) {
+      return [];
+    }
+
+    // Temporarily return empty list since thermal printer is not available
+    return [];
+  }
+
+  static Future<bool> connectToPrinter([dynamic device]) async {
+    if (kIsWeb || (!Platform.isAndroid && !Platform.isIOS)) {
+      return false;
+    }
+
+    // Temporarily return false since thermal printer is not available
+    return false;
   }
 
   static Future<bool> printReceipt(Map<String, dynamic> data) async {
@@ -36,72 +72,44 @@ class ThermalPrintService {
       return false;
     }
 
-    try {
-      if (!await isConnectedToPrinter()) {
-        final connected = await connectToPrinter();
-        if (!connected) {
-          return false;
-        }
-      }
-
-      // Extract data from the map
-      final patientName = data['patient_name'] ?? 'Unknown Patient';
-      final patientId = data['patient_id'] ?? 'N/A';
-      final surveyDate = data['survey_date'] ?? 'N/A';
-      final receiptNumber = data['receipt_number'] ?? 'N/A';
-      final totalScore = data['total_score']?.toString() ?? 'N/A';
-      final questions = data['questions'] as List<dynamic>? ?? [];
-
-      // Create thermal receipt content
-      final receiptContent = _createThermalReceiptContent(
-        patientName: patientName,
-        patientId: patientId,
-        surveyDate: surveyDate,
-        receiptNumber: receiptNumber,
-        totalScore: totalScore,
-        questions: questions,
-      );
-
-      // For now, we'll simulate sending to a thermal printer
-      // In a real implementation, this would send the bytes to a Bluetooth thermal printer
-      print('=== THERMAL RECEIPT CONTENT ===');
-      print(receiptContent);
-      print('=== END THERMAL RECEIPT ===');
-
-      // Simulate printing delay
-      await Future.delayed(const Duration(seconds: 3));
-
-      return true;
-    } catch (e) {
-      print('Error printing thermal receipt: $e');
-      return false;
-    }
+    // Temporarily return false since thermal printer is not available
+    print(
+        'Thermal printer functionality is temporarily disabled for APK build');
+    return false;
   }
 
   static Future<void> showPrintDialog(
       BuildContext context, Map<String, dynamic> data) async {
-    // Check platform support first
-    if (kIsWeb || (!Platform.isAndroid && !Platform.isIOS)) {
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Platform Not Supported'),
-          content: const Text(
-            'Bluetooth thermal printing is only available on Android and iOS devices. '
-            'Please use a mobile device to test this feature.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('OK'),
-            ),
-          ],
-        ),
-      );
-      return;
-    }
-
     try {
+      // Request permissions first
+      final permissionsGranted = await requestPermissions();
+      if (!permissionsGranted) {
+        if (context.mounted) {
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Row(
+                children: [
+                  Icon(Icons.error_outline, color: Colors.red),
+                  SizedBox(width: 8),
+                  Text('Permissions Required'),
+                ],
+              ),
+              content: const Text(
+                'Bluetooth permissions are required to connect to thermal printers. Please grant the necessary permissions in your device settings.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('OK'),
+                ),
+              ],
+            ),
+          );
+        }
+        return;
+      }
+
       // Show loading dialog
       showDialog(
         context: context,
@@ -111,12 +119,13 @@ class ThermalPrintService {
             children: [
               CircularProgressIndicator(),
               SizedBox(width: 16),
-              Text('Connecting to printer...'),
+              Text('Connecting to thermal printer...'),
             ],
           ),
         ),
       );
 
+      // Try to print the receipt
       final success = await printReceipt(data);
 
       // Close loading dialog
@@ -124,34 +133,39 @@ class ThermalPrintService {
         Navigator.of(context).pop();
       }
 
-      if (success) {
-        // Show success dialog
+      // Show result dialog
+      if (context.mounted) {
         showDialog(
           context: context,
           builder: (context) => AlertDialog(
-            title: const Row(
+            title: Row(
               children: [
-                Icon(Icons.check_circle, color: Colors.green),
-                SizedBox(width: 8),
-                Text('Print Successful'),
+                Icon(
+                  success ? Icons.check_circle : Icons.error,
+                  color: success ? Colors.green : Colors.red,
+                ),
+                const SizedBox(width: 8),
+                Text(success ? 'Print Successful' : 'Print Failed'),
               ],
             ),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'The receipt has been sent to the thermal printer successfully. '
-                  'Please check the printer output.',
+                Text(
+                  success
+                      ? 'The receipt has been sent to the thermal printer successfully. Please check the printer output.'
+                      : 'Failed to print to thermal printer. Please check the printer connection and try again.',
+                  style: const TextStyle(fontSize: 16),
                 ),
-                if (connectedDeviceName != null) ...[
+                if (success) ...[
                   const SizedBox(height: 16),
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: Colors.green.shade50,
-                      border: Border.all(color: Colors.green.shade200),
                       borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.green.shade200),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -160,72 +174,16 @@ class ThermalPrintService {
                           'Connected Device:',
                           style: TextStyle(fontWeight: FontWeight.bold),
                         ),
-                        Text('Name: $connectedDeviceName'),
+                        Text('Name: ${connectedDeviceName ?? 'Unknown'}'),
                       ],
                     ),
                   ),
                 ],
                 const SizedBox(height: 16),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
-                    border: Border.all(color: Colors.blue.shade200),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Note:',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      Text(
-                        'This is currently a simulated thermal printer. '
-                        'The receipt content is formatted for thermal printing and logged to console. '
-                        'To connect to a real thermal printer, you would need to pair a Bluetooth thermal printer with your device.',
-                      ),
-                    ],
-                  ),
+                const Text(
+                  'Note: Make sure your thermal printer is turned on and connected via Bluetooth.',
+                  style: TextStyle(fontStyle: FontStyle.italic, fontSize: 12),
                 ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('OK'),
-              ),
-            ],
-          ),
-        );
-      } else {
-        // Show error dialog with troubleshooting
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Row(
-              children: [
-                Icon(Icons.error, color: Colors.red),
-                SizedBox(width: 8),
-                Text('Print Failed'),
-              ],
-            ),
-            content: const Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Failed to print to thermal printer.'),
-                SizedBox(height: 16),
-                Text(
-                  'Troubleshooting:',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                Text('• Ensure the printer is turned on'),
-                Text('• Check that Bluetooth is enabled'),
-                Text('• Verify the printer is paired with this device'),
-                Text('• Make sure the printer has paper'),
-                Text('• Try refreshing the device list'),
-                Text('• Check if the printer supports ESC/POS commands'),
               ],
             ),
             actions: [
@@ -243,20 +201,28 @@ class ThermalPrintService {
         Navigator.of(context).pop();
       }
 
-      // Show generic error dialog
-      showDialog(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('Error'),
-          content: Text('An unexpected error occurred: $e'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('OK'),
+      // Show error dialog
+      if (context.mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Row(
+              children: [
+                Icon(Icons.error_outline, color: Colors.red),
+                SizedBox(width: 8),
+                Text('Print Error'),
+              ],
             ),
-          ],
-        ),
-      );
+            content: Text('An error occurred while printing: ${e.toString()}'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('OK'),
+              ),
+            ],
+          ),
+        );
+      }
     }
   }
 
@@ -270,84 +236,113 @@ class ThermalPrintService {
   }) {
     final buffer = StringBuffer();
 
+    // ESC/POS commands for formatting
+    const String ESC = '\x1B';
+    const String GS = '\x1D';
+    const String INIT = '$ESC@';
+    const String ALIGN_CENTER = '${ESC}a1';
+    const String ALIGN_LEFT = '${ESC}a0';
+    const String BOLD_ON = '${ESC}E1';
+    const String BOLD_OFF = '${ESC}E0';
+    const String DOUBLE_HEIGHT = '${ESC}!16';
+    const String NORMAL_SIZE = '${ESC}!0';
+    const String FEED_LINE = '\n';
+    const String CUT_PAPER = '${GS}V0';
+
+    // Initialize printer
+    buffer.write(INIT);
+
     // Header
-    buffer.writeln('================================');
-    buffer.writeln('    DENTAL SURVEY RECEIPT');
-    buffer.writeln('================================');
-    buffer.writeln();
+    buffer.write(ALIGN_CENTER);
+    buffer.write(BOLD_ON);
+    buffer.write(DOUBLE_HEIGHT);
+    buffer.write('DENTAL SURVEY RECEIPT$FEED_LINE');
+    buffer.write(NORMAL_SIZE);
+    buffer.write(BOLD_OFF);
+    buffer.write('================================$FEED_LINE');
+    buffer.write(FEED_LINE);
+
+    // Left alignment for content
+    buffer.write(ALIGN_LEFT);
 
     // Receipt details
-    buffer.writeln('Receipt #: $receiptNumber');
-    buffer.writeln('Date: $surveyDate');
-    buffer.writeln();
+    buffer.write(BOLD_ON);
+    buffer.write('Receipt #: $receiptNumber$FEED_LINE');
+    buffer.write('Date: $surveyDate$FEED_LINE');
+    buffer.write(BOLD_OFF);
+    buffer.write(FEED_LINE);
 
     // Patient information
-    buffer.writeln('PATIENT INFORMATION');
-    buffer.writeln('--------------------');
-    buffer.writeln('Name: $patientName');
-    buffer.writeln('ID: $patientId');
-    buffer.writeln();
+    buffer.write(BOLD_ON);
+    buffer.write('PATIENT INFORMATION$FEED_LINE');
+    buffer.write(BOLD_OFF);
+    buffer.write('--------------------$FEED_LINE');
+    buffer.write('Name: $patientName$FEED_LINE');
+    buffer.write('ID: $patientId$FEED_LINE');
+    buffer.write(FEED_LINE);
 
     // Survey results
-    buffer.writeln('SURVEY RESULTS');
-    buffer.writeln('---------------');
-    buffer.writeln('Total Score: $totalScore');
-    buffer.writeln();
+    buffer.write(BOLD_ON);
+    buffer.write('SURVEY RESULTS$FEED_LINE');
+    buffer.write(BOLD_OFF);
+    buffer.write('---------------$FEED_LINE');
+    buffer.write('Total Score: $totalScore$FEED_LINE');
+    buffer.write(FEED_LINE);
 
     // Questions and answers
     if (questions.isNotEmpty) {
-      buffer.writeln('QUESTIONS & ANSWERS');
-      buffer.writeln('--------------------');
-      for (int i = 0; i < questions.length; i++) {
+      buffer.write(BOLD_ON);
+      buffer.write('QUESTIONS & ANSWERS$FEED_LINE');
+      buffer.write(BOLD_OFF);
+      buffer.write('--------------------$FEED_LINE');
+
+      for (int i = 0; i < questions.length && i < 5; i++) {
+        // Limit to 5 questions for thermal paper
         final question = questions[i];
         final questionText = question['question'] ?? 'Unknown Question';
         final answer = question['answer'] ?? 'No Answer';
 
-        buffer.writeln('${i + 1}. $questionText');
-        buffer.writeln('   Answer: $answer');
-        buffer.writeln();
+        // Truncate long text to fit thermal paper width
+        final truncatedQuestion = questionText.length > 30
+            ? '${questionText.substring(0, 27)}...'
+            : questionText;
+        final truncatedAnswer =
+            answer.length > 30 ? '${answer.substring(0, 27)}...' : answer;
+
+        buffer.write('${i + 1}. $truncatedQuestion$FEED_LINE');
+        buffer.write('   Answer: $truncatedAnswer$FEED_LINE');
+        buffer.write(FEED_LINE);
       }
     }
 
     // Footer
-    buffer.writeln('================================');
-    buffer.writeln('Thank you for your feedback!');
-    buffer.writeln('================================');
-    buffer.writeln();
-    buffer.writeln();
-    buffer.writeln();
+    buffer.write(ALIGN_CENTER);
+    buffer.write(BOLD_ON);
+    buffer.write('================================$FEED_LINE');
+    buffer.write('Thank you for your feedback!$FEED_LINE');
+    buffer.write('================================$FEED_LINE');
+    buffer.write(BOLD_OFF);
+
+    // Feed paper and cut
+    buffer.write('$FEED_LINE$FEED_LINE$FEED_LINE');
+    buffer.write(CUT_PAPER);
 
     return buffer.toString();
   }
 
-  // Method to convert the receipt to ESC/POS bytes for real thermal printers
-  static List<int> _createEscPosBytes(String text) {
-    final List<int> bytes = [];
+  // Method to disconnect from printer
+  static Future<void> disconnect() async {
+    // This method is no longer relevant as thermal printer is not available
+    print('Disconnecting from thermal printer (no-op)');
+  }
 
-    // ESC/POS commands
-    const int ESC = 0x1B;
-    const int GS = 0x1D;
-    const int INIT = 0x40;
-    const int ALIGN_CENTER = 0x01;
-    const int ALIGN_LEFT = 0x00;
-    const int FONT_BOLD = 0x01;
-    const int FONT_NORMAL = 0x00;
-    const int DOUBLE_HEIGHT = 0x01;
-    const int DOUBLE_WIDTH = 0x01;
-    const int NORMAL_SIZE = 0x00;
-    const int CUT_PAPER = 0x00;
-    const int FEED_LINE = 0x0A;
+  // Method to check if Bluetooth is enabled
+  static Future<bool> isBluetoothEnabled() async {
+    if (kIsWeb || (!Platform.isAndroid && !Platform.isIOS)) {
+      return false;
+    }
 
-    // Initialize printer
-    bytes.addAll([ESC, INIT]);
-
-    // Add the text content
-    bytes.addAll(text.codeUnits);
-
-    // Feed paper and cut
-    bytes.addAll([FEED_LINE, FEED_LINE, FEED_LINE]);
-    bytes.addAll([GS, 0x56, CUT_PAPER]);
-
-    return bytes;
+    // This method is no longer relevant as thermal printer is not available
+    return false;
   }
 }

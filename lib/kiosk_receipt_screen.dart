@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'dart:convert';
+
 import 'kiosk_mode_screen.dart';
 import 'services/print_service.dart';
 import 'services/thermal_print_service.dart';
@@ -15,6 +16,161 @@ class KioskReceiptScreen extends StatelessWidget {
     required this.receiptNumber,
   });
 
+  // Helper method to format survey data into questions
+  List<Map<String, dynamic>> _formatSurveyDataToQuestions(
+      Map<String, dynamic> surveyData) {
+    final questions = <Map<String, dynamic>>[];
+
+    // Tooth Conditions
+    final toothConditions =
+        surveyData['tooth_conditions'] as Map<String, dynamic>? ?? {};
+    if (toothConditions['decayed_tooth'] != null) {
+      questions.add({
+        'question': 'Do you have any decayed teeth?',
+        'answer': toothConditions['decayed_tooth'] == true ? 'Yes' : 'No',
+        'score': toothConditions['decayed_tooth'] == true ? '10' : '0',
+      });
+    }
+    if (toothConditions['worn_down_tooth'] != null) {
+      questions.add({
+        'question': 'Do you have worn down teeth?',
+        'answer': toothConditions['worn_down_tooth'] == true ? 'Yes' : 'No',
+        'score': toothConditions['worn_down_tooth'] == true ? '10' : '0',
+      });
+    }
+    if (toothConditions['impacted_tooth'] != null) {
+      questions.add({
+        'question': 'Do you have impacted wisdom teeth?',
+        'answer': toothConditions['impacted_tooth'] == true ? 'Yes' : 'No',
+        'score': toothConditions['impacted_tooth'] == true ? '10' : '0',
+      });
+    }
+
+    // Tartar Level
+    final tartarLevel = surveyData['tartar_level'];
+    if (tartarLevel != null) {
+      questions.add({
+        'question': 'What is your tartar level?',
+        'answer': tartarLevel.toString(),
+        'score': _getTartarScore(tartarLevel.toString()),
+      });
+    }
+
+    // Tooth Pain
+    final toothPain = surveyData['tooth_pain'];
+    if (toothPain != null) {
+      questions.add({
+        'question': 'Do you experience tooth pain?',
+        'answer': toothPain == true ? 'Yes' : 'No',
+        'score': toothPain == true ? '15' : '0',
+      });
+    }
+
+    // Tooth Sensitivity
+    final toothSensitive = surveyData['tooth_sensitive'];
+    if (toothSensitive != null) {
+      questions.add({
+        'question': 'Do you have sensitive teeth?',
+        'answer': toothSensitive == true ? 'Yes' : 'No',
+        'score': toothSensitive == true ? '10' : '0',
+      });
+    }
+
+    // Damaged Fillings
+    final damagedFillings =
+        surveyData['damaged_fillings'] as Map<String, dynamic>? ?? {};
+    if (damagedFillings['broken_tooth'] != null) {
+      questions.add({
+        'question': 'Do you have broken teeth?',
+        'answer': damagedFillings['broken_tooth'] == true ? 'Yes' : 'No',
+        'score': damagedFillings['broken_tooth'] == true ? '15' : '0',
+      });
+    }
+    if (damagedFillings['broken_pasta'] != null) {
+      questions.add({
+        'question': 'Do you have broken fillings?',
+        'answer': damagedFillings['broken_pasta'] == true ? 'Yes' : 'No',
+        'score': damagedFillings['broken_pasta'] == true ? '10' : '0',
+      });
+    }
+
+    // Dentures
+    final needDentures = surveyData['need_dentures'];
+    if (needDentures != null) {
+      questions.add({
+        'question': 'Do you need dentures?',
+        'answer': needDentures == true ? 'Yes' : 'No',
+        'score': needDentures == true ? '20' : '0',
+      });
+    }
+
+    // Missing Teeth
+    final hasMissingTeeth = surveyData['has_missing_teeth'];
+    if (hasMissingTeeth != null) {
+      questions.add({
+        'question': 'Do you have missing teeth?',
+        'answer': hasMissingTeeth == true ? 'Yes' : 'No',
+        'score': hasMissingTeeth == true ? '15' : '0',
+      });
+    }
+
+    return questions;
+  }
+
+  // Helper method to calculate total score
+  int _calculateTotalScore(Map<String, dynamic> surveyData) {
+    int totalScore = 0;
+
+    // Tooth Conditions
+    final toothConditions =
+        surveyData['tooth_conditions'] as Map<String, dynamic>? ?? {};
+    if (toothConditions['decayed_tooth'] == true) totalScore += 10;
+    if (toothConditions['worn_down_tooth'] == true) totalScore += 10;
+    if (toothConditions['impacted_tooth'] == true) totalScore += 10;
+
+    // Tartar Level
+    final tartarLevel = surveyData['tartar_level'];
+    if (tartarLevel != null) {
+      totalScore += int.tryParse(_getTartarScore(tartarLevel.toString())) ?? 0;
+    }
+
+    // Tooth Pain
+    if (surveyData['tooth_pain'] == true) totalScore += 15;
+
+    // Tooth Sensitivity
+    if (surveyData['tooth_sensitive'] == true) totalScore += 10;
+
+    // Damaged Fillings
+    final damagedFillings =
+        surveyData['damaged_fillings'] as Map<String, dynamic>? ?? {};
+    if (damagedFillings['broken_tooth'] == true) totalScore += 15;
+    if (damagedFillings['broken_pasta'] == true) totalScore += 10;
+
+    // Dentures
+    if (surveyData['need_dentures'] == true) totalScore += 20;
+
+    // Missing Teeth
+    if (surveyData['has_missing_teeth'] == true) totalScore += 15;
+
+    return totalScore;
+  }
+
+  // Helper method to get tartar score
+  String _getTartarScore(String tartarLevel) {
+    switch (tartarLevel.toLowerCase()) {
+      case 'none':
+        return '0';
+      case 'light':
+        return '5';
+      case 'moderate':
+        return '10';
+      case 'heavy':
+        return '15';
+      default:
+        return '0';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final patientInfo = surveyData['patient_info'] ?? {};
@@ -24,19 +180,42 @@ class KioskReceiptScreen extends StatelessWidget {
     final classification = patientInfo['classification'] ?? 'N/A';
     final contactNumber = patientInfo['contact_number'] ?? 'N/A';
 
+    // Format survey data into questions and answers
+    final questions = _formatSurveyDataToQuestions(surveyData);
+    final totalScore = _calculateTotalScore(surveyData).toString();
+    final surveyDate =
+        surveyData['survey_date'] ?? DateTime.now().toIso8601String();
+
     // Extract daily counter number from receipt number (e.g., "SRV-001" -> "001")
     final dailyCounter = receiptNumber.split('-').last;
 
-    // Create QR code data
+    // Create comprehensive QR code data for survey receipt
     final qrData = {
+      'type': 'dental_survey_complete',
       'receipt_number': receiptNumber,
       'daily_counter': dailyCounter,
-      'name': name,
-      'serial_number': serialNumber,
-      'unit_assignment': unitAssignment,
-      'classification': classification,
-      'contact_number': contactNumber,
+      'survey_date': surveyDate,
+      'total_score': totalScore,
+      'patient_info': {
+        'name': name,
+        'serial_number': serialNumber,
+        'unit_assignment': unitAssignment,
+        'classification': classification,
+        'contact_number': contactNumber,
+      },
+      'survey_questions': questions
+          .map((q) => {
+                'question': q['question'] ?? 'Unknown Question',
+                'answer': q['answer'] ?? 'No Answer',
+                'score': q['score']?.toString() ?? 'N/A',
+              })
+          .toList(),
       'timestamp': DateTime.now().toIso8601String(),
+      'clinic_info': {
+        'name': 'Dental Clinic',
+        'version': '1.0',
+        'qr_type': 'survey_data',
+      },
     };
 
     return Scaffold(
@@ -317,7 +496,7 @@ class KioskReceiptScreen extends StatelessWidget {
                             ),
                             const SizedBox(height: 24),
 
-                            // QR Code
+                            // QR Code for Survey Receipt
                             Center(
                               child: Column(
                                 children: [
@@ -340,11 +519,20 @@ class KioskReceiptScreen extends StatelessWidget {
                                   ),
                                   const SizedBox(height: 12),
                                   const Text(
-                                    'Scan for digital record',
+                                    'Scan for complete survey data',
                                     style: TextStyle(
                                       fontSize: 12,
                                       color: Colors.grey,
                                       fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Contains all questions & answers',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: Colors.grey[600],
+                                      fontWeight: FontWeight.w400,
                                     ),
                                   ),
                                 ],

@@ -8,8 +8,7 @@ class DentalSurveyScreen extends StatefulWidget {
   final Map<String, dynamic>? initialSurveyData;
   final bool readOnly;
   const DentalSurveyScreen(
-      {Key? key, this.initialSurveyData, this.readOnly = false})
-      : super(key: key);
+      {super.key, this.initialSurveyData, this.readOnly = false});
 
   @override
   State<DentalSurveyScreen> createState() => _DentalSurveyScreenState();
@@ -27,6 +26,7 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
   final _emergencyPhoneController = TextEditingController();
   final _lastVisitController = TextEditingController();
   final _otherClassificationController = TextEditingController();
+  final _departmentTypeController = TextEditingController();
 
   String _selectedClassification = '';
   bool _hasExistingSurveyData = false;
@@ -183,11 +183,11 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Color(0xFF0029B2), width: 1.5),
+                border: Border.all(color: const Color(0xFF0029B2), width: 1.5),
               ),
-              child: Row(
+              child: const Row(
                 mainAxisAlignment: MainAxisAlignment.center,
-                children: const [
+                children: [
                   Icon(Icons.visibility, color: Color(0xFF0029B2)),
                   SizedBox(width: 8),
                   Text(
@@ -320,12 +320,12 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(8),
-                        border:
-                            Border.all(color: Color(0xFF0029B2), width: 1.5),
+                        border: Border.all(
+                            color: const Color(0xFF0029B2), width: 1.5),
                       ),
-                      child: Row(
+                      child: const Row(
                         mainAxisAlignment: MainAxisAlignment.center,
-                        children: const [
+                        children: [
                           Icon(Icons.visibility, color: Color(0xFF0029B2)),
                           SizedBox(width: 8),
                           Text(
@@ -362,10 +362,16 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
 
                       _buildClassificationDropdown(),
 
-                      // Show "Other" specification field when "Others" is selected
-                      if (_selectedClassification == 'Others') ...[
+                      // Show "Other" specification field when "Other" is selected
+                      if (_selectedClassification == 'Other') ...[
                         const SizedBox(height: 15),
                         _buildOtherSpecificationField(),
+                      ],
+
+                      // Show department type field when "Department" is selected
+                      if (_selectedClassification == 'Department') ...[
+                        const SizedBox(height: 15),
+                        _buildDepartmentTypeField(),
                       ],
 
                       const SizedBox(height: 25),
@@ -387,7 +393,7 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
                         labelText: 'SERIAL NUMBER:',
                         enabled: !widget.readOnly,
                         validator: (value) =>
-                            _selectedClassification != 'Others' &&
+                            _selectedClassification != 'Other' &&
                                     (value?.isEmpty ?? true)
                                 ? 'Serial number is required'
                                 : null,
@@ -399,7 +405,7 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
                         labelText: 'UNIT ASSIGNMENT:',
                         enabled: !widget.readOnly,
                         validator: (value) =>
-                            _selectedClassification != 'Others' &&
+                            _selectedClassification != 'Other' &&
                                     (value?.isEmpty ?? true)
                                 ? 'Unit assignment is required'
                                 : null,
@@ -633,7 +639,12 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
   }
 
   Widget _buildClassificationDropdown() {
-    final classifications = ['Military', 'AD/HR', 'Department', 'Others'];
+    final classifications = [
+      'Military',
+      'Civilian Staff',
+      'Department',
+      'Other'
+    ];
     final actuallyEnabled = !widget.readOnly;
     return Container(
       decoration: BoxDecoration(
@@ -665,11 +676,17 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
             ? (value) {
                 setState(() {
                   _selectedClassification = value ?? '';
-                  if (_selectedClassification == 'Others') {
+                  if (_selectedClassification == 'Other') {
                     _serialNumberController.clear();
                     _unitAssignmentController.clear();
+                    _departmentTypeController.clear();
+                  } else if (_selectedClassification == 'Department') {
+                    _serialNumberController.clear();
+                    _unitAssignmentController.clear();
+                    _otherClassificationController.clear();
                   } else {
                     _otherClassificationController.clear();
+                    _departmentTypeController.clear();
                   }
                 });
               }
@@ -747,6 +764,87 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
                 prefixIcon: Icon(
                   Icons.person_outline,
                   color: Colors.blue.shade600,
+                ),
+                suffixIcon: !actuallyEnabled
+                    ? Icon(Icons.visibility,
+                        color: Colors.grey.shade400, size: 20)
+                    : null,
+              ),
+              style: TextStyle(
+                color: actuallyEnabled ? Colors.black : Colors.grey.shade700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDepartmentTypeField() {
+    final actuallyEnabled = !widget.readOnly;
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.green.shade50,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.green.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.green.shade100,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(8),
+                topRight: Radius.circular(8),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.business, color: Colors.green.shade700, size: 20),
+                const SizedBox(width: 8),
+                Text(
+                  'Please specify your department:',
+                  style: TextStyle(
+                    color: Colors.green.shade700,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: TextFormField(
+              controller: _departmentTypeController,
+              enabled: actuallyEnabled,
+              readOnly: !actuallyEnabled,
+              decoration: InputDecoration(
+                hintText: 'e.g., IT Department, HR Department, Finance, etc.',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: Colors.green.shade300),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: Colors.green.shade300),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide:
+                      BorderSide(color: Colors.green.shade600, width: 2),
+                ),
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                prefixIcon: Icon(
+                  Icons.business_outlined,
+                  color: Colors.green.shade600,
                 ),
                 suffixIcon: !actuallyEnabled
                     ? Icon(Icons.visibility,

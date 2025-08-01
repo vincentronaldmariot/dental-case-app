@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'dental_survey_screen.dart';
+import 'thermal_printer_test_screen.dart';
 import 'services/print_service.dart';
+import 'services/language_service.dart';
+import 'kiosk_selection_screen.dart';
 
 class KioskModeScreen extends StatefulWidget {
   const KioskModeScreen({super.key});
@@ -10,6 +13,20 @@ class KioskModeScreen extends StatefulWidget {
 }
 
 class _KioskModeScreenState extends State<KioskModeScreen> {
+  String _currentLanguage = LanguageService.english;
+
+  void _toggleLanguage() {
+    setState(() {
+      if (_currentLanguage == LanguageService.english) {
+        _currentLanguage = LanguageService.tagalog;
+        LanguageService.setLanguage(LanguageService.tagalog);
+      } else {
+        _currentLanguage = LanguageService.english;
+        LanguageService.setLanguage(LanguageService.english);
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -37,19 +54,53 @@ class _KioskModeScreenState extends State<KioskModeScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      // Left side - Logo and Title
+                      // Left side - Back Button, Logo and Title
                       Row(
                         children: [
+                          // Back Button
                           Container(
-                            width: 60,
-                            height: 60,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.3),
+                                width: 1,
+                              ),
+                            ),
+                            child: IconButton(
+                              onPressed: () {
+                                Navigator.pushReplacement(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        const KioskSelectionScreen(),
+                                  ),
+                                );
+                              },
+                              icon: const Icon(
+                                Icons.arrow_back,
+                                color: Colors.white,
+                                size: 20,
+                              ),
+                              tooltip: 'Back to Selection',
+                              padding: const EdgeInsets.all(6),
+                              constraints: const BoxConstraints(
+                                minWidth: 36,
+                                minHeight: 36,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            width: 50,
+                            height: 50,
                             decoration: BoxDecoration(
                               color: Colors.white,
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(10),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withOpacity(0.1),
-                                  blurRadius: 8,
+                                  color: Colors.black.withValues(alpha: 0.1),
+                                  blurRadius: 6,
                                   offset: const Offset(0, 2),
                                 ),
                               ],
@@ -57,10 +108,10 @@ class _KioskModeScreenState extends State<KioskModeScreen> {
                             child: const Icon(
                               Icons.medical_services,
                               color: Color(0xFF0029B2),
-                              size: 32,
+                              size: 28,
                             ),
                           ),
-                          const SizedBox(width: 16),
+                          const SizedBox(width: 12),
                           const Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -68,16 +119,16 @@ class _KioskModeScreenState extends State<KioskModeScreen> {
                                 'DENTAL CLINIC',
                                 style: TextStyle(
                                   color: Colors.white,
-                                  fontSize: 24,
+                                  fontSize: 20,
                                   fontWeight: FontWeight.bold,
-                                  letterSpacing: 1.2,
+                                  letterSpacing: 1.0,
                                 ),
                               ),
                               Text(
                                 'Self-Assessment Kiosk',
                                 style: TextStyle(
                                   color: Colors.white70,
-                                  fontSize: 16,
+                                  fontSize: 14,
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
@@ -86,78 +137,80 @@ class _KioskModeScreenState extends State<KioskModeScreen> {
                         ],
                       ),
 
-                      // Right side - Print Button
-                      Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: Colors.white.withOpacity(0.3),
-                            width: 1,
-                          ),
-                        ),
-                        child: IconButton(
-                          onPressed: () {
-                            // Show print instructions
-                            showDialog(
-                              context: context,
-                              builder: (context) => AlertDialog(
-                                title: const Row(
-                                  children: [
-                                    Icon(Icons.print, color: Color(0xFF0029B2)),
-                                    SizedBox(width: 8),
-                                    Text('Print Receipt'),
-                                  ],
-                                ),
-                                content: const Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'To print a receipt, please complete the survey first. The print option will be available on the receipt screen.',
-                                    ),
-                                    SizedBox(height: 16),
-                                    Text(
-                                      'Available print options:',
-                                      style: TextStyle(
-                                          fontWeight: FontWeight.bold),
-                                    ),
-                                    SizedBox(height: 8),
-                                    Row(
-                                      children: [
-                                        Icon(Icons.picture_as_pdf,
-                                            color: Colors.blue, size: 16),
-                                        SizedBox(width: 8),
-                                        Text('PDF Print (Blue button)'),
-                                      ],
-                                    ),
-                                    SizedBox(height: 4),
-                                    Row(
-                                      children: [
-                                        Icon(Icons.receipt_long,
-                                            color: Color(0xFFFF6B35), size: 16),
-                                        SizedBox(width: 8),
-                                        Text('Thermal Print (Orange button)'),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () => Navigator.pop(context),
-                                    child: const Text('OK'),
-                                  ),
-                                ],
+                      // Right side - Buttons
+                      Row(
+                        children: [
+                          // Language Toggle Button
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.green.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(
+                                color: Colors.green.withValues(alpha: 0.3),
+                                width: 1,
                               ),
-                            );
-                          },
-                          icon: const Icon(
-                            Icons.print,
-                            color: Colors.white,
-                            size: 24,
+                            ),
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                borderRadius: BorderRadius.circular(6),
+                                onTap: _toggleLanguage,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 6,
+                                  ),
+                                  child: Text(
+                                    _currentLanguage == LanguageService.english
+                                        ? LanguageService.getText(
+                                            'language_toggle_tagalog')
+                                        : LanguageService.getText(
+                                            'language_toggle_english'),
+                                    style: const TextStyle(
+                                      color: Colors.green,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
                           ),
-                          tooltip: 'Print Receipt',
-                        ),
+                          const SizedBox(width: 6),
+                          // Thermal Printer Test Button
+                          Container(
+                            decoration: BoxDecoration(
+                              color: Colors.orange.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(
+                                color: Colors.orange.withValues(alpha: 0.3),
+                                width: 1,
+                              ),
+                            ),
+                            child: IconButton(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        const ThermalPrinterTestScreen(),
+                                  ),
+                                );
+                              },
+                              icon: const Icon(
+                                Icons.print_disabled,
+                                color: Colors.orange,
+                                size: 20,
+                              ),
+                              tooltip: 'Thermal Printer Test',
+                              padding: const EdgeInsets.all(6),
+                              constraints: const BoxConstraints(
+                                minWidth: 36,
+                                minHeight: 36,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -210,8 +263,9 @@ class _KioskModeScreenState extends State<KioskModeScreen> {
                     topRight: Radius.circular(24),
                   ),
                 ),
-                child: const DentalSurveyScreen(
+                child: DentalSurveyScreen(
                   isKioskMode: true,
+                  language: _currentLanguage,
                 ),
               ),
             ),

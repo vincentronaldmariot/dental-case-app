@@ -37,6 +37,7 @@ class _PatientRegistrationWithDBState extends State<PatientRegistrationWithDB> {
   final _serialNumberController = TextEditingController();
   final _unitAssignmentController = TextEditingController();
   final _otherClassificationController = TextEditingController();
+  final _departmentTypeController = TextEditingController();
 
   String _selectedClassification = '';
   DateTime? _selectedDate;
@@ -61,6 +62,7 @@ class _PatientRegistrationWithDBState extends State<PatientRegistrationWithDB> {
     _serialNumberController.dispose();
     _unitAssignmentController.dispose();
     _otherClassificationController.dispose();
+    _departmentTypeController.dispose();
     super.dispose();
   }
 
@@ -387,13 +389,24 @@ class _PatientRegistrationWithDBState extends State<PatientRegistrationWithDB> {
         const SizedBox(height: 10),
         _buildClassificationDropdown(),
 
-        if (_selectedClassification == 'Others') ...[
+        if (_selectedClassification == 'Other') ...[
           const SizedBox(height: 16),
           _buildInputField(
             controller: _otherClassificationController,
             labelText: 'Please specify your classification',
             validator: (value) => value?.isEmpty ?? true
                 ? 'Please specify your classification'
+                : null,
+          ),
+        ],
+
+        if (_selectedClassification == 'Department') ...[
+          const SizedBox(height: 16),
+          _buildInputField(
+            controller: _departmentTypeController,
+            labelText: 'Please specify your department',
+            validator: (value) => value?.isEmpty ?? true
+                ? 'Please specify your department'
                 : null,
           ),
         ],
@@ -500,7 +513,7 @@ class _PatientRegistrationWithDBState extends State<PatientRegistrationWithDB> {
         const SizedBox(height: 16),
 
         // Military Information (if applicable)
-        if (_selectedClassification != 'Others') ...[
+        if (_selectedClassification != 'Other') ...[
           _buildSectionTitle('Military Information'),
           const SizedBox(height: 16),
           _buildInputField(
@@ -682,7 +695,12 @@ class _PatientRegistrationWithDBState extends State<PatientRegistrationWithDB> {
   }
 
   Widget _buildClassificationDropdown() {
-    final classifications = ['Military', 'AD/HR', 'Department', 'Others'];
+    final classifications = [
+      'Military',
+      'Civilian Staff',
+      'Department',
+      'Other'
+    ];
 
     return Container(
       decoration: BoxDecoration(
@@ -718,8 +736,13 @@ class _PatientRegistrationWithDBState extends State<PatientRegistrationWithDB> {
         onChanged: (value) {
           setState(() {
             _selectedClassification = value ?? '';
-            if (_selectedClassification != 'Others') {
+            if (_selectedClassification == 'Other') {
+              _departmentTypeController.clear();
+            } else if (_selectedClassification == 'Department') {
               _otherClassificationController.clear();
+            } else {
+              _otherClassificationController.clear();
+              _departmentTypeController.clear();
             }
           });
         },

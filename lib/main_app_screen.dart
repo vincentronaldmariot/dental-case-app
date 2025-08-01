@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'dart:convert';
+
 import './welcome_screen.dart';
 import './dental_survey_screen.dart';
 import './appointment_booking_screen.dart';
 import './emergency_center_screen.dart';
+import './kiosk_selection_screen.dart';
 
 import './user_state_manager.dart';
 import './services/history_service.dart';
@@ -12,9 +15,7 @@ import './services/notification_service.dart';
 import './services/api_service.dart';
 import './services/survey_service.dart';
 import './models/appointment.dart';
-import './models/patient.dart';
 import 'package:http/http.dart' as http;
-import 'dart:convert'; // Added for jsonDecode
 import 'dart:async'; // Added for Timer
 import 'config/app_config.dart';
 
@@ -380,15 +381,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
             ElevatedButton(
               onPressed: () {
+                // Check if patient came from kiosk selection
+                final cameFromKiosk = UserStateManager().cameFromKioskSelection;
+
                 // Reset client state and logout
                 UserStateManager().logoutClient();
+                UserStateManager().resetCameFromKioskSelection();
                 Navigator.of(context).pop();
-                Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(
-                    builder: (context) => const WelcomeScreen(),
-                  ),
-                  (Route<dynamic> route) => false,
-                );
+
+                // Navigate based on login source
+                if (cameFromKiosk) {
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(
+                      builder: (context) => const KioskSelectionScreen(),
+                    ),
+                    (Route<dynamic> route) => false,
+                  );
+                } else {
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(
+                      builder: (context) => const WelcomeScreen(),
+                    ),
+                    (Route<dynamic> route) => false,
+                  );
+                }
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.red,
@@ -885,7 +901,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Welcome Back!',
+                                'Welcome!',
                                 style: TextStyle(
                                   color: Colors.white,
                                   fontSize: 24,
@@ -971,7 +987,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 size: 32,
                               ),
                               onSelected: (value) {
-                                if (value == 'logout') {
+                                if (value == 'profile') {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          const ProfileScreen(),
+                                    ),
+                                  );
+                                } else if (value == 'logout') {
                                   _showLogoutDialog(context);
                                 }
                               },
@@ -986,19 +1010,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                       ),
                                       SizedBox(width: 12),
                                       Text('My Profile'),
-                                    ],
-                                  ),
-                                ),
-                                const PopupMenuItem<String>(
-                                  value: 'settings',
-                                  child: Row(
-                                    children: [
-                                      Icon(
-                                        Icons.settings,
-                                        color: Color(0xFF0029B2),
-                                      ),
-                                      SizedBox(width: 12),
-                                      Text('Settings'),
                                     ],
                                   ),
                                 ),
@@ -1095,17 +1106,41 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(15),
                                   ),
-                                  title: const Row(
+                                  title: Row(
                                     children: [
                                       Icon(Icons.assignment_outlined,
-                                          color: Color(0xFF005800), size: 30),
-                                      SizedBox(width: 10),
-                                      Text('Survey Already Completed'),
+                                          color: const Color(0xFF005800),
+                                          size: MediaQuery.of(context)
+                                                      .size
+                                                      .width <
+                                                  400
+                                              ? 24
+                                              : 30),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Text(
+                                          'Survey Already Completed',
+                                          style: TextStyle(
+                                            fontSize: MediaQuery.of(context)
+                                                        .size
+                                                        .width <
+                                                    400
+                                                ? 16
+                                                : 18,
+                                          ),
+                                        ),
+                                      ),
                                     ],
                                   ),
-                                  content: const Text(
+                                  content: Text(
                                     'You have already completed the health assessment survey. Would you like to answer it again?',
-                                    style: TextStyle(fontSize: 16),
+                                    style: TextStyle(
+                                      fontSize:
+                                          MediaQuery.of(context).size.width <
+                                                  400
+                                              ? 14
+                                              : 16,
+                                    ),
                                   ),
                                   actions: [
                                     TextButton(
@@ -1207,17 +1242,41 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(15),
                                   ),
-                                  title: const Row(
+                                  title: Row(
                                     children: [
                                       Icon(Icons.info_outline,
-                                          color: Colors.orange, size: 30),
-                                      SizedBox(width: 10),
-                                      Text('No Appointments'),
+                                          color: Colors.orange,
+                                          size: MediaQuery.of(context)
+                                                      .size
+                                                      .width <
+                                                  400
+                                              ? 24
+                                              : 30),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Text(
+                                          'No Appointments',
+                                          style: TextStyle(
+                                            fontSize: MediaQuery.of(context)
+                                                        .size
+                                                        .width <
+                                                    400
+                                                ? 16
+                                                : 18,
+                                          ),
+                                        ),
+                                      ),
                                     ],
                                   ),
-                                  content: const Text(
+                                  content: Text(
                                     'No approved appointments found.',
-                                    style: TextStyle(fontSize: 16),
+                                    style: TextStyle(
+                                      fontSize:
+                                          MediaQuery.of(context).size.width <
+                                                  400
+                                              ? 14
+                                              : 16,
+                                    ),
                                   ),
                                   actions: [
                                     TextButton(
@@ -1369,7 +1428,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
                                               const SizedBox(height: 16),
 
-                                              // QR Code
+                                              // QR Code for Appointment Details
                                               Container(
                                                 padding:
                                                     const EdgeInsets.all(12),
@@ -1406,8 +1465,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                                                 .grey[300]!),
                                                       ),
                                                       child: QrImageView(
-                                                        data:
-                                                            'APPT:${latest.id}|${patient.firstName} ${patient.lastName}|${latest.service}|${DateFormat('yyyy-MM-dd').format(latest.date)}|${latest.timeSlot}',
+                                                        data: jsonEncode({
+                                                          'type': 'appointment',
+                                                          'id': latest.id,
+                                                          'patientName':
+                                                              '${patient.firstName} ${patient.lastName}',
+                                                          'service':
+                                                              latest.service,
+                                                          'date': DateFormat(
+                                                                  'yyyy-MM-dd')
+                                                              .format(
+                                                                  latest.date),
+                                                          'time':
+                                                              latest.timeSlot,
+                                                          'classification': patient
+                                                                  .classification
+                                                                  .isNotEmpty
+                                                              ? patient
+                                                                  .classification
+                                                              : 'N/A',
+                                                          'email':
+                                                              patient.email,
+                                                          'phone':
+                                                              patient.phone,
+                                                        }),
                                                         version:
                                                             QrVersions.auto,
                                                         size: 100,
@@ -1683,20 +1764,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(15),
           ),
-          title: const Row(
+          title: Row(
             children: [
               Icon(
                 Icons.assignment_outlined,
-                color: Color(0xFF005800),
-                size: 30,
+                color: const Color(0xFF005800),
+                size: MediaQuery.of(context).size.width < 400 ? 24 : 30,
               ),
-              SizedBox(width: 10),
-              Text('Health Assessment Required'),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Health Assessment Required',
+                  style: TextStyle(
+                    fontSize: MediaQuery.of(context).size.width < 400 ? 16 : 18,
+                  ),
+                ),
+              ),
             ],
           ),
-          content: const Text(
+          content: Text(
             'Before booking your first appointment, we need you to complete a quick health assessment. This helps us provide you with the best care possible.',
-            style: TextStyle(fontSize: 16),
+            style: TextStyle(
+              fontSize: MediaQuery.of(context).size.width < 400 ? 14 : 16,
+            ),
           ),
           actions: [
             TextButton(
@@ -2705,6 +2795,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         backgroundColor: const Color(0xFF0029B2),
         elevation: 0,
         automaticallyImplyLeading: false,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
         actions: [
           IconButton(
             onPressed: () async {
@@ -2963,14 +3057,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             ElevatedButton(
               onPressed: () {
+                // Check if patient came from kiosk selection
+                final cameFromKiosk = UserStateManager().cameFromKioskSelection;
+
                 UserStateManager().logoutClient();
+                UserStateManager().resetCameFromKioskSelection();
                 Navigator.of(context).pop();
-                Navigator.of(context).pushAndRemoveUntil(
-                  MaterialPageRoute(
-                    builder: (context) => const WelcomeScreen(),
-                  ),
-                  (Route<dynamic> route) => false,
-                );
+
+                // Navigate based on login source
+                if (cameFromKiosk) {
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(
+                      builder: (context) => const KioskSelectionScreen(),
+                    ),
+                    (Route<dynamic> route) => false,
+                  );
+                } else {
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(
+                      builder: (context) => const WelcomeScreen(),
+                    ),
+                    (Route<dynamic> route) => false,
+                  );
+                }
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.red,

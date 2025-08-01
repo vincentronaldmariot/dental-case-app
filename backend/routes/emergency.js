@@ -38,10 +38,10 @@ router.post('/', verifyPatient, [
 
     const result = await query(`
       INSERT INTO emergency_records (
-        patient_id, emergency_date, emergency_type, priority, description,
-        severity, resolved
-      ) VALUES ($1, CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Manila', $2, $3, $4, $5, false)
-      RETURNING id, emergency_date, status
+        patient_id, reported_at, emergency_type, priority, description,
+        pain_level, status
+      ) VALUES ($1, CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Manila', $2, $3, $4, $5, 'reported')
+      RETURNING id, reported_at, status
     `, [
       patientId, emergencyType, priority, description, painLevel
     ]);
@@ -53,7 +53,7 @@ router.post('/', verifyPatient, [
       emergency: {
         id: emergency.id,
         patientId,
-        emergencyDate: emergency.emergency_date,
+        reportedAt: emergency.reported_at,
         status: emergency.status
       }
     });
@@ -74,9 +74,9 @@ router.get('/', verifyPatient, async (req, res) => {
     const result = await query(`
       SELECT 
         id, 
-        TO_CHAR(emergency_date AT TIME ZONE 'Asia/Manila', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as emergency_date,
+        TO_CHAR(reported_at AT TIME ZONE 'Asia/Manila', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as reported_at,
         emergency_type, priority, status, description,
-        severity, resolved,
+        pain_level, 
         handled_by, resolution, follow_up_required, 
         CASE WHEN resolved_at IS NOT NULL 
           THEN TO_CHAR(resolved_at AT TIME ZONE 'Asia/Manila', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')
@@ -86,20 +86,19 @@ router.get('/', verifyPatient, async (req, res) => {
         TO_CHAR(created_at AT TIME ZONE 'Asia/Manila', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') as created_at
       FROM emergency_records 
       WHERE patient_id = $1
-      ORDER BY emergency_date DESC
+      ORDER BY reported_at DESC
     `, [patientId]);
 
     res.json({
       emergencyRecords: result.rows.map(record => ({
         id: record.id,
         patientId,
-        emergencyDate: record.emergency_date,
+        reportedAt: record.reported_at,
         emergencyType: record.emergency_type,
         priority: record.priority,
         status: record.status,
         description: record.description,
-        severity: record.severity,
-        resolved: record.resolved,
+        painLevel: record.pain_level,
         handledBy: record.handled_by,
         resolvedAt: record.resolved_at,
         resolution: record.resolution,

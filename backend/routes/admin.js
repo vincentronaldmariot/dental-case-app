@@ -81,8 +81,8 @@ router.get('/emergency-records', verifyAdmin, async (req, res) => {
 
     let queryText = `
       SELECT 
-        er.id, er.patient_id, er.emergency_date, er.emergency_type, 
-        er.description, er.severity, er.resolved, 
+        er.id, er.patient_id, er.reported_at, er.emergency_type, 
+        er.description, er.pain_level, er.resolved, 
         COALESCE(er.status, 'reported') as status,
         COALESCE(er.priority, 'standard') as priority,
         er.handled_by, er.resolution, er.follow_up_required, er.resolved_at,
@@ -99,7 +99,7 @@ router.get('/emergency-records', verifyAdmin, async (req, res) => {
       queryText += ` WHERE COALESCE(er.status, 'reported') != 'resolved'`;
     }
 
-    queryText += ` ORDER BY er.emergency_date DESC LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}`;
+    queryText += ` ORDER BY er.reported_at DESC LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}`;
     queryParams.push(parseInt(limit), parseInt(offset));
 
     const result = await query(queryText, queryParams);
@@ -110,10 +110,10 @@ router.get('/emergency-records', verifyAdmin, async (req, res) => {
       patientName: `${record.first_name || ''} ${record.last_name || ''}`.trim(),
       patientEmail: record.email,
       patientPhone: record.phone,
-      reportedAt: record.emergency_date,
+      reportedAt: record.reported_at,
       emergencyType: record.emergency_type,
       description: record.description,
-      severity: record.severity,
+      painLevel: record.pain_level || 0,
       status: record.status || 'reported',
       priority: record.priority || 'standard',
       handledBy: record.handled_by,
@@ -147,8 +147,8 @@ router.get('/emergency', verifyAdmin, async (req, res) => {
 
     let queryText = `
       SELECT 
-        er.id, er.patient_id, er.emergency_date, er.emergency_type, 
-        er.description, er.severity, er.resolved, 
+        er.id, er.patient_id, er.reported_at, er.emergency_type, 
+        er.description, er.pain_level, er.resolved, 
         COALESCE(er.status, 'reported') as status,
         COALESCE(er.priority, 'standard') as priority,
         er.handled_by, er.resolution, er.follow_up_required, er.resolved_at,
@@ -162,7 +162,7 @@ router.get('/emergency', verifyAdmin, async (req, res) => {
       queryText += ` WHERE COALESCE(er.status, 'reported') != 'resolved'`;
     }
 
-    queryText += ` ORDER BY er.emergency_date DESC`;
+    queryText += ` ORDER BY er.reported_at DESC`;
 
     const result = await query(queryText);
 
@@ -172,10 +172,10 @@ router.get('/emergency', verifyAdmin, async (req, res) => {
       patientName: `${record.first_name || ''} ${record.last_name || ''}`.trim(),
       patientEmail: record.email,
       patientPhone: record.phone,
-      reportedAt: record.emergency_date,
+      reportedAt: record.reported_at,
       emergencyType: record.emergency_type,
       description: record.description,
-      severity: record.severity,
+      painLevel: record.pain_level || 0,
       status: record.status || 'reported',
       priority: record.priority || 'standard',
       handledBy: record.handled_by,

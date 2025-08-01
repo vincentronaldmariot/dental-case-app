@@ -221,4 +221,154 @@ router.put('/admin/:id/status', verifyAdmin, async (req, res) => {
   }
 });
 
+// POST /api/emergency/:id/notify - Send emergency notification with SMS
+router.post('/:id/notify', verifyAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { message } = req.body;
+
+    console.log(`📱 Admin sending emergency notification for emergency ${id}`);
+
+    // Get emergency record
+    const emergencyResult = await query(`
+      SELECT 
+        er.id, 
+        er.patient_id, 
+        er.emergency_type, 
+        er.status,
+        er.description,
+        er.notes,
+        p.first_name,
+        p.last_name,
+        p.phone
+      FROM emergency_records er
+      LEFT JOIN patients p ON er.patient_id = p.id
+      WHERE er.id = $1
+    `, [id]);
+
+    if (emergencyResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Emergency record not found' });
+    }
+
+    const emergency = emergencyResult.rows[0];
+
+    // Create notification in database
+    const notificationResult = await query(`
+      INSERT INTO notifications (patient_id, title, message, type, created_at)
+      VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
+      RETURNING id, title, message, type, is_read, created_at
+    `, [
+      emergency.patient_id,
+      'Emergency Case Update',
+      `Your emergency dental case (${emergency.emergency_type}) has been ${emergency.status}. ${message ? `Notes: ${message}` : ''}`,
+      'emergency'
+    ]);
+
+    const notification = notificationResult.rows[0];
+
+    // Check if SMS service is configured
+    const smsConfigured = !!(process.env.TWILIO_ACCOUNT_SID && 
+                            process.env.TWILIO_AUTH_TOKEN && 
+                            process.env.TWILIO_PHONE_NUMBER);
+
+    let smsResult = null;
+    if (smsConfigured && emergency.phone) {
+      try {
+        // Import Twilio
+        const twilio = require('twilio');
+        const client = twilio(
+          process.env.TWILIO_ACCOUNT_SID,
+          process.env.TWILIO_AUTH_TOKEN
+        );
+
+        // Format phone number
+        let phone = emergency.phone.replace(/\D/g, '');
+        if (phone.startsWith('0')) {
+          phone = '+63' + phone.substring(1);
+        } else if (phone.startsWith('9') && phone.length === 10) {
+          phone = '+63' + phone;
+        } else if (!phone.startsWith('+')) {
+          phone = '+' + phone;
+        }
+
+        // Send SMS
+        const smsMessage = `Hi ${emergency.first_name}! Your emergency dental case (${emergency.emergency_type}) has been ${emergency.status}. ${message ? `Notes: ${message}` : ''} Reply STOP to unsubscribe.`;
+        
+        const twilioResult = await client.messages.create({
+          body: smsMessage,
+          from: process.env.TWILIO_PHONE_NUMBER,
+          to: phone
+        });
+
+        smsResult = {
+          success: true,
+          messageId: twilioResult.sid,
+          status: twilioResult.status
+        };
+
+        // Update notification with SMS info
+        await query(`
+          UPDATE notifications 
+          SET sms_sent = true, sms_message_id = $1, updated_at = CURRENT_TIMESTAMP
+          WHERE id = $2
+        `, [twilioResult.sid, notification.id]);
+
+        console.log(`✅ SMS sent successfully to ${phone}`);
+      } catch (smsError) {
+        console.error('❌ SMS sending failed:', smsError);
+        smsResult = {
+          success: false,
+          error: smsError.message
+        };
+      }
+    }
+
+    console.log('✅ Emergency notification created successfully');
+    res.json({
+      message: 'Emergency notification sent successfully',
+      notification: {
+        id: notification.id,
+        title: notification.title,
+        message: notification.message,
+        type: notification.type,
+        isRead: notification.is_read,
+        createdAt: notification.created_at
+      },
+      sms: smsResult,
+      smsConfigured: smsConfigured
+    });
+
+  } catch (error) {
+    console.error('❌ Error sending emergency notification:', error);
+    res.status(500).json({
+      error: 'Failed to send emergency notification. Please try again.',
+      details: error.message
+    });
+  }
+});
+
+// GET /api/emergency/sms-status - Get SMS service status
+router.get('/sms-status', verifyAdmin, async (req, res) => {
+  try {
+    const smsStatus = {
+      configured: !!(process.env.TWILIO_ACCOUNT_SID && 
+                    process.env.TWILIO_AUTH_TOKEN && 
+                    process.env.TWILIO_PHONE_NUMBER),
+      accountSid: process.env.TWILIO_ACCOUNT_SID ? 'Set' : 'Not Set',
+      authToken: process.env.TWILIO_AUTH_TOKEN ? 'Set' : 'Not Set',
+      phoneNumber: process.env.TWILIO_PHONE_NUMBER || 'Not Set'
+    };
+    
+    res.json({
+      smsStatus: smsStatus
+    });
+  } catch (error) {
+    console.error('❌ Error getting SMS status:', error);
+    res.status(500).json({
+      error: 'Failed to get SMS status. Please try again.',
+      details: error.message
+    });
+  }
+});
+
 module.exports = router; 

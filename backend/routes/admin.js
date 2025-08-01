@@ -82,7 +82,7 @@ router.get('/emergency-records', verifyAdmin, async (req, res) => {
     let queryText = `
       SELECT 
         er.id, er.patient_id, er.reported_at, er.emergency_type, 
-        er.description, er.pain_level, er.resolved, 
+        er.description, er.pain_level, 
         COALESCE(er.status, 'reported') as status,
         COALESCE(er.priority, 'standard') as priority,
         er.handled_by, er.resolution, er.follow_up_required, er.resolved_at,
@@ -122,7 +122,7 @@ router.get('/emergency-records', verifyAdmin, async (req, res) => {
       resolvedAt: record.resolved_at,
       emergencyContact: record.emergency_contact,
       notes: record.notes,
-      resolved: record.resolved || false,
+      resolved: record.status === 'resolved',
       createdAt: record.created_at
     }));
 
@@ -148,7 +148,7 @@ router.get('/emergency', verifyAdmin, async (req, res) => {
     let queryText = `
       SELECT 
         er.id, er.patient_id, er.reported_at, er.emergency_type, 
-        er.description, er.pain_level, er.resolved, 
+        er.description, er.pain_level, 
         COALESCE(er.status, 'reported') as status,
         COALESCE(er.priority, 'standard') as priority,
         er.handled_by, er.resolution, er.follow_up_required, er.resolved_at,
@@ -184,7 +184,7 @@ router.get('/emergency', verifyAdmin, async (req, res) => {
       resolvedAt: record.resolved_at,
       emergencyContact: record.emergency_contact,
       notes: record.notes,
-      resolved: record.resolved || false,
+      resolved: record.status === 'resolved',
       createdAt: record.created_at
     }));
 

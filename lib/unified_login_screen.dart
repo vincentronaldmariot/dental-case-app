@@ -544,11 +544,14 @@ class _UnifiedLoginScreenState extends State<UnifiedLoginScreen>
                                 const SizedBox(height: 16),
                                 _buildAddressField(),
                                 const SizedBox(height: 16),
-                                _buildSerialNumberField(),
-                                const SizedBox(height: 16),
-                                _buildUnitAssignmentField(),
-                                const SizedBox(height: 16),
                                 _buildClassificationField(),
+                                // Only show Serial Number and Unit Assignment for Military
+                                if (_selectedClassification == 'Military') ...[
+                                  const SizedBox(height: 16),
+                                  _buildSerialNumberField(),
+                                  const SizedBox(height: 16),
+                                  _buildUnitAssignmentField(),
+                                ],
                                 if (_selectedClassification == 'Other') ...[
                                   const SizedBox(height: 16),
                                   _buildOtherClassificationField(),
@@ -1013,6 +1016,24 @@ class _UnifiedLoginScreenState extends State<UnifiedLoginScreen>
         onChanged: (String? newValue) {
           setState(() {
             _selectedClassification = newValue!;
+
+            // Clear fields based on classification selection
+            if (_selectedClassification == 'Other') {
+              _serialNumberController.clear();
+              _unitAssignmentController.clear();
+            } else if (_selectedClassification == 'Department') {
+              _serialNumberController.clear();
+              _unitAssignmentController.clear();
+            } else if (_selectedClassification == 'Civilian Staff') {
+              _serialNumberController.clear();
+              _unitAssignmentController.clear();
+            } else if (_selectedClassification == 'Military') {
+              // Keep military fields, clear other specification
+            } else {
+              // Default case - clear all fields
+              _serialNumberController.clear();
+              _unitAssignmentController.clear();
+            }
           });
         },
         validator: (value) {

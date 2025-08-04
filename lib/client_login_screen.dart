@@ -438,7 +438,8 @@ class _ClientLoginScreenState extends State<ClientLoginScreen>
 
                                 _buildClassificationDropdown(),
 
-                                if (_selectedClassification != 'Other') ...[
+                                // Only show Serial Number and Unit Assignment for Military
+                                if (_selectedClassification == 'Military') ...[
                                   const SizedBox(height: 16),
                                   _buildInputField(
                                     controller: _serialNumberController,
@@ -627,11 +628,27 @@ class _ClientLoginScreenState extends State<ClientLoginScreen>
         onChanged: (value) {
           setState(() {
             _selectedClassification = value ?? 'Military';
-            if (_selectedClassification != 'Other') {
-              _otherClassificationController.clear();
-            } else {
+
+            // Clear fields based on classification selection
+            if (_selectedClassification == 'Other') {
               _serialNumberController.clear();
               _unitAssignmentController.clear();
+            } else if (_selectedClassification == 'Department') {
+              _serialNumberController.clear();
+              _unitAssignmentController.clear();
+              _otherClassificationController.clear();
+            } else if (_selectedClassification == 'Civilian Staff') {
+              _serialNumberController.clear();
+              _unitAssignmentController.clear();
+              _otherClassificationController.clear();
+            } else if (_selectedClassification == 'Military') {
+              // Keep military fields, clear other specification
+              _otherClassificationController.clear();
+            } else {
+              // Default case - clear all fields
+              _serialNumberController.clear();
+              _unitAssignmentController.clear();
+              _otherClassificationController.clear();
             }
           });
         },

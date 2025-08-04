@@ -2752,6 +2752,7 @@ router.post('/emergencies/:id/notify', verifyAdmin, async (req, res) => {
 });
 
 // GET /api/admin/sms-status - Get SMS service status
+// Updated: 2024-08-04 - SMS status route for Twilio configuration check
 router.get('/sms-status', verifyAdmin, async (req, res) => {
   try {
     // Check if Twilio environment variables are set

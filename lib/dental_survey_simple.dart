@@ -388,28 +388,27 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
                       ),
                       const SizedBox(height: 12),
 
-                      _buildInputField(
-                        controller: _serialNumberController,
-                        labelText: 'SERIAL NUMBER:',
-                        enabled: !widget.readOnly,
-                        validator: (value) =>
-                            _selectedClassification != 'Other' &&
-                                    (value?.isEmpty ?? true)
-                                ? 'Serial number is required'
-                                : null,
-                      ),
-                      const SizedBox(height: 12),
-
-                      _buildInputField(
-                        controller: _unitAssignmentController,
-                        labelText: 'UNIT ASSIGNMENT:',
-                        enabled: !widget.readOnly,
-                        validator: (value) =>
-                            _selectedClassification != 'Other' &&
-                                    (value?.isEmpty ?? true)
-                                ? 'Unit assignment is required'
-                                : null,
-                      ),
+                      // Only show Serial Number and Unit Assignment for Military
+                      if (_selectedClassification == 'Military') ...[
+                        _buildInputField(
+                          controller: _serialNumberController,
+                          labelText: 'SERIAL NUMBER:',
+                          enabled: !widget.readOnly,
+                          validator: (value) => (value?.isEmpty ?? true)
+                              ? 'Serial number is required'
+                              : null,
+                        ),
+                        const SizedBox(height: 12),
+                        _buildInputField(
+                          controller: _unitAssignmentController,
+                          labelText: 'UNIT ASSIGNMENT:',
+                          enabled: !widget.readOnly,
+                          validator: (value) => (value?.isEmpty ?? true)
+                              ? 'Unit assignment is required'
+                              : null,
+                        ),
+                        const SizedBox(height: 12),
+                      ],
                       const SizedBox(height: 12),
 
                       _buildInputField(

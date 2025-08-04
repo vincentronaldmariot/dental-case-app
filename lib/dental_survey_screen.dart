@@ -239,28 +239,25 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
                       ),
                       const SizedBox(height: 12),
 
-                      _buildInputField(
-                        controller: _serialNumberController,
-                        labelText: 'SERIAL NUMBER:',
-                        enabled: _selectedClassification != 'Other',
-                        validator: (value) =>
-                            _selectedClassification != 'Other' &&
-                                    (value?.isEmpty ?? true)
-                                ? 'Serial number is required'
-                                : null,
-                      ),
-                      const SizedBox(height: 12),
-
-                      _buildInputField(
-                        controller: _unitAssignmentController,
-                        labelText: 'UNIT ASSIGNMENT:',
-                        enabled: _selectedClassification != 'Other',
-                        validator: (value) =>
-                            _selectedClassification != 'Other' &&
-                                    (value?.isEmpty ?? true)
-                                ? 'Unit assignment is required'
-                                : null,
-                      ),
+                      // Only show Serial Number and Unit Assignment for Military
+                      if (_selectedClassification == 'Military') ...[
+                        _buildInputField(
+                          controller: _serialNumberController,
+                          labelText: 'SERIAL NUMBER:',
+                          validator: (value) => (value?.isEmpty ?? true)
+                              ? 'Serial number is required'
+                              : null,
+                        ),
+                        const SizedBox(height: 12),
+                        _buildInputField(
+                          controller: _unitAssignmentController,
+                          labelText: 'UNIT ASSIGNMENT:',
+                          validator: (value) => (value?.isEmpty ?? true)
+                              ? 'Unit assignment is required'
+                              : null,
+                        ),
+                        const SizedBox(height: 12),
+                      ],
                       const SizedBox(height: 12),
 
                       _buildInputField(
@@ -528,18 +525,30 @@ class _DentalSurveyScreenState extends State<DentalSurveyScreen> {
           setState(() {
             _selectedClassification = value ?? '';
 
-            // If "Other" is selected, clear and disable military-specific fields
+            // Clear fields based on classification selection
             if (_selectedClassification == 'Other') {
               _serialNumberController.clear();
               _unitAssignmentController.clear();
               _departmentTypeController.clear();
             } else if (_selectedClassification == 'Department') {
-              // If "Department" is selected, clear military-specific fields and other specification
+              // Clear military-specific fields and other specification
               _serialNumberController.clear();
               _unitAssignmentController.clear();
               _otherClassificationController.clear();
+            } else if (_selectedClassification == 'Civilian Staff') {
+              // Clear military-specific fields and specification fields
+              _serialNumberController.clear();
+              _unitAssignmentController.clear();
+              _otherClassificationController.clear();
+              _departmentTypeController.clear();
+            } else if (_selectedClassification == 'Military') {
+              // Clear specification fields but keep military fields
+              _otherClassificationController.clear();
+              _departmentTypeController.clear();
             } else {
-              // If not "Other" or "Department", clear the specification fields
+              // Default case - clear all fields
+              _serialNumberController.clear();
+              _unitAssignmentController.clear();
               _otherClassificationController.clear();
               _departmentTypeController.clear();
             }

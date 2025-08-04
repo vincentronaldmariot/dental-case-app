@@ -512,8 +512,8 @@ class _PatientRegistrationWithDBState extends State<PatientRegistrationWithDB> {
         ),
         const SizedBox(height: 16),
 
-        // Military Information (if applicable)
-        if (_selectedClassification != 'Other') ...[
+        // Military Information (only for Military classification)
+        if (_selectedClassification == 'Military') ...[
           _buildSectionTitle('Military Information'),
           const SizedBox(height: 16),
           _buildInputField(

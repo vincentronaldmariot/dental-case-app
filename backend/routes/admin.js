@@ -1160,10 +1160,15 @@ router.post('/appointments/:id/reject', verifyAdmin, [
 router.post('/appointments/:id/approve', verifyAdmin, [
   body('notes').optional().isString().withMessage('Notes must be a string')
 ], async (req, res) => {
+  console.log('🎯 APPOINTMENT APPROVAL ENDPOINT CALLED');
+  console.log('🎯 Appointment ID:', req.params.id);
+  console.log('🎯 Notes:', req.body.notes);
+  
   try {
     // Check validation errors
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.log('❌ Validation errors:', errors.array());
       return res.status(400).json({
         error: 'Validation failed',
         details: errors.array()
@@ -1172,8 +1177,11 @@ router.post('/appointments/:id/approve', verifyAdmin, [
 
     const appointmentId = req.params.id;
     const { notes } = req.body;
+    
+    console.log('🎯 Starting appointment approval process for ID:', appointmentId);
 
     // Get appointment details with patient info
+    console.log('🎯 Fetching appointment details...');
     const appointmentResult = await query(`
       SELECT 
         a.id, a.service, a.appointment_date, a.time_slot, p.first_name, p.last_name, p.email, p.phone
@@ -1182,7 +1190,10 @@ router.post('/appointments/:id/approve', verifyAdmin, [
       WHERE a.id = $1 AND a.status = 'pending'
     `, [appointmentId]);
 
+    console.log('🎯 Appointment query result:', appointmentResult.rows.length, 'rows found');
+
     if (appointmentResult.rows.length === 0) {
+      console.log('❌ Appointment not found or not pending');
       return res.status(404).json({
         error: 'Appointment not found or not pending'
       });

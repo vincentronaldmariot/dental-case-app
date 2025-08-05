@@ -1335,6 +1335,7 @@ router.post('/appointments/:id/approve', verifyAdmin, [
         console.log('📧 Importing email service...');
         // Import email service
         const emailService = require('../services/email_service');
+        console.log('📧 Email service imported successfully');
         
         // Create appointment data for email
         const appointmentData = {
@@ -1342,7 +1343,7 @@ router.post('/appointments/:id/approve', verifyAdmin, [
           service: appointment.service,
           appointment_date: appointment.appointment_date,
           time_slot: appointment.time_slot,
-          patientId: appointment.patient_id
+          patientId: patientId // Use the patientId from the main scope
         };
 
         // Create patient data for email
@@ -1353,8 +1354,13 @@ router.post('/appointments/:id/approve', verifyAdmin, [
           phone: appointment.phone
         };
 
+        console.log('📧 Appointment data for email:', JSON.stringify(appointmentData, null, 2));
+        console.log('📧 Patient data for email:', JSON.stringify(patientData, null, 2));
+
         // Send appointment confirmation email
+        console.log('📧 Calling emailService.sendAppointmentConfirmation...');
         const emailResponse = await emailService.sendAppointmentConfirmation(appointmentData, patientData);
+        console.log('📧 Email response received:', JSON.stringify(emailResponse, null, 2));
         
         emailResult = {
           success: emailResponse.success,
@@ -1385,6 +1391,7 @@ router.post('/appointments/:id/approve', verifyAdmin, [
       }
     } catch (emailError) {
       console.error('❌ Appointment approval email failed:', emailError);
+      console.error('❌ Email error stack:', emailError.stack);
       emailResult = {
         success: false,
         error: emailError.message

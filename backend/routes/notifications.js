@@ -239,4 +239,58 @@ router.get('/:patientId', verifyToken, async (req, res) => {
   }
 });
 
+// POST /api/notifications/test-email - Test email service directly
+router.post('/test-email', [
+  body('to').isEmail().withMessage('Valid email address is required'),
+  body('subject').isString().withMessage('Subject is required'),
+  body('message').isString().withMessage('Message is required')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({
+        error: 'Validation failed',
+        details: errors.array()
+      });
+    }
+
+    const { to, subject, message } = req.body;
+
+    // Import email service directly
+    const emailService = require('../services/email_service');
+    
+    // Check if email service is configured
+    const emailConfigured = !!(process.env.EMAIL_USER && 
+                              process.env.EMAIL_PASS && 
+                              process.env.EMAIL_HOST);
+    
+    if (!emailConfigured) {
+      return res.status(400).json({
+        error: 'Email service not configured',
+        details: {
+          EMAIL_USER: !!process.env.EMAIL_USER,
+          EMAIL_PASS: !!process.env.EMAIL_PASS,
+          EMAIL_HOST: !!process.env.EMAIL_HOST
+        }
+      });
+    }
+
+    // Send test email
+    const emailResponse = await emailService.sendEmail(to, subject, message);
+    
+    res.json({
+      success: emailResponse.success,
+      messageId: emailResponse.messageId,
+      error: emailResponse.error
+    });
+
+  } catch (error) {
+    console.error('Test email error:', error);
+    res.status(500).json({
+      error: 'Failed to send test email',
+      details: error.message
+    });
+  }
+});
+
 module.exports = router; 

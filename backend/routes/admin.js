@@ -1189,6 +1189,7 @@ router.post('/appointments/:id/approve', verifyAdmin, [
     }
 
     const appointment = appointmentResult.rows[0];
+    console.log('🔍 DEBUG: Appointment object retrieved:', JSON.stringify(appointment, null, 2));
 
     // Update appointment status to approved
     await query(`

@@ -6,6 +6,7 @@ const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
 console.log('Starting Dental Case API server...');
+// SMS functionality deployment trigger - Railway will deploy SMS routes
 
 const { testConnection } = require('./config/database');
 

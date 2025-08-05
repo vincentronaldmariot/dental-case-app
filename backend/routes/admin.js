@@ -1257,8 +1257,10 @@ router.post('/appointments/:id/approve', verifyAdmin, [
       // Don't fail the whole request if notification creation fails
     }
 
-    // Send SMS notification for appointment approval
+    // Send SMS and Email notifications for appointment approval
     let smsResult = null;
+    let emailResult = null;
+    
     try {
       // Check if SMS service is configured
       const smsConfigured = !!(process.env.TWILIO_ACCOUNT_SID && 
@@ -1308,6 +1310,72 @@ router.post('/appointments/:id/approve', verifyAdmin, [
       };
     }
 
+    // Send Email notification for appointment approval
+    try {
+      // Check if email service is configured
+      const emailConfigured = !!(process.env.EMAIL_USER && 
+                                process.env.EMAIL_PASS && 
+                                process.env.EMAIL_HOST);
+
+      if (emailConfigured && appointment.email) {
+        // Import email service
+        const emailService = require('../services/email_service');
+        
+        // Create appointment data for email
+        const appointmentData = {
+          id: appointment.id,
+          service: appointment.service,
+          appointment_date: appointment.appointment_date,
+          time_slot: appointment.time_slot,
+          patientId: appointment.patient_id
+        };
+
+        // Create patient data for email
+        const patientData = {
+          first_name: appointment.first_name,
+          last_name: appointment.last_name,
+          email: appointment.email,
+          phone: appointment.phone
+        };
+
+        // Send appointment confirmation email
+        const emailResponse = await emailService.sendAppointmentConfirmation(appointmentData, patientData);
+        
+        emailResult = {
+          success: emailResponse.success,
+          messageId: emailResponse.messageId,
+          error: emailResponse.error
+        };
+
+        if (emailResponse.success) {
+          console.log(`✅ Appointment approval email sent successfully to ${appointment.email}`);
+          
+          // Update notification record with email sent status
+          await query(`
+            UPDATE notifications 
+            SET email_sent = true, email_message_id = $1, updated_at = CURRENT_TIMESTAMP
+            WHERE patient_id = $2 AND type = 'appointment_approved'
+            ORDER BY created_at DESC
+            LIMIT 1
+          `, [emailResponse.messageId, patientId]);
+        } else {
+          console.log(`❌ Appointment approval email failed: ${emailResponse.error}`);
+        }
+      } else {
+        console.log('⚠️ Email service not configured or patient email missing');
+        emailResult = {
+          success: false,
+          error: 'Email service not configured'
+        };
+      }
+    } catch (emailError) {
+      console.error('❌ Appointment approval email failed:', emailError);
+      emailResult = {
+        success: false,
+        error: emailError.message
+      };
+    }
+
     res.json({
       message: 'Appointment approved successfully',
       appointment: {
@@ -1316,7 +1384,8 @@ router.post('/appointments/:id/approve', verifyAdmin, [
         patientName: `${updatedAppointment.first_name} ${updatedAppointment.last_name}`,
         patientEmail: updatedAppointment.email
       },
-      sms: smsResult
+      sms: smsResult,
+      email: emailResult
     });
 
   } catch (error) {

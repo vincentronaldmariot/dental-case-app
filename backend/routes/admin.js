@@ -1309,6 +1309,7 @@ router.post('/appointments/:id/approve', verifyAdmin, [
     }
 
     // Send Email notification for appointment approval
+    console.log('🔍 DEBUG: About to start email notification process');
     let emailResult = null;
     try {
       console.log('📧 Starting email notification process...');
@@ -1384,6 +1385,8 @@ router.post('/appointments/:id/approve', verifyAdmin, [
         error: emailError.message
       };
     }
+
+    console.log('🔍 DEBUG: About to send response with email result:', emailResult);
 
     res.json({
       message: 'Appointment approved successfully',

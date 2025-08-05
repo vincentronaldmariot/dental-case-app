@@ -1210,23 +1210,26 @@ router.post('/appointments/:id/approve', verifyAdmin, [
     `, [appointmentId]);
     const updatedAppointment = updatedAppointmentResult.rows[0];
 
+    // Get patient_id from appointment (needed for notifications)
+    const patientIdResult = await query('SELECT patient_id FROM appointments WHERE id = $1', [appointmentId]);
+    console.log('Patient ID query result:', patientIdResult.rows);
+    
+    if (patientIdResult.rows.length === 0) {
+      console.error('❌ No patient_id found for appointment:', appointmentId);
+      return res.status(404).json({
+        error: 'Patient not found for this appointment'
+      });
+    }
+    
+    const patientId = patientIdResult.rows[0].patient_id;
+    console.log(`Found patient_id: ${patientId}`);
+
     // Create notification record for the patient
     console.log('🔔 Starting approval notification creation...');
     console.log(`Appointment ID: ${appointmentId}`);
     console.log(`Patient Email: ${appointment.email}`);
     
     try {
-      // Get patient_id from appointment
-      const patientIdResult = await query('SELECT patient_id FROM appointments WHERE id = $1', [appointmentId]);
-      console.log('Patient ID query result:', patientIdResult.rows);
-      
-      if (patientIdResult.rows.length === 0) {
-        console.error('❌ No patient_id found for appointment:', appointmentId);
-        return;
-      }
-      
-      const patientId = patientIdResult.rows[0].patient_id;
-      console.log(`Found patient_id: ${patientId}`);
       
       const notificationMessage = `Your appointment for ${appointment.service} on ${new Date(appointment.appointment_date).toLocaleDateString()} at ${appointment.time_slot} has been approved! Please arrive 10 minutes before your scheduled time.`;
       console.log('Notification message:', notificationMessage);

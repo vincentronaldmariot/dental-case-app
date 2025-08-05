@@ -1257,10 +1257,8 @@ router.post('/appointments/:id/approve', verifyAdmin, [
       // Don't fail the whole request if notification creation fails
     }
 
-    // Send SMS and Email notifications for appointment approval
+    // Send SMS notification for appointment approval
     let smsResult = null;
-    let emailResult = null;
-    
     try {
       // Check if SMS service is configured
       const smsConfigured = !!(process.env.TWILIO_ACCOUNT_SID && 
@@ -1311,6 +1309,7 @@ router.post('/appointments/:id/approve', verifyAdmin, [
     }
 
     // Send Email notification for appointment approval
+    let emailResult = null;
     try {
       // Check if email service is configured
       const emailConfigured = !!(process.env.EMAIL_USER && 

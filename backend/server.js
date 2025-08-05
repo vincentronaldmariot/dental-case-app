@@ -7,6 +7,8 @@ require('dotenv').config();
 
 console.log('Starting Dental Case API server...');
 // SMS functionality deployment trigger - Railway will deploy SMS routes
+// Force deployment with SMS functionality for ceasarbudz@gmail.com
+// Twilio credentials are configured - need to deploy SMS routes
 
 const { testConnection } = require('./config/database');
 

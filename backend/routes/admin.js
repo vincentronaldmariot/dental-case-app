@@ -1311,12 +1311,22 @@ router.post('/appointments/:id/approve', verifyAdmin, [
     // Send Email notification for appointment approval
     let emailResult = null;
     try {
+      console.log('📧 Starting email notification process...');
+      console.log('📧 Environment variables check:');
+      console.log('   EMAIL_USER:', process.env.EMAIL_USER ? 'Set' : 'Not set');
+      console.log('   EMAIL_PASS:', process.env.EMAIL_PASS ? 'Set' : 'Not set');
+      console.log('   EMAIL_HOST:', process.env.EMAIL_HOST ? 'Set' : 'Not set');
+      console.log('   Patient email:', appointment.email);
+      
       // Check if email service is configured
       const emailConfigured = !!(process.env.EMAIL_USER && 
                                 process.env.EMAIL_PASS && 
                                 process.env.EMAIL_HOST);
 
+      console.log('📧 Email service configured:', emailConfigured);
+
       if (emailConfigured && appointment.email) {
+        console.log('📧 Importing email service...');
         // Import email service
         const emailService = require('../services/email_service');
         

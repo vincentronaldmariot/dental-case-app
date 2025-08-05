@@ -1272,6 +1272,8 @@ router.post('/appointments/:id/approve', verifyAdmin, [
       // Don't fail the whole request if notification creation fails
     }
 
+    console.log('🔍 DEBUG: Notification creation completed, proceeding to SMS notification...');
+
     // Send SMS notification for appointment approval
     let smsResult = null;
     try {
@@ -1322,6 +1324,8 @@ router.post('/appointments/:id/approve', verifyAdmin, [
         error: smsError.message
       };
     }
+
+    console.log('🔍 DEBUG: SMS notification completed, proceeding to email notification...');
 
     // Send Email notification for appointment approval
     console.log('🔍 DEBUG: About to start email notification process');

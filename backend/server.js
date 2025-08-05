@@ -137,7 +137,7 @@ async function startServer() {
   try {
     console.log('Starting Express server...');
     app.listen(PORT, () => {
-      console.log(`🚀 Dental Case API server running on port ${PORT}`);
+      console.log(`🚀 Dental Case API server running on port ${PORT} (Email notifications enabled)`);
       console.log(`📱 Health check: http://localhost:${PORT}/health`);
       console.log(`🔧 Environment: ${process.env.NODE_ENV || 'development'}`);
     });

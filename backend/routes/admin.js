@@ -1310,6 +1310,7 @@ router.post('/appointments/:id/approve', verifyAdmin, [
 
     // Send Email notification for appointment approval
     console.log('🔍 DEBUG: About to start email notification process');
+    console.log('🔍 DEBUG: Appointment object:', JSON.stringify(appointment, null, 2));
     let emailResult = null;
     try {
       console.log('📧 Starting email notification process...');

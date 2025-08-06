@@ -103,7 +103,7 @@ app.use('/api/surveys', generalLimiter, surveyRoutes);
 app.use('/api/appointments', generalLimiter, appointmentRoutes);
 app.use('/api/emergency', generalLimiter, emergencyRoutes);
 app.use('/api/notifications', generalLimiter, notificationRoutes);
-app.use('/api/email', generalLimiter, emailRoutes);
+app.use('/api/email', generalLimiter, emailRoutes); // Email routes with CORS support
 
 // Apply more permissive rate limiting to admin routes
 app.use('/api/admin', adminLimiter, adminRoutes);

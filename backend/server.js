@@ -5,7 +5,7 @@ const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
-console.log('🚀 Starting Dental Case API server with DEBUG mode...');
+console.log('🚀 Starting Dental Case API server with DEBUG mode - FORCE REDEPLOY...');
 
 const { testConnection } = require('./config/database');
 

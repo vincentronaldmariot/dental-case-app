@@ -1272,60 +1272,7 @@ router.post('/appointments/:id/approve', verifyAdmin, [
       // Don't fail the whole request if notification creation fails
     }
 
-    console.log('🔍 DEBUG: Notification creation completed, proceeding to SMS notification...');
-
-    // Send SMS notification for appointment approval
-    let smsResult = null;
-    try {
-      // Check if SMS service is configured
-      const smsConfigured = !!(process.env.TWILIO_ACCOUNT_SID && 
-                              process.env.TWILIO_AUTH_TOKEN && 
-                              process.env.TWILIO_PHONE_NUMBER);
-
-      if (smsConfigured && appointment.phone) {
-        // Import Twilio
-        const twilio = require('twilio');
-        const client = twilio(
-          process.env.TWILIO_ACCOUNT_SID,
-          process.env.TWILIO_AUTH_TOKEN
-        );
-
-        // Format phone number
-        let phone = appointment.phone.replace(/\D/g, '');
-        if (phone.startsWith('0')) {
-          phone = '+63' + phone.substring(1);
-        } else if (phone.startsWith('9') && phone.length === 10) {
-          phone = '+63' + phone;
-        } else if (!phone.startsWith('+')) {
-          phone = '+' + phone;
-        }
-
-        // Send SMS
-        const smsMessage = `Hi ${appointment.first_name}! Your dental appointment for ${appointment.service} on ${new Date(appointment.appointment_date).toLocaleDateString()} at ${appointment.time_slot} has been APPROVED! Please arrive 10 minutes before your scheduled time. Reply STOP to unsubscribe.`;
-        
-        const twilioResult = await client.messages.create({
-          body: smsMessage,
-          from: process.env.TWILIO_PHONE_NUMBER,
-          to: phone
-        });
-
-        smsResult = {
-          success: true,
-          messageId: twilioResult.sid,
-          status: twilioResult.status
-        };
-
-        console.log(`✅ Appointment approval SMS sent successfully to ${phone}`);
-      }
-    } catch (smsError) {
-      console.error('❌ Appointment approval SMS failed:', smsError);
-      smsResult = {
-        success: false,
-        error: smsError.message
-      };
-    }
-
-    console.log('🔍 DEBUG: SMS notification completed, proceeding to email notification...');
+    console.log('🔍 DEBUG: Notification creation completed, proceeding to email notification...');
 
     // Send Email notification for appointment approval
     console.log('🔍 DEBUG: About to start email notification process');
@@ -1423,7 +1370,6 @@ router.post('/appointments/:id/approve', verifyAdmin, [
         patientName: `${updatedAppointment.first_name} ${updatedAppointment.last_name}`,
         patientEmail: updatedAppointment.email
       },
-      sms: smsResult,
       email: emailResult
     });
 

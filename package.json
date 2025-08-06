@@ -11,7 +11,15 @@
     "axios": "^1.10.0",
     "bcryptjs": "^3.0.2",
     "dotenv": "^17.2.1",
+    "express": "^4.19.0",
+    "express-rate-limit": "^7.0.0",
+    "express-validator": "^7.2.1",
+    "helmet": "^7.0.0",
+    "cors": "^2.8.5",
+    "morgan": "^1.10.0",
+    "nodemailer": "^6.10.1",
     "pg": "^8.16.3",
-    "twilio": "^5.8.0"
+    "twilio": "^5.8.0",
+    "jsonwebtoken": "^9.0.0"
   }
 }

@@ -23,6 +23,7 @@ const emergencyRoutes = require('./routes/emergency');
 const emergencyAdminRoutes = require('./routes/emergency_admin');
 const adminRoutes = require('./routes/admin');
 const notificationRoutes = require('./routes/notifications');
+const emailRoutes = require('./routes/email');
 console.log('Route files imported.');
 
 const app = express();
@@ -102,6 +103,7 @@ app.use('/api/surveys', generalLimiter, surveyRoutes);
 app.use('/api/appointments', generalLimiter, appointmentRoutes);
 app.use('/api/emergency', generalLimiter, emergencyRoutes);
 app.use('/api/notifications', generalLimiter, notificationRoutes);
+app.use('/api/email', generalLimiter, emailRoutes);
 
 // Apply more permissive rate limiting to admin routes
 app.use('/api/admin', adminLimiter, adminRoutes);

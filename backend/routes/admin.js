@@ -1272,7 +1272,7 @@ router.post('/appointments/:id/approve', verifyAdmin, [
       // Don't fail the whole request if notification creation fails
     }
 
-    console.log('🔍 DEBUG: Notification creation completed, proceeding to email notification...');
+    console.log('🔍 DEBUG: Notification creation completed, proceeding to email notification - TIMESTAMP:', Date.now());
 
     // Send Email notification for appointment approval
     console.log('🔍 DEBUG: About to start email notification process');

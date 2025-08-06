@@ -216,6 +216,6 @@ process.on('SIGINT', () => {
   process.exit(0);
 });
 
-// Email notifications enabled - Force redeployment
+// Email notifications enabled - Force redeployment - TEST 2
 console.log('🚀 Starting server with email notification debugging...');
 startServer(); 

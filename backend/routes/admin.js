@@ -1160,7 +1160,7 @@ router.post('/appointments/:id/reject', verifyAdmin, [
 router.post('/appointments/:id/approve', verifyAdmin, [
   body('notes').optional().isString().withMessage('Notes must be a string')
 ], async (req, res) => {
-  console.log('🎯 APPOINTMENT APPROVAL ENDPOINT CALLED');
+  console.log('🎯 APPOINTMENT APPROVAL ENDPOINT CALLED - DEPLOYMENT TEST');
   console.log('🎯 Appointment ID:', req.params.id);
   console.log('🎯 Notes:', req.body.notes);
   
